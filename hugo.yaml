@@ -1,0 +1,115 @@
+baseURL: https://example.org/
+languageCode: en-us
+title: System Design 101
+theme: hextra
+
+enableRobotsTXT: true
+# Parse Git commit
+enableGitInfo: true
+enableEmoji: true
+
+menu:
+  main:
+    - name: Search
+      weight: 1
+      params:
+        type: search
+    - name: Toggle theme
+      weight: 2
+      params:
+        type: toggle
+    - name: GitHub
+      weight: 3
+      url: "https://github.com/link1905/system-design-101"
+      params:
+        icon: github
+    - name: Author
+      weight: 4
+      url: "https://github.com/link1905"
+      params:
+        icon: developer
+
+# services:
+#   googleAnalytics:
+#     ID: G-MEASUREMENT_ID
+
+defaultContentLanguage: en
+languages:
+  en:
+    languageName: English
+    weight: 1
+    title: System Design 101
+    
+markup:
+  highlight:
+    noClasses: false
+  goldmark:
+    renderer:
+      unsafe: true
+
+enableInlineShortcodes: true
+
+params:
+  documentName: "System Design 101"
+  d2RenderURL: http://localhost:8080/render
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    logo:
+      path: images/logo.svg
+      dark: images/logo-dark.svg
+      # width: 40
+      # height: 20
+      link: /docs
+    width: wide
+
+  page:
+    # full (100%), wide (90rem), normal (1280px)
+    width: normal
+
+  theme:
+    # light | dark | system
+    default: light
+    displayToggle: false
+
+  footer:
+    enable: false
+
+  # Display the last modification date
+  displayUpdatedDate: true
+  dateFormat: "January 2, 2006"
+
+  # Search
+  search:
+    enable: true
+    type: flexsearch
+
+    flexsearch:
+      index: content
+      tokenize: forward
+
+  editURL:
+    enable: true
+    base: "https://github.com/link1905/system-design-101/edit/main"
+
+  highlight:
+    copy:
+      enable: true
+      # hover | always
+      display: hover
+
+  comments:
+    enable: false
+    type: giscus
+
+    # https://giscus.app/
+    giscus:
+      repo: link1905/system-design-101
+      repoId: R_kgDOOVgBXw
+      category: Announcements
+      categoryId: DIC_kwDOOVgBX84CpBzM
+      mapping: pathname
+      strict: 0
+      reactionsEnabled: 1
+      inputPosition: bottom
+      lang: en
