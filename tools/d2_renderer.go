@@ -54,7 +54,6 @@ func renderText(content string, options map[string]string) (string, error) {
 	args = append(args, "-")
 
 	fmt.Println("D2 render", args)
-	fmt.Println(content)
 
 	command := exec.Command("d2", args...)
 	command.Stdin = bytes.NewBuffer([]byte(content))

@@ -37,6 +37,10 @@ d2Import: >
           shape: image
           icon: ${icons-path}/server.svg
       }
+      mq {
+          shape: image
+          icon: ${icons-path}/mq.svg
+      }
       none: {
           style.opacity: 0
       }
