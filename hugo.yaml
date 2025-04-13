@@ -11,17 +11,21 @@ enableEmoji: true
 menu:
   main:
     - name: Search
-      weight: 4
+      weight: 1
       params:
         type: search
+    - name: Toggle theme
+      weight: 2
+      params:
+        type: toggle
     - name: GitHub
-      weight: 5
-      url: "https://github.com/imfing/hextra"
+      weight: 3
+      url: "https://github.com/link1905/system-design-101"
       params:
         icon: github
     - name: Author
-      weight: 6
-      url: "https://github.com/imfing/hextra"
+      weight: 4
+      url: "https://github.com/link1905"
       params:
         icon: developer
 
@@ -34,7 +38,7 @@ languages:
   en:
     languageName: English
     weight: 1
-    title: Hextra
+    title: System Design 101
     
 markup:
   highlight:
@@ -42,18 +46,12 @@ markup:
   goldmark:
     renderer:
       unsafe: true
-    extensions:
-      passthrough:
-        delimiters:
-          block: [['\[', '\]'], ['$$', '$$']]
-          inline: [['\(', '\)']]
-        enable: true
 
 enableInlineShortcodes: true
 
 params:
-  description: Modern, responsive, batteries-included Hugo theme for creating beautiful static websites.
-
+  documentName: "System Design 101"
+  d2RenderURL: http://localhost:8080/render
   navbar:
     displayTitle: true
     displayLogo: true
@@ -62,7 +60,7 @@ params:
       dark: images/logo-dark.svg
       # width: 40
       # height: 20
-      # link: /
+      link: /docs
     width: wide
 
   page:
@@ -71,8 +69,8 @@ params:
 
   theme:
     # light | dark | system
-    default: system
-    displayToggle: true
+    default: light
+    displayToggle: false
 
   footer:
     enable: false

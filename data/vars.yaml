@@ -1,0 +1,43 @@
+d2Import: >
+  vars: {
+      icons-path: static/d2-icons
+      colors: {
+          # default
+          d: aliceblue
+          # error
+          e: '#F96E46'
+          t: transparent
+          # indicate 1 2 3
+          i1: '#729B79'
+          i2: '#F9C846'
+          i3: '#545863'
+      }
+  }
+
+  classes: {
+      partition {
+          width: 300
+      }
+      error-conn {
+          style {
+            bold: true
+            font-color: ${colors.e}
+            stroke-dash: 3
+            stroke: ${colors.e}
+          }
+      }
+      dash-conn {
+          style {
+              bold: true
+              stroke-dash: 3
+              stroke: ${colors.i1}
+          }
+      }
+      server {
+          shape: image
+          icon: ${icons-path}/server.svg
+      }
+      none: {
+          style.opacity: 0
+      }
+    }

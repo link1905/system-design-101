@@ -1,4 +1,5 @@
 ---
-date: '2025-04-12T16:24:33+07:00'
-title: ''
+title: Redirecting...
+layout: redirect
+redirect: /docs/
 ---

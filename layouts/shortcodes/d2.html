@@ -1,0 +1,29 @@
+{{- $renderHookName := "d2" }}
+{{- $inner := site.Data.vars.d2Import }}
+{{- $inner = trim (print $inner "\n" .Inner) "\n\r" }}
+{{- $position := .Position }}
+{{/* Build options map dynamically from all attributes */}}
+{{- $options := dict }}
+{{- $width := "600px" }}
+{{/* Process all attributes dynamically */}}
+{{- range $key, $value := .Params }}
+  {{- if eq $key "width" }}
+    {{- $width = $value }}
+  {{- else }}
+    {{- $options = merge $options (dict $key $value) }}
+  {{- end }}
+{{- end }}
+{{/* Create request payload */}}
+{{- $payload := dict "content" $inner "options" $options }}
+{{- $jsonPayload := $payload | jsonify }}
+{{- $apiEndpoint := site.Params.d2RenderURL }}
+{{- $opts := dict "method" "post" "body" $jsonPayload "headers" (dict "Content-Type" "application/json") }}
+{{- with try (resources.GetRemote $apiEndpoint $opts) }}
+  {{- with .Err }}
+    {{- errorf "The %q code block render hook was unable to get the remote diagram. See %s. %s" $renderHookName $position . }}
+  {{- else with .Value }}
+    {{ .Content | safeHTML }}
+  {{- end }}
+{{- else }}
+  {{- errorf "The %q code block render hook was unable to get the remote diagram. See %s" $renderHookName $position }}
+{{- end }}

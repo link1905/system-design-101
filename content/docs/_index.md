@@ -1,4 +1,13 @@
 ---
-date: '2025-04-12T16:24:41+07:00'
-title: 'Docs'
+title: Introduction
+breadcrumbs: false
 ---
+
+Server and client
+
+{{< d2 >}}
+
+s: Server {
+}
+
+{{< /d2 >}}
