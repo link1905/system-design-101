@@ -1,29 +1,29 @@
-{{- $renderHookName := "d2" }}
-{{- $inner := site.Data.vars.d2Import }}
-{{- $inner = trim (print $inner "\n" .Inner) "\n\r" }}
-{{- $position := .Position }}
+{{ $renderHookName := "d2" }}
+{{ $content := site.Data.vars.d2Import }}
+{{ $position := .Position }}
 {{/* Build options map dynamically from all attributes */}}
-{{- $options := dict }}
-{{- $width := "600px" }}
+{{ $options := dict }}
 {{/* Process all attributes dynamically */}}
-{{- range $key, $value := .Params }}
-  {{- if eq $key "width" }}
-    {{- $width = $value }}
-  {{- else }}
-    {{- $options = merge $options (dict $key $value) }}
-  {{- end }}
-{{- end }}
+{{ range $key, $value := .Params }}
+  {{ if eq $key "include" }}
+    {{ $include := $.Page.Store.Get $value }}
+    {{/* Include content from local variable */}}
+    {{ $content = print $content "\n" $include }}
+    {{ continue }}
+  {{ end }}
+  {{ $options = merge $options (dict $key $value) }}
+{{ end }}
+{{/* Append with the nested content */}}
+{{ $content = trim (print $content "\n" .Inner) "\n\r" }}
 {{/* Create request payload */}}
-{{- $payload := dict "content" $inner "options" $options }}
-{{- $jsonPayload := $payload | jsonify }}
-{{- $apiEndpoint := site.Params.d2RenderURL }}
-{{- $opts := dict "method" "post" "body" $jsonPayload "headers" (dict "Content-Type" "application/json") }}
-{{- with try (resources.GetRemote $apiEndpoint $opts) }}
-  {{- with .Err }}
-    {{- errorf "The %q code block render hook was unable to get the remote diagram. See %s. %s" $renderHookName $position . }}
-  {{- else with .Value }}
+{{ $payload := dict "content" $content "options" $options }}
+{{ $jsonPayload := $payload | jsonify }}
+{{ $apiEndpoint := site.Params.d2RenderURL }}
+{{ $opts := dict "method" "post" "body" $jsonPayload "headers" (dict "Content-Type" "application/json") }}
+{{ with try (resources.GetRemote $apiEndpoint $opts) }}
+  {{ with .Err }}
+    {{ errorf "The %q code block render hook was unable to get the remote diagram. See %s. %s %s" $renderHookName $position $payload . }}
+  {{ else with .Value }}
     {{ .Content | safeHTML }}
-  {{- end }}
-{{- else }}
-  {{- errorf "The %q code block render hook was unable to get the remote diagram. See %s" $renderHookName $position }}
-{{- end }}
+  {{ end }}
+{{ end }}

@@ -1,0 +1,7 @@
+{{ $key := .Get 0 }}
+{{ $value := .Inner }}
+{{ if $key }}
+    {{ page.Store.Set $key $value }}
+{{ else }}
+    {{ page.Store.Get $value }}
+{{ end }}

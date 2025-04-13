@@ -1,0 +1,38 @@
+@url = http://localhost:8080/render
+@contentType = image/svg+xml
+
+###
+// Simple diagram with some options
+POST {{url}}
+content-type: {{contentType}}
+
+{
+    "options": {
+        "pad": "0",
+        "sketch": "true"
+    },
+    "content": "Server -> Client"
+}
+
+### 
+// Complex diagram with steps
+POST {{url}}
+content-type: {{contentType}}
+
+{
+    "options": {
+        "animate-interval": "1000"
+    },
+    "content": "steps: { 1: { Approach road }\n2: { Approach road -> Cross road }\n3: { Cross road -> Make you wonder why } }"
+}
+
+
+###
+// Error case: invalid body
+POST {{url}}
+content-type: {{contentType}}
+
+{
+    "options": { },
+    "content": "Server { style.fill: ${missing} }"
+}

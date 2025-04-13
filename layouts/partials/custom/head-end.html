@@ -1,0 +1,21 @@
+{{- if .Param "math" -}}
+    {{- partial "math.html" -}}
+{{- end -}}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Get current page URL as identifier
+  const pageId = window.location.pathname;
+  const storageKey = `scrollPosition-${pageId}`;
+  
+  // Restore position for this specific page
+  const savedPosition = localStorage.getItem(storageKey);
+  if (savedPosition) {
+    window.scrollTo(0, parseInt(savedPosition));
+  }
+  
+  // Save position when navigating away
+  window.addEventListener('beforeunload', () => {
+    localStorage.setItem(storageKey, window.scrollY);
+  });
+}); 
+</script>

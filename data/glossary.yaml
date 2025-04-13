@@ -1,0 +1,48 @@
+mono: Monolith
+ms: Microservice
+vs: Vertical Scaling
+hs: Horizontal Scaling
+ds: Distributed System
+ioc: Inversion of Control
+mq: Message Queue
+msg: Messaging
+health: Health
+hb: Heartbeat
+hc: Health Check
+av: Availability
+ha: High Availability
+spof: Single Point of Failure
+sl: Stateless
+sf: Stateful
+http: HTTP
+http1: HTTP/1.1
+http2: HTTP/2
+tcp: TCP
+spoll: Short Polling
+lpoll: Long Polling
+sse: Server-Sent Events
+wh: Webhook
+lb: Load Balancer
+lb4: Layer 4 Load Balancer
+lb7: Layer 7 Load Balancer
+sd: Service Discovery
+ssl: SSL/TLS
+sslt: SSL Termination
+ws: WebSocket
+webrtc: WebRTC
+hls: HLS
+rpc: RPC
+grpc: gRPC
+json: JSON
+xml: XML
+yaml: YAML
+url: URL
+uri: URI
+gg: Google
+fb: Facebook
+aws: AWS
+sql: SQL
+api: API
+rest: REST
+hate: HATEOAS
+apiv: API Versioning

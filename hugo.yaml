@@ -39,7 +39,7 @@ languages:
     languageName: English
     weight: 1
     title: System Design 101
-    
+
 markup:
   highlight:
     noClasses: false

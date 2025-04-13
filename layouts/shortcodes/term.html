@@ -1,0 +1,4 @@
+{{ $term := .Get 0 }}
+{{ with index site.Data.glossary $term }}
+  <strong>{{ . }}</strong>
+{{ end }}
