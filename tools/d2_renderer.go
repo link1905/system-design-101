@@ -85,7 +85,7 @@ func getPortFromEnv() string {
 }
 
 func main() {
-	http.HandleFunc("POST /render", handleRenderRequest)
+	http.HandleFunc("/render", handleRenderRequest)
 	// Move to use d2 icons
 	wd, _ := os.Getwd()
 	port := getPortFromEnv()

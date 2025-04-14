@@ -205,7 +205,7 @@ Moreover,
 achieving complete autonomy in a microservice environment probably
 leads to **duplication of code**.
 
-However, in large-scale systems developed by hundreds or thousands of people,
+However, in large-scale systems developed by dozens or hundreds of people,
 the monolith approach can create bottlenecks and impede parallel development.
 Briefly, `Microservice` offer significant benefits from the **development perspective**
 rather than runtime factors such as performance or reliability.
@@ -215,7 +215,7 @@ migrating to the microservice model is not a way of improving performance,
 because network calls are not supposed to match the efficiency of native calls.
 
 {{< callout type="info" >}}
-Honestly, I’m not a fan of Microservice, and I know many developers feel the same.
+Honestly, I’m not a big fan of Microservice, and I know many developers feel the same.
 Once data leaves my service and travels over the network,
 it opens the door to a host of unpredictable issues that eat up my time and energy.
 
@@ -244,8 +244,8 @@ we will see it in detail in [a later chapter](Microservice-Decomposition.md).
 
 ### Tight Coupling
 
-A significant challenge in microservice is **tight coupling**,
-where isolated services become overly dependent on one another
+A significant challenge in microservice is tight coupling,
+where isolated services become **overly dependent** on one another
 and behave more like components of a monolithic system.
 
 For example, when a user completes a subscription purchase,
@@ -277,8 +277,8 @@ While **consolidating** services into a single unit might seem like a straightfo
 it risks creating a large, monolithic service — bringing back the very issues we sought to avoid.
 {{< callout type="info" >}}
 You may see it's silly to bolt services back after demarcating them.
-Nowadays, this occurs a lot in many organizations,
-they've expected too much and produced excessively complex systems,
+Nowadays, this occurs a lot in many organizations.
+That's because they've expected too much and produced excessively complex systems,
 or more simply, they don't have enough workforces after downsizing.
 🥺
 {{< /callout >}}

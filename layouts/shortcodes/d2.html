@@ -17,7 +17,7 @@
 {{- $payload := dict "content" $inner "options" $options }}
 {{- $jsonPayload := $payload | jsonify }}
 {{- $apiEndpoint := site.Params.d2RenderURL }}
-{{- $opts := dict "method" "post" "body" $jsonPayload "headers" (dict "Content-Type" "application/json") }}
+{{- $opts := dict "method" "get" "body" $jsonPayload "headers" (dict "Content-Type" "application/json") }}
 {{- with try (resources.GetRemote $apiEndpoint $opts) }}
   {{- with .Err }}
     {{- errorf "The %q code block render hook was unable to get the remote diagram. See %s. %s" $renderHookName $position . }}
