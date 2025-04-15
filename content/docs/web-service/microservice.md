@@ -3,21 +3,21 @@ title: Microservice
 weight: 10
 ---
 
-Let’s begin our journey with a concept that has become ubiquitous in recent years — `Microservice`.
+Let’s begin our journey with a concept that has become ubiquitous in recent years — {{< term ms>}}
 
 ## System Scaling
 
-`Scaling` refers to the process of adjusting a system’s hardware resources. For example:
+Scaling refers to the process of adjusting a system’s hardware resources. For example:
 
 - When the system experiences high traffic, additional resources must be allocated to
   maintain optimal performance.
 - Conversely, if the system is underutilized, reducing resources can help lower costs.
 
-In general, scaling can be categorized into two types: `Vertical Scaling` and `Horizontal Scaling`.
+In general, scaling can be categorized into two types: {{< term vs >}} and {{< term hs >}}.
 
 ### Vertical Scaling
 
-`Vertical Scaling`, also known as `Scaling Up`, involves upgrading a server to improve its performance.
+{{< term vs >}}, also known as `Scaling Up`, involves upgrading a server to improve its performance.
 
 For example:
 
@@ -46,9 +46,9 @@ However, relying on a single server in a large system poses significant challeng
 
 ### Horizontal Scaling
 
-Due to the limitations of `Vertical Scaling`, many opt for `Horizontal Scaling` (aka `Scaling Out`).
+Due to the limitations of {{< term vs >}}, many opt for {{< term hs >}} (aka `Scaling Out`).
 Instead of relying on one server,
-`Horizontal Scaling` builds a system by combining multiple **smaller servers** using fewer resources.
+{{< term hs >}} builds a system by combining multiple **smaller servers** using fewer resources.
 
 For example, consider a system initially built with two servers.
 Scaling in this model means increasing the number of servers rather than enhancing a
@@ -88,7 +88,7 @@ This approach allows for infinite resource scaling by provisioning separate mach
 It also eliminates the risk of `Single point of failure`,
 since if one server fails, others can continue operating.
 
-However, `Horizontal Scaling` comes with its own trade-offs:
+However, {{< term hs >}} comes with its own trade-offs:
 
 - **Increased Complexity**: Managing multiple machines is inherently much more complex than a single one.
 - **Network Problems**: Operating a distributed system requires extensive network communication, which may lead to
@@ -96,7 +96,7 @@ However, `Horizontal Scaling` comes with its own trade-offs:
 
 ### Distributed System
 
-`Horizontal Scaling` is a fundamental principle behind `Distributed System`.
+{{< term hs >}} is a fundamental principle behind {{< term ds >}}.
 Simply put, a distributed system is a set of machines that closely collaborate over a network
 to share resources.
 
@@ -126,11 +126,11 @@ cluster: "Distributed System" {
 {{< /d2 >}}
 
 Keep this concept in mind — a significant portion of this document will focus on the challenges and solutions
-associated with `Distributed System`.
+associated with {{< term ds >}}.
 
 ## Microservice
 
-Now, let's move the main part - `Microservice`.
+Now, let's move the main part - {{< term ms >}}.
 
 ### Monolith Architecture
 
@@ -159,7 +159,7 @@ For instance:
 
 - Teams hesitating to modify shared parts due to the risk of unintended consequences.
 - Even minor changes cause the entire system to be redeployed.
-- `Lock-step Deployment`: One team’s readiness to deploy can be delayed by issues in another team’s code.
+- **Lock-step Deployment**: One team’s readiness to deploy can be delayed by issues in another team’s code.
 
 To overcome these limitations,
 it is essential to minimize inter-team dependencies
@@ -167,7 +167,7 @@ and allow teams to work in parallel with clearly defined responsibilities.
 
 ### Microservice Architecture
 
-`Microservice` is an **architectural pattern** that decomposes a system into smaller,
+{{< term ms >}} is an **architectural pattern** that decomposes a system into smaller,
 independent services—each handling a specific function.
 
 For example, the microservice approach splits the previous system into three
@@ -207,7 +207,7 @@ leads to **duplication of code**.
 
 However, in large-scale systems developed by dozens or hundreds of people,
 the monolith approach can create bottlenecks and impede parallel development.
-Briefly, `Microservice` offer significant benefits from the **development perspective**
+Briefly, {{< term ms >}} offer significant benefits from the **development perspective**
 rather than runtime factors such as performance or reliability.
 
 For example, if a monolithic system is slow under high traffic,
@@ -226,8 +226,8 @@ And worse, I keep getting pulled into questions and problems that aren’t even 
 
 ### Microservice & Horizontal Scaling
 
-A common misconception is that a monolith system must reside on a single server using `Vertical Scaling`,
-while a microservice system always requires horizontal scaling `Horizontal Scaling`.
+A common misconception is that a monolith system must reside on a single server using {{< term vs >}},
+while a microservice system always requires horizontal scaling {{< term hs >}}.
 
 In reality, the development model is separate from operational strategies.
 Both monolithic and microservice systems can be scaled either vertically or horizontally.
@@ -328,7 +328,7 @@ a -> b: "CancelPremium()"
 {{< /d2 >}}
 
 We observe that the `Payment Service` grasps the inner logic of the `Account Service`,
-everytime it needs something,
+every time it needs something,
 it dictates the `Account Service` to accommodate that.
 The services are tightly coupled with each other,
 increasing interdependency and reducing flexibility.
@@ -367,7 +367,7 @@ s2: Adapted System {
         class: server
       }
     }
-    d: Fraud Dectection Service {
+    d: Fraud Detection Service {
       style.stroke-dash: 3
       s: "" {
         class: server
@@ -442,7 +442,9 @@ c: Controller {
   shape: class
   engine: Engine
 }
-c -> e: Send direction to run
+c -> e: Send direction to run {
+  class: bold-text
+}
 {{< /d2 >}}
 
 Using `IoC`, we try to invert the dependency.
@@ -460,17 +462,19 @@ e: Engine {
     controller: Controller
     Drive(): ""
 }
-e <- c: Get direction to run
+e <- c: Get direction to run {
+  class: bold-text
+}
 {{< /d2 >}}
 
 But purely inverting like this is no use,
 the dependency and its problems are still there.
-We'll see an indirect approach to `IoC` called `Messaging`.
+We'll see an indirect approach to `IoC` called {{< term msg >}}.
 
 ### Messaging
 
 The `IoC` principle can be implemented using a [Message Queue (MQ)](Event-Streaming-Platform.md).
-A `Message Queue` is essentially an informative **messages container** with two primary associates:
+A {{< term mq >}} is essentially an informative **messages container** with two primary associates:
 
 - `Publishers` publish messages.
 - `Consumers` consume and process messages.
@@ -550,7 +554,7 @@ system: System {
 }
 {{< /d2 >}}
 
-- [Topology coupling](#topology-coupling): Additional services, such as `Notifcation Service` and `Fraud Detection Service`,
+- [Topology coupling](#topology-coupling): Additional services, such as `Notification Service` and `Fraud Detection Service`,
   can autonomously read messages without requiring any changes from the `Payment Service`.
 
 {{< d2 >}}
@@ -568,7 +572,7 @@ system: System {
     n: Notification Service {
         class: server
     }
-    d: Fraud Dectection Service {
+    d: Fraud Detection Service {
         class: server
     }
     p -> mq
@@ -581,12 +585,12 @@ system: System {
 Nevertheless, we still encounter some dependencies
 
 - Both services depend on the message queue: The dependency is minimized and barely problematic,
-  as the `Message Queue` exposes only basic `Publish()` and `Consume()` interfaces that rarely change.
-- Both the publisher and consumer adhere to the same message schema, which is [](#semantic-coupling).
+  as the {{< term mq >}} exposes only basic `Publish()` and `Consume()` interfaces that rarely change.
+- Both the publisher and consumer adhere to the same message schema, which is [Semantic Coupling](#semantic-coupling).
 
 We've just gone through some types of coupling and made messaging look extremely powerful.
 However, keep in mind that there are more types of couplings,
-e.g., technology dependency, data dependency, flow dependency ([SAGA](Compensating-Protocols.md#saga)), ...
+e.g., technology dependency, data dependency, flow dependency (like [SAGA](Compensating-Protocols.md#saga)), ...
 which may weaken messaging.
 
 Occasionally, messaging may result in an **unnecessary overhead** and outweigh the benefits of decoupling.
@@ -594,7 +598,7 @@ Occasionally, messaging may result in an **unnecessary overhead** and outweigh t
 - The indirect communication model results in **slower performance**,
   making it unsuitable for low-latency workloads.
 - Asynchronous communication can lead
-  to **[temporary inconsistencies](Distributed-Database.md#eventual-consistency-level)**, since changes aren’t immediately
+  to [temporary inconsistencies](Distributed-Database.md#eventual-consistency-level), since changes aren’t immediately
   reflected across services.
 - Debugging may become more challenging, as failures are asynchronous and harder to trace.
 

@@ -1,0 +1,14 @@
+mono: Monolith
+ms: Microservice
+vs: Vertical Scaling
+hs: Horizontal Scaling
+ds: Distributed System
+mq: Message Queue
+msg: Messaging
+health: Health
+hb: Heartbeat
+hc: Health Check
+av: Availability
+spof: Single Point of Failure
+sl: Stateless
+sf: Stateful

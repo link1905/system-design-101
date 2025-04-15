@@ -14,7 +14,16 @@ d2Import: >
       }
   }
 
-  classes: {
+  classes: {      
+      bold-text {
+          style {
+              bold: true
+              font-size: 30
+          }
+      }
+      none: {
+          style.opacity: 0
+      }
       partition {
           width: 300
       }
@@ -41,7 +50,37 @@ d2Import: >
           shape: image
           icon: ${icons-path}/mq.svg
       }
-      none: {
-          style.opacity: 0
+
+      cache {
+          shape: image
+          icon: ${icons-path}/cache.svg
+      }
+      lb {
+          shape: image
+          icon: ${icons-path}/lb.svg
+      }
+      process {
+          shape: image
+          icon: ${icons-path}/process.svg
+      }
+      generic-error {
+          shape: image
+          icon: ${icons-path}/generic-error.svg
+      }
+      db {
+          shape: image
+          icon: ${icons-path}/db.svg
+      }
+      cache {
+          shape: image
+          icon: ${icons-path}/cache.svg
+      }
+      client {
+          shape: image
+          icon: ${icons-path}/client.svg
+      }
+      checker {
+          shape: image
+          icon: ${icons-path}/checker.svg
       }
     }

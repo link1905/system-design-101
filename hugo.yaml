@@ -39,13 +39,19 @@ languages:
     languageName: English
     weight: 1
     title: System Design 101
-    
+
 markup:
   highlight:
     noClasses: false
   goldmark:
     renderer:
       unsafe: true
+    extensions:
+      passthrough:
+        delimiters:
+          block: [['\[', '\]'], ['$$', '$$']]
+          inline: [['\(', '\)']]
+        enable: true
 
 enableInlineShortcodes: true
 
