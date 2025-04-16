@@ -12,3 +12,25 @@ av: Availability
 spof: Single Point of Failure
 sl: Stateless
 sf: Stateful
+http: HTTP
+http1: HTTP/1.1
+http2: HTTP/2
+tcp: TCP
+spoll: Short Polling
+lpoll: Long Polling
+sse: Server-Sent Events
+wh: Webhook
+lb: Load Balancer
+ws: WebSocket
+webrtc: WebRTC
+hls: HLS
+rpc: RPC
+grpc: gRPC
+json: JSON
+xml: XML
+yaml: YAML
+url: URL
+uri: URI
+gg: Google
+fb: Facebook
+aws: AWS

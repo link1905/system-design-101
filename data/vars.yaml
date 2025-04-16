@@ -83,4 +83,16 @@ d2Import: >
           shape: image
           icon: ${icons-path}/checker.svg
       }
+      internet {
+          shape: image
+          icon: ${icons-path}/internet.svg
+      }
+      router {
+          shape: image
+          icon: ${icons-path}/router.svg
+      }
+      file {
+          shape: image
+          icon: ${icons-path}/file.svg
+      }
     }
