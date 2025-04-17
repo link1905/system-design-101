@@ -1,12 +1,10 @@
-@hostname = api.example.com
-@port = 8080
-@host = {{hostname}}:{{port}}
+@url = http://localhost:8080/render
 @contentType = image/svg+xml
 
 ###
 // Simple diagram with some options
-POST http://localhost:8080/render HTTP/1.1
-content-type: image/svg+xml
+POST {{url}}
+content-type: {{contentType}}
 
 {
     "options": {
@@ -18,15 +16,23 @@ content-type: image/svg+xml
 
 ### 
 // Complex diagram with steps
-POST http://localhost:8080/render HTTP/1.1
-content-type: image/svg+xml
+POST {{url}}
+content-type: {{contentType}}
 
 {
     "options": {
-        "bundle": "true",
         "animate-interval": "1000"
     },
     "content": "steps: { 1: { Approach road }\n2: { Approach road -> Cross road }\n3: { Cross road -> Make you wonder why } }"
 }
 
 
+###
+// Error case: invalid body
+POST {{url}}
+content-type: {{contentType}}
+
+{
+    "options": { },
+    "content": "Server { style.fill: ${missing} }"
+}

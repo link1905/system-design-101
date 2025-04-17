@@ -1,3 +1,7 @@
 {{- $inner := trim .Inner "\n\r" }}
-{{ $convert := print "{{< d2 >}}\n" $inner "\n{{< /d2 >}}" }}
+{{ $params := "" }}
+{{ range $key, $value := .Attributes }}
+    {{ $params = print $params $key "=" $value " " }}
+{{ end }}
+{{ $convert := print "{{< d2 " $params ">}}\n" $inner "\n{{< /d2 >}}" }}
 {{ $convert | $.Page.RenderString }}
