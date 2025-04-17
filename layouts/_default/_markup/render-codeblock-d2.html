@@ -1,0 +1,3 @@
+{{- $inner := trim .Inner "\n\r" }}
+{{ $convert := print "{{< d2 >}}\n" $inner "\n{{< /d2 >}}" }}
+{{ $convert | $.Page.RenderString }}

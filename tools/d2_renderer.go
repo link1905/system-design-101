@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
 // RenderRequest defines the structure for render request with options
@@ -19,10 +20,13 @@ type RenderRequest struct {
 func handleRenderRequest(w http.ResponseWriter, r *http.Request) {
 	var requestData RenderRequest
 
+	// Set the content type to SVG
+	w.Header().Set("Content-Type", "image/svg+xml")
 	// Parse JSON body
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&requestData)
 	if err != nil {
+		fmt.Println("Error decoding JSON:", err)
 		http.Error(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
@@ -30,6 +34,7 @@ func handleRenderRequest(w http.ResponseWriter, r *http.Request) {
 
 	output, err := renderText(requestData.Content, requestData.Options)
 	if err != nil {
+		fmt.Println("Error rendering diagram:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -38,8 +43,17 @@ func handleRenderRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderText(content string, options map[string]string) (string, error) {
+	// Use temporary file for bundling the output
+	outputFile, err := os.CreateTemp("", "d2_output_*.svg")
+	if err != nil {
+		return "", fmt.Errorf("Failed to create temporary output file: %w", err)
+	}
+	outputFile.Close()                 // Close the file to ensure it's ready for writing
+	defer os.Remove(outputFile.Name()) // Clean up the temp file after use
+
 	// Start with base command
 	args := []string{}
+
 	// Add all options from the map
 	for key, value := range options {
 		if value == "" {
@@ -51,16 +65,21 @@ func renderText(content string, options map[string]string) (string, error) {
 	}
 
 	// Add output file path (input will come from stdin)
-	args = append(args, "-")
+	args = append(args, "-", outputFile.Name())
 
 	fmt.Println("D2 render", args)
 
 	command := exec.Command("d2", args...)
 	command.Stdin = bytes.NewBuffer([]byte(content))
-
-	output, err := command.Output()
+	var stderr strings.Builder
+	command.Stderr = &stderr
+	err = command.Run()
 	if err != nil {
-		return "", fmt.Errorf("failed to execute d2 command: %w", err)
+		return "", fmt.Errorf("Failed to execute d2 command: %s", stderr.String())
+	}
+	output, err := os.ReadFile(outputFile.Name())
+	if err != nil {
+		return "", fmt.Errorf("Failed to read output file: %w", err)
 	}
 	res := string(output)
 	// fmt.Println("D2 render result", res)
