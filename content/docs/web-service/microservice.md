@@ -24,7 +24,7 @@ For example:
 - If a server lacks memory, additional RAM can be installed.
 - If a server operates slowly, upgrading its CPU can enhance performance.
 
-{{< d2 >}}
+```d2
 direction: right
 server1: Server (1 CPU) {
   class: server
@@ -37,7 +37,7 @@ server2: Scaled Server (3 CPUs) {
   height: 200
 }
 server1 -> server2: "Vertical Scale"
-{{< /d2 >}}
+```
 
 However, relying on a single server in a large system poses significant challenges:
 
@@ -55,7 +55,7 @@ Scaling in this model means increasing the number of servers rather than enhanci
 single server’s resources.
 For example, during a traffic spike, adding a new server (e.g., `Server 3`) can alleviate the load.
 
-{{< d2 >}}
+```d2
 direction: down
 c1: "System" {
     server1: Server 1 {
@@ -82,7 +82,7 @@ c2: "Scaled System" {
     }
 }
 c1 -> c2: Horizontal Scale
-{{< /d2 >}}
+```
 
 This approach allows for infinite resource scaling by provisioning separate machines.
 It also eliminates the risk of `Single point of failure`,
@@ -100,7 +100,7 @@ However, {{< term hs >}} comes with its own trade-offs:
 Simply put, a distributed system is a set of machines that closely collaborate over a network
 to share resources.
 
-{{< d2 >}}
+```d2
 cluster: "Distributed System" {
   grid-rows: 2
   grid-gap: 100
@@ -123,7 +123,7 @@ cluster: "Distributed System" {
     style.animated: true
   }
 }
-{{< /d2 >}}
+```
 
 Keep this concept in mind — a significant portion of this document will focus on the challenges and solutions
 associated with {{< term ds >}}.
@@ -251,7 +251,7 @@ and behave more like components of a monolithic system.
 For example, when a user completes a subscription purchase,
 the `Payment Service` calls the `Account Service` to update the account:
 
-{{< d2 >}}
+```d2
 direction: right
 system: System {
     acc: Account Service {
@@ -262,7 +262,7 @@ system: System {
     }
     p -> acc: 1. Update account subscription
 }
-{{< /d2 >}}
+```
 
 Even though these services reside in separate codebases, they remain **implicitly dependent**.
 Changes to the `Account Service`, such as interfaces or logic,
@@ -299,7 +299,7 @@ Services can be coupled in several aspects, including:
 
 For example, suppose the `Payment Service` initially calls the `Account Service` to update premium accounts:
 
-{{< d2 >}}
+```d2
 direction: right
 a: Payment Service {
     class: server
@@ -308,13 +308,13 @@ b: Account Service {
     class: server
 }
 a -> b: "UpdatePremium()"
-{{< /d2 >}}
+```
 
 Later, if the `Payment Service` also requires functions for upgrading or
 canceling subscription plans,
 the `Account Service` must expose additional functions:
 
-{{< d2 >}}
+```d2
 direction: right
 a: Payment Service {
     class: server
@@ -325,7 +325,7 @@ b: Account Service {
 a -> b: "UpdatePremium()"
 a -> b: "UpgradePremiumPlan()"
 a -> b: "CancelPremium()"
-{{< /d2 >}}
+```
 
 We observe that the `Payment Service` grasps the inner logic of the `Account Service`,
 every time it needs something,
@@ -343,7 +343,7 @@ can impact other services.
 For example, suppose we add a `Notification Service` and a `Fraud Detection Service`,
 and the `Payment Service` is then required to **adapt** to send payment receipts to them:
 
-{{< d2 >}}
+```d2
 direction: right
 s1: System {
     acc: Account Service {
@@ -382,7 +382,7 @@ s2: Adapted System {
     }
 }
 s1 -> s2: Changed to
-{{< /d2 >}}
+```
 
 Likewise, as additional services are added or removed,
 the `Payment Service` is forced to **continuously adapt** to the topology.
@@ -397,7 +397,7 @@ For example, if the `Payment Service` receives a response from the `Account Serv
 it must understand the structure of that response.
 If `Account Service` modifies the structure, it must notify `Payment Service` to prevent errors.
 
-{{< d2 >}}
+```d2
 grid-rows: 1
 horizontal-gap: 100
 direction: right
@@ -414,7 +414,7 @@ b: Account Service {
 }
 a <- r
 r -- b
-{{< /d2 >}}
+```
 
 Services need to agree on a common contract if they want to interact with each other,
 this dependency seems **barely avoidable**.
@@ -432,7 +432,7 @@ Consider a car driving program:
 Typically, the `Controller` might actively invoke the `Engine`.
 In other words, the `Controller` depends on the `Engine`.
 
-{{< d2 >}}
+```d2
 direction: right
 e: Engine {
   shape: class
@@ -445,13 +445,13 @@ c: Controller {
 c -> e: Send direction to run {
   class: bold-text
 }
-{{< /d2 >}}
+```
 
 Using `IoC`, we try to invert the dependency.
 Now, the `Engine` drives the car by requesting the current direction from the `Controller`;
 That means it depends on the `Controller`.
 
-{{< d2 >}}
+```d2
 direction: right
 c: Controller {
     shape: class
@@ -465,7 +465,7 @@ e: Engine {
 e <- c: Get direction to run {
   class: bold-text
 }
-{{< /d2 >}}
+```
 
 But purely inverting like this is no use,
 the dependency and its problems are still there.
@@ -479,7 +479,7 @@ A {{< term mq >}} is essentially an informative **messages container** with two 
 - `Publishers` publish messages.
 - `Consumers` consume and process messages.
 
-{{< d2 >}}
+```d2
 direction: right
 p: Publisher {
   class: server
@@ -492,14 +492,14 @@ c: Consumer {
 }
 p -> m: Publish
 c <- m: Consume
-{{< /d2 >}}
+```
 
 Integrating an MQ into the first coupling example:
 
 - The `Payment Service` can publish account subscription messages to the queue.
 - The `Account Service` can later retrieve these messages to update the associated accounts.
 
-{{< d2 >}}
+```d2
 direction: right
 acc: Account Service {
     class: server
@@ -517,7 +517,7 @@ userId: 123
 p -- msg: "Publish"
 msg -> mq
 acc <- mq: "Consume"
-{{< /d2 >}}
+```
 
 By the `IoC` principle,
 the `Account Service` **actively consumes** and processes messages
@@ -535,7 +535,7 @@ Beneficially, this design moves us away from:
   Like so, even if the `Account Service` fails to process messages,
   the `Payment Service` continues to develop and deliver without disruption.
 
-{{< d2 >}}
+```d2
 direction: right
 system: System {
     acc: Account Service {
@@ -552,12 +552,12 @@ system: System {
     p -> mq: Upgrade Message
     acc <- mq: Consume
 }
-{{< /d2 >}}
+```
 
 - [Topology coupling](#topology-coupling): Additional services, such as `Notification Service` and `Fraud Detection Service`,
   can autonomously read messages without requiring any changes from the `Payment Service`.
 
-{{< d2 >}}
+```d2
 direction: right
 system: System {
     acc: Account Service {
@@ -580,7 +580,7 @@ system: System {
     n <- mq: Consume
     d <- mq: Consume
 }
-{{< /d2 >}}
+```
 
 Nevertheless, we still encounter some dependencies
 

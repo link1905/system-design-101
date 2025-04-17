@@ -16,7 +16,7 @@ The concept is simple: clients send a request and receive an associated response
 
 The initial version of {{< term http  >}} establishes a separate {{< term tcp >}} connection for each request.
 
-{{< d2 >}}
+```d2
 shape: sequence_diagram
 c: Client {
     class: client
@@ -40,7 +40,7 @@ c <- s: Response
 c <-> s: Close the connection {
   style.bold: true
 }
-{{< /d2 >}}
+```
 
 Creating a {{< term tcp >}} connection is **resource-intensive**,
 especially when using [SSL](Network-Protection.md#transport-layer-security-tls).
@@ -53,7 +53,7 @@ as numerous connections will be established as a result.
 This behavior is controlled by the [Keep-Alive](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive)
 header, which specifies the connection's lifespan.
 
-{{< d2 >}}
+```d2
 shape: sequence_diagram
 c: Client {
     class: client
@@ -73,7 +73,7 @@ c <-> s: Close the connection after 10 seconds {
   style.bold: true
 }
 
-{{< /d2 >}}
+```
 
 {{< term http  >}} has some potential drawbacks:
 
@@ -95,7 +95,7 @@ This protocol is ideal for **simplifying communication** between the client and 
 To enable **bidirectional** communication with {{< term http  >}},
 a naive approach involves having clients continuously request to the server side to pull new notifications.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c: Client {
@@ -110,7 +110,7 @@ c -> s: Is anything new?
 c <- s: No
 c -> s: Is anything new?
 c <- s: Yes, abc123 has sent you a message
-{{< /d2 >}}
+```
 
 This approach is known as {{< term spoll >}}.
 It is highly inefficient in terms of bandwidth,
@@ -122,7 +122,7 @@ To improve efficiency, the server side should hold requests for a **short durati
 this brief retention significantly reduces the number of unnecessary requests.  
 This pattern is known as {{< term lpoll >}}.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c: Client {
@@ -149,7 +149,7 @@ o -> s: Send message to the client
 c <- s: Respond to the client immediately {
   style.bold: true
 }
-{{< /d2 >}}
+```
 
 {{< term lpoll >}} is a traditional method for real-time notifications from the server side.  
 Since requests originate from the client side, {{< term lpoll >}} is well-suited for:
@@ -163,7 +163,7 @@ Since requests originate from the client side, {{< term lpoll >}} is well-suited
 Connections are short-lived, clients can conveniently switch to any server to crawl data from a shared store.
 For example, the instances of a stateless service share and poll the same store.
 
-{{< d2 >}}
+```d2
 grid-rows: 2
 
 s: Service {
@@ -197,7 +197,7 @@ c.c <- s.i1: Periodically pull {
   style.animated: true
 }
 c.o -> s.i2: 1. Send message to the client
-{{< /d2 >}}
+```
 
 Despite being more efficient than {{< term spoll >}}, {{< term lpoll >}} remains **resource-intensive**,
 often generating many redundant requests before retrieving any actual piece of data.
@@ -211,7 +211,7 @@ This is a more modern technology than {{< term lpoll >}}.
 In short, a {{< term ws >}} server maintains **long-lived connections**,
 allowing both sides to actively exchange messages through these connections.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c: Client {
@@ -223,8 +223,8 @@ s: WebSocket {
 c <-> s: Establish a connection
 s --> c: Server sends message
 c --> s: Client sends message
-c <-> s: "..."
-{{< /d2 >}}
+c <-> s: "...Maintain the connection..."
+```
 
 Basically, {{< term ws >}} offers better performance than {{< term lpoll >}} by exchanging messages only when necessary,
 resulting in lower latency and reduced bandwidth usage.
@@ -239,7 +239,7 @@ Some critical drawbacks of {{< term ws >}} include:
   making others slack;
   although it's better to distribute and share the load among them.
 
-{{< d2 >}}
+```d2
 
 c1: Client 1 {
     class: client
@@ -259,7 +259,7 @@ s: Service {
 c1 -> s.i1: Tied to {
   style.animated: true
 }
-{{< /d2 >}}
+```
 
 ### Stateful Misconception
 
@@ -270,7 +270,7 @@ The communication protocol doesn't represent this property,
 {{< term sf >}} or {{< term sl >}} is actually based on **how we implement** the service.
 Get back to the chat example in the [previous topic](../service-cluster.md#stateful-service),
 we've mentioned it as a stateful service due to keeping users on different servers.
-{{< d2 >}}
+```d2
 direction: right
 c: Clients {
     ca: Client A {
@@ -290,7 +290,7 @@ system: System {
 }
 c.ca <-> system.s1: Connecting
 c.cb <-> system.s2: Connecting
-{{< /d2 >}}
+```
 
 Let's approach from a different angle.
 Instead of sending messages directly between instances,
@@ -299,7 +299,7 @@ Now, it's stateless!
 All instances perform the same;
 it doesn't matter which one a client connects to.
 
-{{< d2 >}}
+```d2
 direction: left
 
 c1: Client 1 {
@@ -327,7 +327,7 @@ c2: Client 2 {
 }
 c1 <- s.i1
 c2 <- s.i2
-{{< /d2 >}}
+```
 
 In fact, people tend to use {{< term ws >}} for **realtime notification**,
 when messages are delivered immediately after their creation.
@@ -341,7 +341,7 @@ As the name suggests, **`Server-Sent Events (SSE)`** is a **half-duplex** protoc
 that means it maintains **long-lived connections** yet
 only allowing data to be sent from the server side.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c: Client {
@@ -350,11 +350,11 @@ c: Client {
 s: SSE Service {
     class: server
 }
-c <-> s: Establishes a connection
-s --> c: Sends message
-s --> c: Sends message
-s --> c: Sends message
-{{< /d2 >}}
+c <-> s: Establish a connection
+s --> c: Send message
+s --> c: Send message
+s --> c: Send message
+```
 
 Behind the scenes, {{< term sse >}} is built on top of the {{< term http  >}} protocol.
 Thus, developing and maintaining an SSE application is simpler than {{< term ws >}},
@@ -429,9 +429,15 @@ when a server may serve multiple types of clients.
 with all data transferred **in order** through this pipeline.
 To enhance, {{< term http2 >}} divides a connection into **independent streams**,
 allowing multiple requests and responses to be sent concurrently.
+For example:
 
-{{< d2 >}}
-http1: "HTTP/1.1" {
+- In the {{< term http1 >}} context, `dog.png` is only downloaded after `index.html` has been fetched.
+
+- In the {{< term http2 >}} context, the requests are sent simultaneously through `Stream 1` and `Stream 2`,
+and the resources can be downloaded together.
+
+```d2
+"HTTP/1.1" {
   shape: sequence_diagram
   c: Client {
     class: client
@@ -452,26 +458,25 @@ http2: "HTTP/2" {
   s: Server {
     class: server
   }
-  c -- s: 1. Establishes a connection with 2 streams {
-    style.stroke-dash: 3
-    style.bold: true
-  }
-  c -- s: Stream 1
-  c -- s: Stream 2
-  c -- s: 2. Loads page {
+  c -- s: 1. Loads page request {
     style.stroke-dash: 3
     style.bold: true
   }
   c --> s: Stream 1: Requests index.html
   c --> s: Stream 2: Requests dog.png
-  c -- s: 3. Responds {
+  c -- s: 2. Response {
     style.stroke-dash: 3
     style.bold: true
   }
   c <-- s: Stream 1: Responds index.html
   c <-- s: Stream 2: Responds dog.png
 }
-{{< /d2 >}}
+```
+
+Behind the scenes, it still uses a single {{< term tcp >}} connection, with each message tagged by a **`Stream ID`**.
+Messages with the same **`Stream ID`** are reassembled together, allowing multiple streams to run in parallel over one connection.
+
+#### Use Cases
 
 Back to {{< term grpc >}}, it's a protocol built on top of {{< term http2 >}} and {{< term rpc >}},
 making it highly efficient for transmitting **parallel requests** simultaneously.
@@ -491,9 +496,9 @@ The client side registers callbacks (usually a {{< term url >}}) with the server
 later invoked to notify responses.
 For example, a client registers an address,
 whenever the server needs to notify the client,
-it will call to `mysite.com/callme`.
+it will request to `mysite.com/callme`.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c: Client {
@@ -508,7 +513,7 @@ s: Webhook server {
 c --> s: 'Register "mysite.com/callme"'
 s --> s: The client has a new notification
 s --> cb: "/callme"
-{{< /d2 >}}
+```
 
 This approach is ideal for tasks with **unpredictable execution time**,
 helping avoid resource waste due to long waits.

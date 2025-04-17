@@ -16,7 +16,7 @@ By default, clients sit behind network routers,
 with their public addresses represented by the router’s address via
 [NAT](https://en.wikipedia.org/wiki/Network_address_translation) and an ephemeral port.
 
-{{< d2 >}}
+```d2
 direction: right
 c: "Client (192.168.1.2)"{
     class: client
@@ -31,12 +31,12 @@ c -> r
 r -> i: "Represented by 1.2.3.4:80" {
     style.bold: true
 }
-{{< /d2 >}}
+```
 
 In theory, if two clients can exchange their public addresses,
 they may establish a direct connection.
 
-{{< d2 >}}
+```d2
 
 grid-columns: 4
 grid-gap: 200
@@ -59,13 +59,13 @@ c2 -> r2
 r1 <-> r2: Communicate {
     style.animated: true
 }
-{{< /d2 >}}
+```
 
 ### STUN Server
 
 `STUN` (Session Traversal Utilities for NAT) is a lightweight service that helps reveal a machine’s public address.
 
-{{< d2 >}}
+```d2
 direction: right
 
 c1: "Client 1 (192.168.1.2)"{
@@ -80,7 +80,7 @@ c1 -> s: What is my address? {
 s -> c1: "1.2.3.4:80" {
     style.bold: true
 }
-{{< /d2 >}}
+```
 
 Why not rely solely on the router’s address?
 Because the nearest router might not be a public-facing one — sometimes it only serves a local network.
@@ -89,7 +89,7 @@ By using a `STUN` server,
 clients can discover their public addresses and attempt to establish direct connections.
 We’ll cover how they exchange these addresses in the next section.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c1: "Client 1"{
@@ -107,7 +107,7 @@ c1 <-> c2: Exchange address {
     style.bold: true
 }
 c1 <-> c2: "Connect"
-{{< /d2 >}}
+```
 
 ### TURN Server
 
@@ -116,7 +116,7 @@ If two clients haven’t communicated before,
 many routers are configured to reject unfamiliar addresses.
 If both clients reject each other, a direct connection becomes impossible.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c1: "Client 1"{
@@ -139,14 +139,14 @@ c2 -> c1: "Connect"
 c1 -> c2: "Reject because 4.5.6.7:90 is strange" {
     class: error-conn
 }
-{{< /d2 >}}
+```
 
 A `TURN` (Traversal Using Relays around NAT) server helps in these cases by acting as a relay server between clients.
 
 For example, `Client 2` connects to a TURN server,
 becoming a recognized destination, and then `Client 1` can send messages through the server.
 
-{{< d2 >}}
+```d2
 
 shape: sequence_diagram
 c1: "Client 1"{
@@ -161,7 +161,7 @@ c2: "Client 2"{
 c2 -> s: Connect
 c1 -> s: "Send message"
 s -> c2: Forward messages fluently as this is a familiar address
-{{< /d2 >}}
+```
 
 ### Interactive Connectivity Establishment (ICE)
 
@@ -199,7 +199,7 @@ Finally, they will exchange their `ICE candidates` through **signaling** — a s
 Once candidates are exchanged, they attempt to connect using the **most efficient path**:
 Local address (if on the same network) → Public address → TURN server (as a last resort).
 
-{{< d2 >}}
+```d2
 shape: sequence_diagram
 
 ca: Client A {
@@ -214,7 +214,7 @@ s -> ca: Convey B candidates
 ca -> s: Send candidates
 s -> cb: Convey A candidates
 ca <-> cb: Connect
-{{< /d2 >}}
+```
 
 ### WebRTC Use Cases
 
@@ -238,7 +238,7 @@ It works through **segmentation**, splitting audio or video into small, independ
 potentially different servers.
 - A **`Master Record`** manages and indexes these segments.
 
-{{< d2 >}}
+```d2
 grid-rows: 2
 m: Master Record {
   grid-rows: 1
@@ -272,7 +272,7 @@ s: Storage {
 m.s1 -> s.s1.s1
 m.s2 -> s.s1.s2
 m.s3 -> s.s2.s3
-{{< /d2 >}}
+```
 
 To play a video, the user first **fetches the master record**.
 When seeking to a specific moment, only the necessary segments are downloaded.

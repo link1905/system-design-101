@@ -15,13 +15,13 @@ Traditionally, we build and run a service as a single **single process**.
 This method might work initially,
 nonetheless, if the machine or process crashes, the service is also down.
 
-{{< d2 >}}
+```d2
 sv-no: Machine {
   Process {
     class: process
   }
 }
-{{< /d2 >}}
+```
 
 Therefore, for resilience,
 we need to deploy the service as a **cluster of multiple instances (processes)**,
@@ -31,7 +31,7 @@ This setup ensures that the service remains operational even if some instances c
 For example, consider running a service cluster of two instances residing in different machines.
 If one instance (or its machine) fails, the other instance still provides the service.
 
-{{< d2 >}}
+```d2
 sv-no: Service {
   m1: Machine 1 {
    Instance 1 {
@@ -44,7 +44,7 @@ sv-no: Service {
    }
   }
 }
-{{< /d2 >}}
+```
 
 From this point onward, when we refer to a **service**,
 we imply a service cluster comprising multiple instances.
@@ -71,7 +71,7 @@ Typically, an instance exposes a health interface reporting its status.
   interacting with a healthy instance.
 - The system can also use this interface to isolate unhealthy instances.
 
-{{< d2 >}}
+```d2
 shape: sequence_diagram
 client: Consumer {
   class: client
@@ -82,7 +82,7 @@ service: Service Instance 1 {
 client -> service: 1. "Check '/health'"
 service -> client: 2. Unhealthy
 client -> service: 3. Cancel request because the instance is unhealthy
-{{< /d2 >}}
+```
 
 #### Heartbeat Mechanism
 
@@ -94,7 +94,7 @@ of instances to filter out the faulty ones.
 For example, a health checker verifies the health status of instances every 5 seconds.
 If an instance is found to be unhealthy, the checker stops forwarding traffic to it.
 
-{{< d2 >}}
+```d2
 direction: right
 s: System {
   s1: Instance 1 (Healthy) {
@@ -120,7 +120,7 @@ client: Consumer {
 client -> s.c: Only access Instance 1 {
     style.bold: true
 }
-{{< /d2 >}}
+```
 
 ### Service Availability
 
@@ -190,7 +190,7 @@ the `Payment Service` cannot complete its task without successfully communicatin
 Therefore, if the `Account Service` is unavailable,
 the `Payment Service` will be also affected.
 
-{{< d2 >}}
+```d2
 direction: right
 a: Payment Service (Unavailable) {
    class: server
@@ -201,13 +201,13 @@ b: Account Service (Unavailable) {
 a -> b {
     class: error-conn
 }
-{{< /d2 >}}
+```
 
 Thus, the final availability of a service is an aggregation from all relevant services.
 
 $Availability = S (self) \times S1 \times S2 \times ... \times Sn$
 
-{{< d2 >}}
+```d2
 direction: down
 S: Service {
   class: server
@@ -225,7 +225,7 @@ S -> S1
 S -> S2
 S -> "..."
 S -> Sn
-{{< /d2 >}}
+```
 
 This interdependency can be a huge issue when the communication between services forms a complex graph.
 Some services will become a {{< term spof >}},
@@ -233,7 +233,7 @@ that means its corruption halts the entire system.
 For example, in this map, if `D` or `E` is unavailable,
 the entire chain stops working unexpectedly.
 
-{{< d2 >}}
+```d2
 direction: right
 a: Service A {
    class: server
@@ -254,7 +254,7 @@ a -> b
 b -> d
 c -> d
 d -> e
-{{< /d2 >}}
+```
 
 #### Availability Decoupling
 
@@ -265,7 +265,7 @@ For example,
 the `Payment Service` becomes unavailable as
 it's afraid that the `Account Service` will its requests.
 
-{{< d2 >}}
+```d2
 direction: right
 a: Payment Service {
    class: server
@@ -274,13 +274,13 @@ b: Account Service {
    class: generic-error
 }
 a -> b
-{{< /d2 >}}
+```
 
 By introducing a {{< term mq >}},
 the `Payment Service` can simply fires messages and **continues working** confidently.
 Its availability is not based on the `Account Service` any longer.
 
-{{< d2 >}}
+```d2
 direction: right
 m: Message Queue {
    class: mq
@@ -293,12 +293,12 @@ b: Account Service {
 }
 a -> m: Publish continuously
 b <- m: Consume
-{{< /d2 >}}
+```
 
 This approach is particularly beneficial in environments with a large number of services. Services do not rely on each other;
 even if some of them fail, the rest continues to function.
 
-{{< d2 >}}
+```d2
 direction: down
 m: Message Queue {
    class: mq
@@ -319,7 +319,7 @@ a <-> m
 b <-> m
 c <-> m
 d <-> m
-{{< /d2 >}}
+```
 
 Actually, we've **shifted** the complex interdependency to the queue.
 Now, the system looks more manageable as the dependencies only end with one connection,
@@ -348,7 +348,7 @@ The specific instance a client connects to doesn't matter because each
 instance has the same logic and data access patterns,
 ensuring a **consistent response**.
 
-{{< d2 >}}
+```d2
 direction: right
 system {
     db: Database {
@@ -370,7 +370,7 @@ system {
     c <- s.s1: Get account data
     c <- s.s2: Get account data
 }
-{{< /d2 >}}
+```
 
 This consistent behavior makes
 scaling a stateless service be a piece of cake,
@@ -389,7 +389,7 @@ Consider a cluster of two instances,
 if `Client A` connects to `Instance 1` and `Client B` connects to `Instance 2`,
 they **cannot** chat with each other because their connections are handled by different instances.
 
-{{< d2 >}}
+```d2
 direction: right
 c: Clients {
     ca: Client A {
@@ -409,7 +409,7 @@ system: System {
 }
 c.ca <-> system.s1: Connecting
 c.cb <-> system.s2: Connecting
-{{< /d2 >}}
+```
 
 #### Scaling Problem
 
@@ -429,7 +429,7 @@ called `Presence Store`.
 When a user connects to the system,
 the respective instance saves a **presence record** in the store.
 
-{{< d2 >}}
+```d2
 grid-columns: 3
 horizontal-gap: 300
 c: Clients {
@@ -437,7 +437,7 @@ c: Clients {
   vertical-gap: 150
   c1: Client 1 (C1) {
     class: [client; bold-text]
-  } 
+  }
   c2: Client 2 (C2) {
     class: [client; bold-text]
   }
@@ -478,7 +478,7 @@ s.s2 -> c.c2: 4. Forward the message to C2 {
 s.s1 <- p.t: 2. Get the server of C2 = I2 {
     class: bold-text
 }
-{{< /d2 >}}
+```
 
 The simplicity of this approach makes it the preferred solution in many solutions.
 
@@ -534,7 +534,7 @@ g1.c2 -> s.s2: '2 %% 2 = 0' {
 {{< /local >}}
 
 {{< d2 include="diagramDecentralized" >}}
-{{< /d2 >}}
+```
 
 Now, with messages containing `user id`,
 instances can quickly specify where to forward them.
@@ -565,7 +565,7 @@ m.m2 -> s.s2: '2 %% 2 = 0' {
   class: bold-text
 }
 
-{{< /d2 >}}
+```
 
 However, this model is more than meets the eye,
 it's extremely challenging to develop and maintain
