@@ -1,7 +1,7 @@
 {{ $key := .Get 0 }}
 {{ $value := .Inner }}
 {{ if $key }}
-    {{ $.Page.Store.Set $key $value }}
+    {{ page.Store.Set $key $value }}
 {{ else }}
-    {{ $.Page.Store.Get $value }}
+    {{ page.Store.Get $value }}
 {{ end }}

@@ -521,19 +521,18 @@ s: Cluster {
     class: server
   }
 }
-
-g1.c1 -> s.s1: '1 %% 2 = 1' {
+g1.c1 -> s.s1: '1 % 2 = 1' {
   class: bold-text
 }
-g1.c3 -> s.s1: '3 %% 2 = 1' {
+g1.c3 -> s.s1: '3 % 2 = 1' {
   class: bold-text
 }
-g1.c2 -> s.s2: '2 %% 2 = 0' {
+g1.c2 -> s.s2: '2 % 2 = 0' {
   class: bold-text
 }
 {{< /local >}}
 
-{{< d2 include="diagramDecentralized" >}}
+```d2 {include="diagramDecentralized"}
 ```
 
 Now, with messages containing `user id`,
@@ -541,7 +540,7 @@ instances can quickly specify where to forward them.
 The cluster is far cleaner without any dependency,
 the final availability is bounded around proprietary instances.
 
-{{< d2 include="diagramDecentralized" >}}
+```d2 {include="diagramDecentralized"}
 m: "" {
   class: none
   horizontal-gap: 300
@@ -558,13 +557,12 @@ m: "" {
     |||
   }
 }
-m.m1 -> s.s1: '1 %% 2 = 1' {
+m.m1 -> s.s1: '1 % 2 = 1' {
   class: bold-text
 }
-m.m2 -> s.s2: '2 %% 2 = 0' {
+m.m2 -> s.s2: '2 % 2 = 0' {
   class: bold-text
 }
-
 ```
 
 However, this model is more than meets the eye,
