@@ -23,6 +23,7 @@ d2Import: >
       }
       none: {
           style.opacity: 0
+          label: ""
       }
       partition {
           width: 300
@@ -94,5 +95,13 @@ d2Import: >
       file {
           shape: image
           icon: ${icons-path}/file.svg
+      }
+      request {
+          shape: image
+          icon: ${icons-path}/request.svg
+      }
+      gw {
+          shape: image
+          icon: ${icons-path}/gw.svg
       }
     }

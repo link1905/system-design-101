@@ -3,12 +3,12 @@ title: Streaming Protocols
 weight: 20
 ---
 We've previously highlighted the most popular protocols in the [previous topic](../).
-While those are versatile and suitable for various use cases, they aren't particularly optimized for streaming media data — large, continuous streams like video or audio. Given the increasing importance of media streaming today, let’s take a quick look at some protocols better suited for this purpose.
+While those are versatile and suitable for various use cases, they aren't particularly optimized for streaming media data — large, continuous streams like video or audio. Given the increasing importance of media streaming today, let’s take a brief look at some protocols better suited for this purpose.
 
 ## WebRTC
 
 {{< term webrtc >}} (Web Real-Time Communication) is a protocol that enables peer-to-peer communication for audio, video, and data.
-The core principle of {{< term webrtc >}} is to connect clients directly, without relying on a central server.
+The core principle of {{< term webrtc >}} is to connect clients directly without relying on a central server.
 
 ### Public Address
 
@@ -165,16 +165,16 @@ s -> c2: Forward messages fluently as this is a familiar address
 
 ### Interactive Connectivity Establishment (ICE)
 
-**`Interactive Connectivity Establishment (ICE)`**
+**Interactive Connectivity Establishment (ICE)**
 is responsible for identifying **potential pathways** for peer-to-peer connections.
 
-Both clients (let’s call them `A` and `B`) gather possible ways to connect. These are called `ICE candidates` and usually include:
+Both clients (let’s call them `A` and `B`) gather possible ways to connect. These are called **ICE candidates** and usually include:
 
 1. The local address
 
-2. A public address obtained via a STUN server
+2. A public address obtained via a **STUN** server
 
-3. TURN candidates for fallback when direct connections fail
+3. **TURN** candidates for fallback when direct connections fail
 
 ```yaml
 ICE A:
@@ -190,7 +190,7 @@ ICE B:
 
 ### Signaling
 
-Finally, they will exchange their `ICE candidates` through **signaling** — a separate mechanism not handled by {{< term webrtc >}} itself.
+Finally, they will exchange their **ICE candidates** through **signaling** — a separate mechanism not handled by {{< term webrtc >}} itself.
 
 - This could be a lightweight {{< term ws >}} server.
 
@@ -210,15 +210,15 @@ cb: Client B {
     class: client
 }
 cb -> s: Send candidates
-s -> ca: Convey B candidates
+s -> ca: Transmit B candidates
 ca -> s: Send candidates
-s -> cb: Convey A candidates
-ca <-> cb: Connect
+s -> cb: Transmit A candidates
+ca <-> cb: Connect by the most efficient way
 ```
 
 ### WebRTC Use Cases
 
-How do clients discover `STUN` and `TURN` servers?
+How do clients discover **STUN** and **TURN** servers?
 Some large services (like {{< term gg >}}) offer public servers, often hardcoded into browsers for seamless user experiences.
 However, it’s possible to deploy custom servers if needed.
 
@@ -236,7 +236,7 @@ It works through **segmentation**, splitting audio or video into small, independ
 
 - These segments are stored independently (typically an [object store](Media-Storage.md#object-storage)),
 potentially different servers.
-- A **`Master Record`** manages and indexes these segments.
+- A **Master Record** (e.g., a {{< term sql >}} row) manages and indexes these segments.
 
 ```d2
 grid-rows: 2
@@ -275,6 +275,6 @@ m.s3 -> s.s2.s3
 ```
 
 To play a video, the user first **fetches the master record**.
-When seeking to a specific moment, only the necessary segments are downloaded.
+When seeking a specific moment, only the necessary segments are downloaded.
 For example, to watch the `11th` second, only `Segment_2.mp4` would be retrieved.
 In fact, to maintain a smooth experience, several sequential segments are usually preloaded in advance.

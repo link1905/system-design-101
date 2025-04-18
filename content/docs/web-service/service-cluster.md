@@ -11,7 +11,7 @@ ensure a reliable system.
 
 ## Cluster
 
-Traditionally, we build and run a service as a single **single process**.
+Traditionally, we build and run a service as a **single process**.
 This method might work initially,
 nonetheless, if the machine or process crashes, the service is also down.
 
@@ -59,13 +59,13 @@ Two key metrics are used to assess this: {{< term health >}} and {{< term av >}}
 {{< term health >}} refers to an **instance**'s ability to perform its intended tasks.
 The instance must determine its health state in one of two options:
 
-- `Heathy` (or `Up`): it's willing to accept and handle requests from users.
-- `Unhealthy` (or `Down`): The instance has encountered a problem (e.g., a disconnect from the database, hardware failure...)
+- **Heathy** (or **Up**): it's willing to accept and handle requests from users.
+- **Unhealthy** (or **Down**): The instance has encountered a problem (e.g., a disconnect from the database, hardware failure...)
   and is no longer serving requests.
 
 #### Health Interface
 
-Typically, an instance exposes a health interface reporting its status.
+Typically, an instance exposes a health interface, reporting its status:
 
 - Consumers (end-users or other services) can perform {{< term hc >}} to confirm they are
   interacting with a healthy instance.
@@ -80,19 +80,21 @@ service: Service Instance 1 {
   class: server
 }
 client -> service: 1. "Check '/health'"
-service -> client: 2. Unhealthy
-client -> service: 3. Cancel request because the instance is unhealthy
+service -> client: 2. Unhealthy {
+  class: error-conn
+}
+client -> service: 3. Cancel the request because the instance is unhealthy
 ```
 
 #### Heartbeat Mechanism
 
 A common technique to isolate unhealthy instances is the {{< term hb >}} mechanism.
-In essence, a health checker (e.g., [Load Balancer](Load-Balancer.md) or
-[DNS](https://en.wikipedia.org/wiki/Domain_Name_System)) **periodically** accesses health interfaces
+In essence, a health checker ([Load Balancer](load-balancer.md) or
+[DNS](https://en.wikipedia.org/wiki/Domain_Name_System)) **periodically** accesses the health interfaces
 of instances to filter out the faulty ones.
 
 For example, a health checker verifies the health status of instances every 5 seconds.
-If an instance is found to be unhealthy, the checker stops forwarding traffic to it.
+If an instance is found to be unhealthy, the checker will stop forwarding traffic to it.
 
 ```d2
 direction: right
@@ -118,7 +120,7 @@ client: Consumer {
   class: client
 }
 client -> s.c: Only access Instance 1 {
-    style.bold: true
+    class: bold-text
 }
 ```
 
@@ -127,13 +129,13 @@ client -> s.c: Only access Instance 1 {
 {{< term av >}} is a critical metric that indicates the accessibility of a service from the **user perspective**.
 A service might be healthy from a technical point of view yet unable to serve clients if it depends on another service that is currently down.
 
-For example, a service depends on another service which is currently down.
+For example, a service depends on another service that is currently down.
 From the technical perspective, the target is the source of problem,
 the service itself is still operational and healthy;
-However, users don't care, they just request and see that the service is unavailable.
+However, users don't care; they just request and see that the service is unavailable.
 
 This metric is essential for outlining [Service Level Agreement (SLA)](https://en.wikipedia.org/wiki/Service-level_agreement).
-Typically, it's calculated by two ways
+Typically, it's calculated in two ways
 
 #### Time-based Availability
 
@@ -142,24 +144,24 @@ typically a year:
 
 $Availability = \frac{Uptime}{Uptime + Downtime}$
 
-For example, a service runs for a year with a **downtime** of approximately `3 days`,
+For example, a service runs for a year with a downtime of approximately `3 days`,
 the availability would be:
 
 $Availability = \frac{362}{362 + 3} \approx 99\\%$
 
-This approach assumes that requests are **equally distributed** over time.
+This approach assumes that requests are equally distributed over time.
 However, it's less sensitive to **short outages**,
 a service may receive much higher traffic than usual within downtimes and
 make the final availability away from the real experience.
 
 #### Request-based Availability
 
-**`Request-based Availability`** suggests calculating availability based on the number of
+**Request-based Availability** suggests calculating availability based on the number of
 **successful requests** compared to the total numbers of requests:
 
 $Availability = \frac{Successful\ requests}{Total\ requests}$
 
-For example, we have a service successfully handles 1000 out of 1010 requests:
+For example, we have a service that successfully handles 1000 out of 1010 requests:
 
 $Availability = \frac{1000}{1010} = 99\\%$
 
@@ -170,25 +172,25 @@ This approach gives a more precise result, but it possibly generates **bias**.
 - During downtime, users tend to retry and make a lot of junk requests,
   making availability much worse.
 
-Thus, **`Request-based Availability`** is rarely used in public-serving services
-and is more suited to internal workloads.
+Thus, **Request-based Availability** is rarely used in public-serving services,
+and more suited to internal workloads.
 
 #### Aggregate Availability
 
 In the [{{< term ms >}}](microservice.md) topic, we've discussed some types of [design-time coupling](microservice.md#loose-coupling)
-negatively affect the development process.
+negatively impact the development process.
 In the operational environment,
 **runtime dependencies** also emerge when services communicate over a network:
 
-- `Location Coupling`: services need to know the address (IP, domain name...) of others.
-- `Availability Coupling`: when a service calls another service,
+- **Location Coupling**: services need to know the address (IP, domain name...) of others.
+- **Availability Coupling**: when a service calls another service,
   its availability will be impacted by that service.
   Let's focus on this critical one!
 
 For instance,
 the `Payment Service` cannot complete its task without successfully communicating with the `Account Service`.
 Therefore, if the `Account Service` is unavailable,
-the `Payment Service` will be also affected.
+the `Payment Service` will also be affected.
 
 ```d2
 direction: right
@@ -262,8 +264,8 @@ We've discussed the role of {{< term msg >}} to decouple a {{< term ms >}} syste
 Helpfully, {{< term msg >}} also means in the runtime environment.
 
 For example,
-the `Payment Service` becomes unavailable as
-it's afraid that the `Account Service` will its requests.
+the `Payment Service` becomes unavailable too as
+it's afraid that the `Account Service` will miss its requests.
 
 ```d2
 direction: right
@@ -277,7 +279,7 @@ a -> b
 ```
 
 By introducing a {{< term mq >}},
-the `Payment Service` can simply fires messages and **continues working** confidently.
+the `Payment Service` can simply fire messages and continue working confidently.
 Its availability is not based on the `Account Service` any longer.
 
 ```d2
@@ -295,8 +297,8 @@ a -> m: Publish continuously
 b <- m: Consume
 ```
 
-This approach is particularly beneficial in environments with a large number of services. Services do not rely on each other;
-even if some of them fail, the rest continues to function.
+This approach is particularly beneficial in environments with numerous services. Services do not rely on each other;
+even if some of them fail, the rest continue to function.
 
 ```d2
 direction: down
@@ -327,14 +329,15 @@ not a harmfully long chain.
 Probably, the {{< term mq >}} becomes a dangerous {{< term spof >}},
 requiring it to be highly available and fault-tolerant.
 
-{{< term av >}} is the key success of an excellent system,
-we will discuss more about it on the [System Scaling](System-Scaling.md) topic.
+{{< term ha >}} is a cornerstone of well-designed systems.
+It ensures that components stay cohesive internally while remaining independent of one another.
+We’ll explore this concept further in the [System Scaling](system-scaling.md) topic.
 
 ## Cluster Types
 
 Basically, service clusters are categorized into two types: {{< term sl >}} and {{< term sf >}}.
 
-- Stateless services only contain logic and not store state between requests.
+- Stateless services only contain logic and do not store state between requests.
 - Stateful services **store state** and make requests relate to each other.
 
 ### Stateless Service
@@ -374,7 +377,7 @@ system {
 
 This consistent behavior makes
 scaling a stateless service be a piece of cake,
-we just simply increase or decrease the number of identical instances.
+we simply increase or decrease the number of identical instances.
 
 ### Stateful Service
 
@@ -387,7 +390,7 @@ A common example of this is a chat application that holds client connections
 (typically using [WebSocket](Communication-Protocols.md#websocket)) for real-time messaging.
 Consider a cluster of two instances,
 if `Client A` connects to `Instance 1` and `Client B` connects to `Instance 2`,
-they **cannot** chat with each other because their connections are handled by different instances.
+they **cannot** chat with each other because different instances handle their connections.
 
 ```d2
 direction: right
@@ -413,11 +416,11 @@ c.cb <-> system.s2: Connecting
 
 #### Scaling Problem
 
-Stateful services are more challenging to scale and generally **recommended to avoid**.
+Stateful services are more challenging to scale and generally **recommended avoiding**.
 Simply increasing the number of instances is insufficient,
 additional strategies are required to manage and **share state** across instances.
 
-Nevertheless, is a stateful service is necessary,
+Nevertheless, if a stateful service is necessary,
 several techniques can be employed to facilitate effective communication between instances.
 
 #### Centralized Communication
@@ -488,7 +491,7 @@ adversely impacting its availability.
 
 #### Decentralized Communication
 
-To maximize availability, the system can eliminate the connection store and **deterministically map** users to instances..
+To maximize availability, the system can eliminate the connection store and **deterministically map** users to instances.
 
 Each instance is responsible for a specific group of users;
 When a user connects to the system, it will be assigned to the owner instance.

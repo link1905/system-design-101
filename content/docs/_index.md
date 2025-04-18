@@ -35,7 +35,7 @@ They are the pillars we always aim for in the topics.
    Complex designs are costlier to develop and maintain. Strive for an **effective yet simple** design, avoiding unnecessary sophistication.
 
 **3. System design is an evolving process.**  
-   Build systems based on **current requirements**, not for hypothetical future needs. As the business evolves, so should the system architecture.
+   Build systems based on **current requirements**, not hypothetical future needs. As the business evolves, so should the system architecture.
 
 ---
 

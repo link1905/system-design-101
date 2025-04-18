@@ -17,7 +17,7 @@ In general, scaling can be categorized into two types: {{< term vs >}} and {{< t
 
 ### Vertical Scaling
 
-{{< term vs >}}, also known as `Scaling Up`, involves upgrading a server to improve its performance.
+{{< term vs >}}, also known as **Scaling Up**, involves upgrading a server to improve its performance.
 
 For example:
 
@@ -46,17 +46,17 @@ However, relying on a single server in a large system poses significant challeng
 
 ### Horizontal Scaling
 
-Due to the limitations of {{< term vs >}}, many opt for {{< term hs >}} (aka `Scaling Out`).
+Due to the limitations of {{< term vs >}}, many opt for {{< term hs >}} (aka **Scaling Out**).
 Instead of relying on one server,
 {{< term hs >}} builds a system by combining multiple **smaller servers** using fewer resources.
 
 For example, consider a system initially built with two servers.
 Scaling in this model means increasing the number of servers rather than enhancing a
 single server’s resources.
-For example, during a traffic spike, adding a new server (e.g., `Server 3`) can alleviate the load.
+For example, during a traffic spike, adding new servers (e.g., `Server 2` and `Server 3`) can alleviate the load.
 
 ```d2
-direction: down
+direction: right
 c1: "System" {
     server1: Server 1 {
         class: server
@@ -85,7 +85,7 @@ c1 -> c2: Horizontal Scale
 ```
 
 This approach allows for infinite resource scaling by provisioning separate machines.
-It also eliminates the risk of `Single point of failure`,
+It also eliminates the risk of {{< term spof >}},
 since if one server fails, others can continue operating.
 
 However, {{< term hs >}} comes with its own trade-offs:
@@ -134,23 +134,27 @@ Now, let's move the main part - {{< term ms >}}.
 
 ### Monolith Architecture
 
-Traditionally, `Monolith Architecture` is the first choice of software engineering.
+Traditionally, **Monolith Architecture** is the first choice of software engineering.
 In this model, all features are implemented within a single codebase and separated as **modules**.
 This approach provides simplicity and rapid initial development due to its centralized nature.
 
 For example, a system with three modules might be structured as follows:
 
-```md
-📁 Project
-├───📁 Account Module
-│ └───📄 Account.class
-├───📁 Payment Module
-│ ├───📄 Request.class
-│ └───📄 Transaction.class
-└───📁 Notification Module
-├───📄 Email.class
-└───📄 PushNotification.class
-```
+{{< filetree/container >}}
+  {{< filetree/folder name="Project" >}}
+    {{< filetree/folder name="Account Module" >}}
+      {{< filetree/file name="Account.class" >}}
+    {{< /filetree/folder >}}
+    {{< filetree/folder name="Payment Module" >}}
+      {{< filetree/file name="Request.class" >}}
+      {{< filetree/file name="Transaction.class" >}}
+    {{< /filetree/folder >}}
+    {{< filetree/folder name="Notification Module" >}}
+      {{< filetree/file name="Email.class" >}}
+      {{< filetree/file name="PushNotification.class" >}}
+    {{< /filetree/folder >}}
+  {{< /filetree/folder >}}
+{{< /filetree/container >}}
 
 However, as the system grows, its flexibility diminishes.
 In large systems maintained by multiple teams,
@@ -174,18 +178,19 @@ For example, the microservice approach splits the previous system into three
 **independent services**
 and assigns them to different teams.
 
-```md
-📁 Account Project
-└───📄 Account.class
-
-📁 Payment Project
-├───📄 Request.class
-└───📄 Transaction.class
-
-📁 Notification Project
-├───📄 Email.class
-└───📄 PushNotification.class
-```
+{{< filetree/container >}}
+  {{< filetree/folder name="Account Module" >}}
+    {{< filetree/file name="Account.class" >}}
+  {{< /filetree/folder >}}
+  {{< filetree/folder name="Payment Module" >}}
+    {{< filetree/file name="Request.class" >}}
+    {{< filetree/file name="Transaction.class" >}}
+  {{< /filetree/folder >}}
+  {{< filetree/folder name="Notification Module" >}}
+    {{< filetree/file name="Email.class" >}}
+    {{< filetree/file name="PushNotification.class" >}}
+  {{< /filetree/folder >}}
+{{< /filetree/container >}}
 
 Ideally, microservices are **isolated** and share no common dependencies.
 This isolation allows teams to manage their services autonomously,
@@ -215,11 +220,11 @@ migrating to the microservice model is not a way of improving performance,
 because network calls are not supposed to match the efficiency of native calls.
 
 {{< callout type="info" >}}
-Honestly, I’m not a big fan of Microservice, and I know many developers feel the same.
+Honestly, I’m not a big fan of **Microservice**, and I know many developers feel the same.
 Once data leaves my service and travels over the network,
 it opens the door to a host of unpredictable issues that eat up my time and energy.
 
-That said, I dislike working with lots of people even more.
+That said, I dislike working with plenty of people even more.
 When something breaks, I often have no idea who to turn to for answers.
 And worse, I keep getting pulled into questions and problems that aren’t even part of my scope.
 {{< /callout >}}
@@ -227,7 +232,7 @@ And worse, I keep getting pulled into questions and problems that aren’t even 
 ### Microservice & Horizontal Scaling
 
 A common misconception is that a monolith system must reside on a single server using {{< term vs >}},
-while a microservice system always requires horizontal scaling {{< term hs >}}.
+while a microservice system always requires {{< term hs >}}.
 
 In reality, the development model is separate from operational strategies.
 Both monolithic and microservice systems can be scaled either vertically or horizontally.
@@ -237,14 +242,14 @@ Both monolithic and microservice systems can be scaled either vertically or hori
 Designing a microservice-based system is a complex challenge.
 Errors in the design process can result in an overly complicated architecture
 that fails to deliver the benefits.
-This problem is overwhelming for an open chapter,
+This concern is overwhelming for an open chapter,
 we will see it in detail in [a later chapter](Microservice-Decomposition.md).
 
 ## Service Decoupling
 
 ### Tight Coupling
 
-A significant challenge in microservice is tight coupling,
+A significant challenge in {{< term ms >}} is tight coupling,
 where isolated services become **overly dependent** on one another
 and behave more like components of a monolithic system.
 
@@ -289,13 +294,13 @@ while ensuring that services remain as independent and loosely coupled as possib
 
 ### Loose Coupling
 
-`Loose Coupling`
-involves **minimizing** dependencies between services so that changes in one service have little or no effect on others.
+**Loose Coupling**
+involves minimizing dependencies between services so that changes in one service have little or no effect on others.
 Services can be coupled in several aspects, including:
 
 #### Temporal Coupling
 
-`Temporal (or Sequential) Coupling` occurs when one service depends on another in a **particular sequence**.
+**Temporal (or Sequential) Coupling** occurs when one service depends on another in a **particular sequence**.
 
 For example, suppose the `Payment Service` initially calls the `Account Service` to update premium accounts:
 
@@ -335,7 +340,7 @@ increasing interdependency and reducing flexibility.
 
 #### Topology Coupling
 
-`Topology Coupling` refers to dependencies that arise from the arrangement
+**Topology Coupling** refers to dependencies that arise from the arrangement
 and interconnection of services.
 When a service is added or removed, the **overall topology** changes and
 can impact other services.
@@ -391,11 +396,11 @@ instead, the responsibility for handling dynamic topology changes should lie wit
 
 #### Semantic Coupling
 
-`Semantic Coupling` occurs when services share the same data structures and semantics.
+**Semantic Coupling** occurs when services share the same data structures and semantics.
 
 For example, if the `Payment Service` receives a response from the `Account Service`,
 it must understand the structure of that response.
-If `Account Service` modifies the structure, it must notify `Payment Service` to prevent errors.
+If the `Account Service` modifies the structure, it must notify the `Payment Service` to prevent errors.
 
 ```d2
 grid-rows: 1
@@ -447,7 +452,7 @@ c -> e: Send direction to run {
 }
 ```
 
-Using `IoC`, we try to invert the dependency.
+Using {{< term ioc >}}, we try to invert the dependency.
 Now, the `Engine` drives the car by requesting the current direction from the `Controller`;
 That means it depends on the `Controller`.
 
@@ -469,15 +474,15 @@ e <- c: Get direction to run {
 
 But purely inverting like this is no use,
 the dependency and its problems are still there.
-We'll see an indirect approach to `IoC` called {{< term msg >}}.
+We'll see an indirect approach to implement {{< term ioc >}} called {{< term msg >}}.
 
 ### Messaging
 
-The `IoC` principle can be implemented using a [Message Queue (MQ)](Event-Streaming-Platform.md).
-A {{< term mq >}} is essentially an informative **messages container** with two primary associates:
+The {{< term ioc >}} principle can be implemented using a [Message Queue (MQ)](Event-Streaming-Platform.md).
+A {{< term mq >}} is essentially an informative **message container** with two primary associates:
 
-- `Publishers` publish messages.
-- `Consumers` consume and process messages.
+- **Publishers** publish messages.
+- **Consumers** consume and process messages.
 
 ```d2
 direction: right
@@ -519,7 +524,7 @@ msg -> mq
 acc <- mq: "Consume"
 ```
 
-By the `IoC` principle,
+By the {{< term ioc >}} principle,
 the `Account Service` **actively consumes** and processes messages
 rather than being directly invoked by another service.
 In other words, its role is inverted,
@@ -530,7 +535,7 @@ from being called to a caller.
 Beneficially, this design moves us away from:
 
 - [Temporal coupling](#temporal-coupling): The `Account Service` exposes only a minimal set of interfaces
-  and adapts to handle a variety of messages instead.
+  and adapts to handle various messages instead.
   Furthermore, the scope of the `Payment Service` is reduced, granting it more flexibility;
   Like so, even if the `Account Service` fails to process messages,
   the `Payment Service` continues to develop and deliver without disruption.
@@ -584,11 +589,11 @@ system: System {
 
 Nevertheless, we still encounter some dependencies
 
-- Both services depend on the message queue: The dependency is minimized and barely problematic,
+- Both services depend on the message queue. The dependency is minimized and barely problematic,
   as the {{< term mq >}} exposes only basic `Publish()` and `Consume()` interfaces that rarely change.
 - Both the publisher and consumer adhere to the same message schema, which is [Semantic Coupling](#semantic-coupling).
 
-We've just gone through some types of coupling and made messaging look extremely powerful.
+We've just gone through some types of coupling and made messaging look mighty.
 However, keep in mind that there are more types of couplings,
 e.g., technology dependency, data dependency, flow dependency (like [SAGA](Compensating-Protocols.md#saga)), ...
 which may weaken messaging.
@@ -600,7 +605,7 @@ Occasionally, messaging may result in an **unnecessary overhead** and outweigh t
 - Asynchronous communication can lead
   to [temporary inconsistencies](Distributed-Database.md#eventual-consistency-level), since changes aren’t immediately
   reflected across services.
-- Debugging may become more challenging, as failures are asynchronous and harder to trace.
+- Debugging may become more challenging as failures are asynchronous and harder to trace.
 
-In summary, while coupling in a microservice architecture can’t be entirely eliminated,
+In summary, while coupling in a microservice architecture can’t be eliminated,
 they can be reduced and managed more effectively through messaging.

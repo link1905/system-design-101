@@ -8,8 +8,9 @@ With so many types available, selecting the right one requires a thorough unders
 
 ## Hypertext Transfer Protocol (HTTP)
 
-**`Hypertext Transfer Protocol (HTTP)`** is built on top of **`Transmission Control Protocol (TCP)`**
+**Hypertext Transfer Protocol (HTTP)** is built on top of **Transmission Control Protocol (TCP)**
 and is widely regarded as the most common solution in many systems.
+
 The concept is simple: clients send a request and receive an associated response immediately.
 
 ### HTTP/1.0
@@ -79,11 +80,11 @@ c <-> s: Close the connection after 10 seconds {
 
 - **Synchronous limitation**: {{< term http  >}} requires waiting for the request to complete,
   which is inefficient for long-running tasks better suited to the **asynchronous manner**.
-- **One-way communication**: Requests always originate from the client,
+- **One-way communication**: Requests always originate from the client side,
   with no mechanism for the server to actively send messages back.
 
-However, the simplicity and lightweight makes it beneficial in many scenarios.
-This protocol is ideal for **simplifying communication** between the client and server, such as in:
+However, the simplicity and lightweight make it beneficial in many scenarios.
+This protocol is ideal for **simplifying communication** between the client and server sides, such as in:
 
 - Client-facing services.
 - Public APIs exposed to external systems.
@@ -154,13 +155,13 @@ c <- s: Respond to the client immediately {
 {{< term lpoll >}} is a traditional method for real-time notifications from the server side.  
 Since requests originate from the client side, {{< term lpoll >}} is well-suited for:
 
-- **Decoupling** the sever from the client side and increasing its availability.
-- **Backpressure-aware clients**,
+- **Decoupling** the server from the client side and increasing its availability.
+- **Back pressure-aware clients**,
   allowing them to control their polling behavior autonomously,
   such as setting delays between polls or specifying the number of messages per poll.
 
 {{< term lpoll >}} is best implemented as a **stateless** service.
-Connections are short-lived, clients can conveniently switch to any server to crawl data from a shared store.
+Connections are short-lived; clients can conveniently switch to any server to crawl data from a shared store.
 For example, the instances of a stateless service share and poll the same store.
 
 ```d2
@@ -221,9 +222,9 @@ s: WebSocket {
     class: server
 }
 c <-> s: Establish a connection
-s --> c: Server sends message
-c --> s: Client sends message
-c <-> s: "...Maintain the connection..."
+s --> c: Server send message
+c --> s: Client send message
+c <-> s: "...More actions on the connection..."
 ```
 
 Basically, {{< term ws >}} offers better performance than {{< term lpoll >}} by exchanging messages only when necessary,
@@ -232,7 +233,7 @@ It's excellent for bidirectional and low-latency communication, e.g., gaming ser
 
 Some critical drawbacks of {{< term ws >}} include:
 
-- **Availability**: the server side depends on the client side and worsen its availability.
+- **Availability**: the server side depends on the client side and worsens its availability.
 - **Resource utilization**: a {{< term ws >}} connection is long-lived and tied to a specific server,
   making it bad for resource utilization.
   For example, a client relentlessly interacts with a fixed server,
@@ -329,15 +330,17 @@ c1 <- s.i1
 c2 <- s.i2
 ```
 
-In fact, people tend to use {{< term ws >}} for **realtime notification**,
+### Use Cases
+
+In fact, people tend to use {{< term ws >}} for **real-time notification**,
 when messages are delivered immediately after their creation.
 An indirect paradigm (e.g., messaging, shared store) is impossible for
-the task as it creates brief delays,
+the task as it creates brief delays;
 a direct and stateful model is mandatory.
 
 ## Server-Sent Events
 
-As the name suggests, **`Server-Sent Events (SSE)`** is a **half-duplex** protocol,
+As the name suggests, **Server-Sent Events (SSE)** is a **half-duplex** protocol,
 that means it maintains **long-lived connections** yet
 only allowing data to be sent from the server side.
 
@@ -367,18 +370,18 @@ e.g., live scores, news websites.
 Similar to {{< term ws >}}, {{< term sse >}} also introduces the same problems about low availability
 and resource balancing.
 
-### Google Remote Procedure Call (gRPC)
+## Google Remote Procedure Call (gRPC)
 
 {{< term grpc >}} is a modern technology developed by `Google`,
 enabling both bidirectional and unidirectional
-communication over **`Remote Procedure Call (RPC)`** and {{< term http2 >}} protocol.
+communication over **Remote Procedure Call (RPC)** and {{< term http2 >}} protocol.
 
-#### Remote Procedure Call (RPC)
+### Remote Procedure Call (RPC)
 
 Normally, to call a {{< term http >}} endpoint,
 the application must interpret various details
 (e.g., URI, headers, parameters) to form a **request string**.
-This method gives flexiliblibility, but it's complex and error-prone.
+This method gives flexibility, but it's complex and error-prone.
 
 ```request
 GET /docs?name=README&team=dev
@@ -387,10 +390,10 @@ GET /docs?name=README&team=dev
 In contrast, {{< term rpc >}} is more structured,
 requiring both the client and server to agree on a **shared contract** representing exposed endpoints.
 This contract is usually built as a shared library,
-making the interaction conveniently like working with local functions.
+making the interaction convenient, like working with local functions.
 
-For example, the `Chat Service` exposes a `Chat` function,
-this exposure is wrapped as a native shared library.
+For example, the `Chat Service` exposes a `Chat` function;
+This exposure is wrapped as a native shared library.
 
 ```C#
 // Exchange schema
@@ -423,7 +426,7 @@ Any change in the contract requires redeployment on both ends.
 Therefore, {{< term grpc >}} is rarely used for public-facing applications,
 when a server may serve multiple types of clients.
 
-#### HTTP/2
+### HTTP/2
 
 {{< term http1 >}} establishes a connection between the server and client,
 with all data transferred **in order** through this pipeline.
@@ -473,10 +476,10 @@ http2: "HTTP/2" {
 }
 ```
 
-Behind the scenes, it still uses a single {{< term tcp >}} connection, with each message tagged by a **`Stream ID`**.
-Messages with the same **`Stream ID`** are reassembled together, allowing multiple streams to run in parallel over one connection.
+Behind the scenes, it still uses a single {{< term tcp >}} connection, with each message tagged by a **Stream ID**.
+Messages with the same **Stream ID** are reassembled together, allowing multiple streams to run in parallel over one connection.
 
-#### Use Cases
+### Use Cases {id="grpc_use_cases"}
 
 Back to {{< term grpc >}}, it's a protocol built on top of {{< term http2 >}} and {{< term rpc >}},
 making it highly efficient for transmitting **parallel requests** simultaneously.
@@ -494,9 +497,9 @@ Its concept is similar to a function pointer in programming.
 
 The client side registers callbacks (usually a {{< term url >}}) with the server,
 later invoked to notify responses.
-For example, a client registers an address,
+For example, if a client registers an address,
 whenever the server needs to notify the client,
-it will request to `mysite.com/callme`.
+it will request to `site.com/callback`.
 
 ```d2
 
@@ -504,21 +507,21 @@ shape: sequence_diagram
 c: Client {
     class: client
 }
-cb: "mysite.com" {
+cb: "site.com" {
   class: server
 }
 s: Webhook server {
     class: server
 }
-c --> s: 'Register "mysite.com/callme"'
+c --> s: 'Register "site.com/callback"'
 s --> s: The client has a new notification
-s --> cb: "/callme"
+s --> cb: "/callback"
 ```
 
 This approach is ideal for tasks with **unpredictable execution time**,
 helping avoid resource waste due to long waits.
 For example, in payment processing,
-when a client makes a payment,
+when a client pays,
 it may pass through multiple banking systems (possibly different countries),
 and that can take a long time to complete.
 
@@ -527,8 +530,15 @@ It's highly efficient for real-time notification by reducing server load,
 as data is sent only when events occur,
 without the need for long-lived connections or polling mechanisms.
 
-Miserably, this is not practical for serving end users,
+### Use Cases {id="webhook_use_cases"}
+
+Miserably, this is impractical for serving end users,
 as they typically don't have a **public address** for the callback purpose.
 
 Furthermore, in this model,
 the server side becomes the originator, and its availability is negatively impacted.
+
+In practice, this protocol is often used to support external services, like **Stripe Payments**,
+where the system interacts with numerous uncontrolled clients.
+In such cases, solutions like a live {{< term ws >}} server or {{< term lpoll >}} would consume significant resources.
+For internal workloads, however, {{< term lpoll >}} is typically preferred, as it helps maintain a more available and resilient system.
