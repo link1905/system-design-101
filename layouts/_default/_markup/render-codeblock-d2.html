@@ -1,9 +1,6 @@
 {{- $inner := trim .Inner "\n\r" }}
 {{ $params := "" }}
 {{ range $key, $value := .Attributes }}
-    {{ if eq $key "include" }}
-        {{ $noop := page.RenderShortcodes }}
-    {{ end }}
     {{ $params = print $params $key "=" $value " " }}
 {{ end }}
 {{ $convert := print "{{< d2 " $params ">}}\n" $inner "\n{{< /d2 >}}" }}

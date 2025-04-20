@@ -6,7 +6,7 @@
 {{/* Process all attributes dynamically */}}
 {{ range $key, $value := .Params }}
   {{ if eq $key "include" }}
-    {{ $include := $.Page.Store.Get $value }}
+    {{ $include := page.Store.Get $value }}
     {{/* Include content from local variable */}}
     {{ $content = print $content "\n" $include }}
     {{ continue }}

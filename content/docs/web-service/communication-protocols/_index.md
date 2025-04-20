@@ -378,13 +378,12 @@ communication over **Remote Procedure Call (RPC)** and {{< term http2 >}} protoc
 
 ### Remote Procedure Call (RPC)
 
-Normally, to call a {{< term http >}} endpoint,
-the application must interpret various details
-(e.g., URI, headers, parameters) to form a **request string**.
-This method gives flexibility, but it's complex and error-prone.
+Normally, to call an {{< term http >}} endpoint,
+an application must handle various details — such as the URI, headers, and parameters — to construct a proper **request string**.
+While this approach offers flexibility, it can also be complex and prone to errors.
 
-```request
-GET /docs?name=README&team=dev
+```http
+GET /docs?name=README&team=dev HTTP/2
 ```
 
 In contrast, {{< term rpc >}} is more structured,
@@ -395,7 +394,7 @@ making the interaction convenient, like working with local functions.
 For example, the `Chat Service` exposes a `Chat` function;
 This exposure is wrapped as a native shared library.
 
-```C#
+```proto
 // Exchange schema
 message ChatRequest {
   string content;  
@@ -507,11 +506,11 @@ shape: sequence_diagram
 c: Client {
     class: client
 }
-cb: "site.com" {
-  class: server
-}
 s: Webhook server {
     class: server
+}
+cb: "site.com" {
+  class: server
 }
 c --> s: 'Register "site.com/callback"'
 s --> s: The client has a new notification

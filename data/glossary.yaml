@@ -1,3 +1,4 @@
+sd: System Design
 mono: Monolith
 ms: Microservice
 vs: Vertical Scaling
@@ -25,7 +26,7 @@ wh: Webhook
 lb: Load Balancer
 lb4: Layer 4 Load Balancer
 lb7: Layer 7 Load Balancer
-sd: Service Discovery
+svd: Service Discovery
 ssl: SSL/TLS
 sslt: SSL Termination
 ws: WebSocket
@@ -36,13 +37,19 @@ grpc: gRPC
 json: JSON
 xml: XML
 yaml: YAML
+html: HTML
 url: URL
 uri: URI
 gg: Google
 fb: Facebook
 aws: AWS
 sql: SQL
+sqld: SQL Database
+nosql: NoSQL
+nosqld: NoSQl Database
+postgres: PostgreSQL
 api: API
+apigw: API Gateway
 rest: REST
 hate: HATEOAS
 apiv: API Versioning

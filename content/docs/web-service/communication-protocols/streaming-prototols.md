@@ -63,7 +63,7 @@ r1 <-> r2: Communicate {
 
 ### STUN Server
 
-`STUN` (Session Traversal Utilities for NAT) is a lightweight service that helps reveal a machine’s public address.
+**STUN** (Session Traversal Utilities for NAT) is a lightweight service that helps reveal a machine’s public address.
 
 ```d2
 direction: right
@@ -85,7 +85,7 @@ s -> c1: "1.2.3.4:80" {
 Why not rely solely on the router’s address?
 Because the nearest router might not be a public-facing one — sometimes it only serves a local network.
 
-By using a `STUN` server,
+By using a **STUN** server,
 clients can discover their public addresses and attempt to establish direct connections.
 We’ll cover how they exchange these addresses in the next section.
 
@@ -111,7 +111,7 @@ c1 <-> c2: "Connect"
 
 ### TURN Server
 
-Sometimes, addresses provided by a STUN server aren’t enough.
+Sometimes, addresses provided by a **STUN** server aren’t enough.
 If two clients haven’t communicated before,
 many routers are configured to reject unfamiliar addresses.
 If both clients reject each other, a direct connection becomes impossible.
@@ -141,9 +141,9 @@ c1 -> c2: "Reject because 4.5.6.7:90 is strange" {
 }
 ```
 
-A `TURN` (Traversal Using Relays around NAT) server helps in these cases by acting as a relay server between clients.
+A **TURN** (Traversal Using Relays around NAT) server helps in these cases by acting as a relay server between clients.
 
-For example, `Client 2` connects to a TURN server,
+For example, `Client 2` connects to a **TURN** server,
 becoming a recognized destination, and then `Client 1` can send messages through the server.
 
 ```d2
@@ -178,14 +178,14 @@ Both clients (let’s call them `A` and `B`) gather possible ways to connect. Th
 
 ```yaml
 ICE A:
-    Local address = 192.168.1.1
-    Public address = 1.2.3.4:80
-    TURN candidates = [3.3.3.3:70, 4.4.4.4:90]
+    Local address: 192.168.1.1
+    Public address: 1.2.3.4:80
+    TURN candidates: [3.3.3.3:70, 4.4.4.4:90]
     
 ICE B:
-    Local address = 192.168.1.1
-    Public address = 4.5.6.7:90
-    TURN candidates = [5.5.5.5:70, 4.4.4.4:90]
+    Local address: 192.168.1.1
+    Public address: 4.5.6.7:90
+    TURN candidates: [5.5.5.5:70, 4.4.4.4:90]
 ```
 
 ### Signaling
@@ -232,7 +232,7 @@ that delivers video and audio content effectively.
 Unlike protocols such as {{< term ws >}}, which depend on a central,
 continuous live server, {{< term hls >}} offers a resilient, distributed system.
 
-It works through **segmentation**, splitting audio or video into small, independent segments, usually a few seconds long.
+It works through **segmentation**, splitting audio or video into small, independent segments (files), usually a few seconds long.
 
 - These segments are stored independently (typically an [object store](Media-Storage.md#object-storage)),
 potentially different servers.

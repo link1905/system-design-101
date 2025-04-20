@@ -535,15 +535,15 @@ g1.c2 -> s.s2: '2 % 2 = 0' {
 }
 {{< /local >}}
 
-```d2 {include="diagramDecentralized"}
-```
+{{< d2 include="diagramDecentralized" >}}
+{{< /d2 >}}
 
 Now, with messages containing `user id`,
 instances can quickly specify where to forward them.
 The cluster is far cleaner without any dependency,
 the final availability is bounded around proprietary instances.
 
-```d2 {include="diagramDecentralized"}
+{{< d2 include="diagramDecentralized" >}}
 m: "" {
   class: none
   horizontal-gap: 300
@@ -566,16 +566,12 @@ m.m1 -> s.s1: '1 % 2 = 1' {
 m.m2 -> s.s2: '2 % 2 = 0' {
   class: bold-text
 }
-```
+{{< /d2 >}}
 
-However, this model is more than meets the eye,
-it's extremely challenging to develop and maintain
+However, this model is more complex than it appears — it’s extremely challenging to develop and maintain.
 
-- How do we keep track of the cluster information across instances
-  without a central store?
-- How to modify and adapt to the varying number of instances?
-- How do we ensure the cluster remains operational if some instances go down?
+- How do we track cluster information consistently across instances without relying on a central store?  
+- How can we adapt to a dynamic number of instances as they scale up or down?  
+- How do we ensure the cluster stays operational when some instances fail?
 
-These questions underscore the complexity of decentralized communication.
-We will explore it in more detail in the [Distributed Database](Distributed-Database.md) topic,
-where a database cluster may be treated as a stateful service.
+These questions highlight the inherent complexity of decentralized communication. We’ll explore these challenges in greater depth in the **Distributed Database** topic, where a database cluster is treated as a stateful service.
