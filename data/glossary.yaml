@@ -46,3 +46,10 @@ api: API
 rest: REST
 hate: HATEOAS
 apiv: API Versioning
+ddb: Distributed Database
+dr: Data Replication
+asyncRep: Asynchronous Replication
+syncRep: Synchronous Replication
+quo: Quorum
+strCons: Strong Consistency
+eveCons: Eventual Consistency
