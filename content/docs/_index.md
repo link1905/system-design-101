@@ -5,10 +5,10 @@ breadcrumbs: false
 
 Have you ever wondered how massive applications are built? Chances are, they don’t rely on a single service or database to handle enormous scale. Instead, a complex ecosystem of systems and "behind-the-scenes magic" works together seamlessly.
 
-In this document, we explore the fundamental building blocks of `System Design`. I assume you’re starting with a clean slate in this field, so I’ll guide you step-by-step—from foundational concepts to more advanced topics:
+In this document, we explore the fundamental building blocks of {{< term sd >}}. I assume you’re starting with a clean slate in this field, so I’ll guide you step-by-step—from foundational concepts to more advanced topics:
 
 **1. [Web Service](web-service/)**  
-   Discover the `Microservice` architecture and best practices for building scalable web services.
+   Discover the {{< term ms >}} architecture and best practices for building scalable web services.
 
 **2. [Data Persistence](data-persistence/)**  
    Learn about the persistence layer, the structure of common data stores, and the challenges of managing distributed storage.
@@ -19,7 +19,7 @@ In this document, we explore the fundamental building blocks of `System Design`.
 **4. [Design Patterns](design-patterns/)**  
    Gain insights into architectural patterns crucial for designing large-scale systems.
 
-Each topic is interconnected but designed to be self-contained, so you can read them independently. If you’re new to `System Design`, I recommend starting at the beginning and progressing gradually through the content.
+Each topic is interconnected but designed to be self-contained, so you can read them independently. If you’re new to {{< term sd >}}, I recommend starting at the beginning and progressing gradually through the content.
 
 ---
 

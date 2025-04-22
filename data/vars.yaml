@@ -14,7 +14,7 @@ d2Import: >
       }
   }
 
-  classes: {      
+  classes: {
       bold-text {
           style {
               bold: true
@@ -103,5 +103,25 @@ d2Import: >
       gw {
           shape: image
           icon: ${icons-path}/gw.svg
+      }
+      msg {
+          shape: image
+          icon: ${icons-path}/msg.svg
+      }
+      batch {
+          shape: image
+          icon: ${icons-path}/batch.svg
+      }
+      hd {
+        shape: image
+        icon: ${icons-path}/hd.svg
+      }
+      se {
+        shape: image
+        icon: ${icons-path}/se.svg
+      }
+      cdn {
+        shape: image
+        icon: ${icons-path}/cdn.svg
       }
     }

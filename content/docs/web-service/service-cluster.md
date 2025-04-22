@@ -89,7 +89,7 @@ client -> service: 3. Cancel the request because the instance is unhealthy
 #### Heartbeat Mechanism
 
 A common technique to isolate unhealthy instances is the {{< term hb >}} mechanism.
-In essence, a health checker ([Load Balancer](load-balancer.md) or
+In essence, a health checker ([Load Balancer]({{< ref "load-balancer" >}}) or
 [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)) **periodically** accesses the health interfaces
 of instances to filter out the faulty ones.
 
@@ -177,7 +177,8 @@ and more suited to internal workloads.
 
 #### Aggregate Availability
 
-In the [{{< term ms >}}](microservice.md) topic, we've discussed some types of [design-time coupling](microservice.md#loose-coupling)
+In the {{< term ms >}} topic,
+we've discussed some types of [design-time coupling]({{< ref "microservice#loose-coupling" >}})
 negatively impact the development process.
 In the operational environment,
 **runtime dependencies** also emerge when services communicate over a network:
@@ -278,13 +279,13 @@ b: Account Service {
 a -> b
 ```
 
-By introducing a {{< term mq >}},
+By introducing {{< term msg >}},
 the `Payment Service` can simply fire messages and continue working confidently.
 Its availability is not based on the `Account Service` any longer.
 
 ```d2
 direction: right
-m: Message Queue {
+m: Message Channel {
    class: mq
 }
 a: Payment Service {
@@ -300,9 +301,35 @@ b <- m: Consume
 This approach is particularly beneficial in environments with numerous services. Services do not rely on each other;
 even if some of them fail, the rest continue to function.
 
+For example, in this diagram,
+the final availability of `Service A` would be: $(SA) = SA (self) \times SB \times SC \times SD$
+
+```d2
+direction: right
+a: Service A {
+   class: server
+}
+b: Service B {
+   class: server
+}
+c: Service C {
+   class: server
+}
+d: Service D {
+   class: server
+}
+a -> b
+a -> c
+b -> d
+c -> d
+```
+
+With {{< term msg >}},
+it becomes $SA = SA (self) \times MessageChannel$
+
 ```d2
 direction: down
-m: Message Queue {
+m: Message Channel {
    class: mq
 }
 a: Service A {
@@ -323,15 +350,14 @@ c <-> m
 d <-> m
 ```
 
-Actually, we've **shifted** the complex interdependency to the queue.
+Actually, we've **shifted** the complex interdependency to the channel.
 Now, the system looks more manageable as the dependencies only end with one connection,
 not a harmfully long chain.
-Probably, the {{< term mq >}} becomes a dangerous {{< term spof >}},
+Probably, the message channel becomes a dangerous {{< term spof >}},
 requiring it to be highly available and fault-tolerant.
 
 {{< term ha >}} is a cornerstone of well-designed systems.
 It ensures that components stay cohesive internally while remaining independent of one another.
-We’ll explore this concept further in the [System Scaling](system-scaling.md) topic.
 
 ## Cluster Types
 
@@ -387,7 +413,7 @@ As a result, different instances of the service may **behave differently** based
 Stateful services are often paired with **real-time features**,
 which require maintaining client connections to push messages from the service side.
 A common example of this is a chat application that holds client connections
-(typically using [WebSocket](Communication-Protocols.md#websocket)) for real-time messaging.
+(typically using [WebSocket]({{< ref "communication-protocols#websocket" >}})) for real-time messaging.
 Consider a cluster of two instances,
 if `Client A` connects to `Instance 1` and `Client B` connects to `Instance 2`,
 they **cannot** chat with each other because different instances handle their connections.
@@ -535,15 +561,15 @@ g1.c2 -> s.s2: '2 % 2 = 0' {
 }
 {{< /local >}}
 
-```d2 {include="diagramDecentralized"}
-```
+{{< d2 include="diagramDecentralized" >}}
+{{< /d2 >}}
 
 Now, with messages containing `user id`,
 instances can quickly specify where to forward them.
 The cluster is far cleaner without any dependency,
 the final availability is bounded around proprietary instances.
 
-```d2 {include="diagramDecentralized"}
+{{< d2 include="diagramDecentralized" >}}
 m: "" {
   class: none
   horizontal-gap: 300
@@ -566,16 +592,12 @@ m.m1 -> s.s1: '1 % 2 = 1' {
 m.m2 -> s.s2: '2 % 2 = 0' {
   class: bold-text
 }
-```
+{{< /d2 >}}
 
-However, this model is more than meets the eye,
-it's extremely challenging to develop and maintain
+However, this model is more complex than it appears — it’s extremely challenging to develop and maintain.
 
-- How do we keep track of the cluster information across instances
-  without a central store?
-- How to modify and adapt to the varying number of instances?
-- How do we ensure the cluster remains operational if some instances go down?
+- How do we track cluster information consistently across instances without relying on a central store?
+- How can we adapt to a dynamic number of instances as they scale up or down?
+- How do we ensure the cluster stays operational when some instances fail?
 
-These questions underscore the complexity of decentralized communication.
-We will explore it in more detail in the [Distributed Database](Distributed-Database.md) topic,
-where a database cluster may be treated as a stateful service.
+These questions highlight the inherent complexity of decentralized communication. We’ll explore these challenges in greater depth in the **Distributed Database** topic, where a database cluster is treated as a stateful service.

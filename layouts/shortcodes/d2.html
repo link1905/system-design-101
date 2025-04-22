@@ -2,19 +2,20 @@
 {{ $content := site.Data.vars.d2Import }}
 {{ $position := .Position }}
 {{/* Build options map dynamically from all attributes */}}
+{{ $inner := .Inner }}
 {{ $options := dict }}
 {{/* Process all attributes dynamically */}}
 {{ range $key, $value := .Params }}
   {{ if eq $key "include" }}
-    {{ $include := $.Page.Store.Get $value }}
+    {{ $include := page.Store.Get $value }}
     {{/* Include content from local variable */}}
-    {{ $content = print $content "\n" $include }}
+    {{ $inner = print $include "\n" $inner }}
     {{ continue }}
   {{ end }}
   {{ $options = merge $options (dict $key $value) }}
 {{ end }}
 {{/* Append with the nested content */}}
-{{ $content = trim (print $content "\n" .Inner) "\n\r" }}
+{{ $content = trim (print $content "\n" $inner) "\n\r" }}
 {{/* Create request payload */}}
 {{ $payload := dict "content" $content "options" $options }}
 {{ $jsonPayload := $payload | jsonify }}
@@ -22,7 +23,7 @@
 {{ $opts := dict "method" "post" "body" $jsonPayload "headers" (dict "Content-Type" "application/json") }}
 {{ with try (resources.GetRemote $apiEndpoint $opts) }}
   {{ with .Err }}
-    {{ errorf "The %q code block render hook was unable to get the remote diagram. See %s. %s %s" $renderHookName $position $payload . }}
+    {{ errorf "The %q code block render hook was unable to get the remote diagram. See %s. %s %s" $renderHookName $position $inner . }}
   {{ else with .Value }}
     {{ .Content | safeHTML }}
   {{ end }}

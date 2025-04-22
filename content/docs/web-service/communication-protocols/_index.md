@@ -44,7 +44,7 @@ c <-> s: Close the connection {
 ```
 
 Creating a {{< term tcp >}} connection is **resource-intensive**,
-especially when using [SSL](Network-Protection.md#transport-layer-security-tls).
+especially when using [SSL]({{< ref "network-security#transport-layer-security-tls" >}}).
 This becomes inefficient when clients need to make multiple requests simultaneously,
 as numerous connections will be established as a result.
 
@@ -120,7 +120,7 @@ hundreds of requests might be made just to retrieve a single notification.
 ### Long Polling
 
 To improve efficiency, the server side should hold requests for a **short duration** before responding,
-this brief retention significantly reduces the number of unnecessary requests.  
+this brief retention significantly reduces the number of unnecessary requests.
 This pattern is known as {{< term lpoll >}}.
 
 ```d2
@@ -152,7 +152,7 @@ c <- s: Respond to the client immediately {
 }
 ```
 
-{{< term lpoll >}} is a traditional method for real-time notifications from the server side.  
+{{< term lpoll >}} is a traditional method for real-time notifications from the server side.
 Since requests originate from the client side, {{< term lpoll >}} is well-suited for:
 
 - **Decoupling** the server from the client side and increasing its availability.
@@ -269,7 +269,7 @@ The answer is no!
 
 The communication protocol doesn't represent this property,
 {{< term sf >}} or {{< term sl >}} is actually based on **how we implement** the service.
-Get back to the chat example in the [previous topic](../service-cluster.md#stateful-service),
+Get back to the chat example in the [previous topic]({{< ref "service-cluster#stateful-service" >}}),
 we've mentioned it as a stateful service due to keeping users on different servers.
 ```d2
 direction: right
@@ -363,7 +363,7 @@ Behind the scenes, {{< term sse >}} is built on top of the {{< term http  >}} pr
 Thus, developing and maintaining an SSE application is simpler than {{< term ws >}},
 as it can leverage existing {{< term http  >}} tools, such as connection management and caching.
 
-Additionally, a unidirectional connection incurs **less overhead** than a full-duplex connection.  
+Additionally, a unidirectional connection incurs **less overhead** than a full-duplex connection.
 {{< term sse >}} is recommended if the application only needs to send data from the server side,
 e.g., live scores, news websites.
 
@@ -378,13 +378,12 @@ communication over **Remote Procedure Call (RPC)** and {{< term http2 >}} protoc
 
 ### Remote Procedure Call (RPC)
 
-Normally, to call a {{< term http >}} endpoint,
-the application must interpret various details
-(e.g., URI, headers, parameters) to form a **request string**.
-This method gives flexibility, but it's complex and error-prone.
+Normally, to call an {{< term http >}} endpoint,
+an application must handle various details — such as the URI, headers, and parameters — to construct a proper **request string**.
+While this approach offers flexibility, it can also be complex and prone to errors.
 
-```request
-GET /docs?name=README&team=dev
+```http
+GET /docs?name=README&team=dev HTTP/2
 ```
 
 In contrast, {{< term rpc >}} is more structured,
@@ -395,10 +394,10 @@ making the interaction convenient, like working with local functions.
 For example, the `Chat Service` exposes a `Chat` function;
 This exposure is wrapped as a native shared library.
 
-```C#
+```proto
 // Exchange schema
 message ChatRequest {
-  string content;  
+  string content;
 }
 message ChatResponse {
   string messageId;
@@ -421,7 +420,7 @@ but their serialization process is slow because they are text-based and unstruct
 With a prepared definition, {{< term rpc >}} can optimize by pre-generating
 a byte-based efficient serializer, such as [Protocol Buffers](https://protobuf.dev/overview/).
 
-One drawback of {{< term rpc >}} is the **coupling** it creates between the server and client sides.  
+One drawback of {{< term rpc >}} is the **coupling** it creates between the server and client sides.
 Any change in the contract requires redeployment on both ends.
 Therefore, {{< term grpc >}} is rarely used for public-facing applications,
 when a server may serve multiple types of clients.
@@ -507,11 +506,11 @@ shape: sequence_diagram
 c: Client {
     class: client
 }
-cb: "site.com" {
-  class: server
-}
 s: Webhook server {
     class: server
+}
+cb: "site.com" {
+  class: server
 }
 c --> s: 'Register "site.com/callback"'
 s --> s: The client has a new notification

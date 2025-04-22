@@ -1,3 +1,4 @@
+sd: System Design
 mono: Monolith
 ms: Microservice
 vs: Vertical Scaling
@@ -5,11 +6,17 @@ hs: Horizontal Scaling
 ds: Distributed System
 ioc: Inversion of Control
 mq: Message Queue
+es: Event Stream
+esp: Event Streaming Platform
 msg: Messaging
 health: Health
 hb: Heartbeat
 hc: Health Check
 av: Availability
+cons: Consistency
+partTol: Partition Tolerance
+fauTol: Fault Tolerance
+netPart: Network Partition
 ha: High Availability
 spof: Single Point of Failure
 sl: Stateless
@@ -25,7 +32,7 @@ wh: Webhook
 lb: Load Balancer
 lb4: Layer 4 Load Balancer
 lb7: Layer 7 Load Balancer
-sd: Service Discovery
+svd: Service Discovery
 ssl: SSL/TLS
 sslt: SSL Termination
 ws: WebSocket
@@ -36,13 +43,37 @@ grpc: gRPC
 json: JSON
 xml: XML
 yaml: YAML
+html: HTML
 url: URL
 uri: URI
 gg: Google
 fb: Facebook
 aws: AWS
 sql: SQL
+nosql: NoSQL
+postgres: PostgreSQL
 api: API
+apigw: API Gateway
 rest: REST
 hate: HATEOAS
 apiv: API Versioning
+ddb: Distributed Database
+dr: Data Replication
+asyncRep: Asynchronous Replication
+syncRep: Synchronous Replication
+quo: Quorum
+strCons: Strong Consistency
+eveCons: Eventual Consistency
+maSl: Master-slave
+p2p: Peer-to-peer
+ch: Consistent Hashing
+consProto: Consensus Protocol
+raft: Raft
+cap: CAP
+gosProto: Gossip Protocol
+acid: ACID
+base: BASE
+kk: Kafka
+2pc: Two-phase Commit
+saga: Saga
+cdn: CDN
