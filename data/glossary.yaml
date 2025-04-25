@@ -11,6 +11,9 @@ health: Health
 hb: Heartbeat
 hc: Health Check
 av: Availability
+cons: Consistency
+partTol: Partition Tolerance
+netPart: Network Partition
 ha: High Availability
 spof: Single Point of Failure
 sl: Stateless
@@ -60,3 +63,10 @@ syncRep: Synchronous Replication
 quo: Quorum
 strCons: Strong Consistency
 eveCons: Eventual Consistency
+maSl: Master-slave
+p2p: Peer-to-peer
+ch: Consistent Hashing
+consProto: Consensus Protocol
+raft: Raft
+cap: CAP
+gosProto: Gossip Protocol
