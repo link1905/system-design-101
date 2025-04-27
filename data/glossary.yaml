@@ -70,3 +70,5 @@ consProto: Consensus Protocol
 raft: Raft
 cap: CAP
 gosProto: Gossip Protocol
+acid: ACID
+base: BASE
