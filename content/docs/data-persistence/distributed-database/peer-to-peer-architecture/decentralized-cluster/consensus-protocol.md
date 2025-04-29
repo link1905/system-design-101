@@ -3,14 +3,13 @@ title: Consensus Protocol
 weight: 20
 ---
 
-We can observe that the **Gossip Protocol** basically does not afford [strong consistency](Distributed-Database.md#strong-consistency-level),
-as the cluster can be divided into autonomous partitions, causing temporary inconsistencies.
-It prefers **Availability** to **Consistency**, we will see this bias clearer in the [CAP topic](CAP-Theorem.md).
+We can observe that the **Gossip Protocol** basically does not afford **Consistency**,
+as the cluster can be divided into autonomous partitions.
 
-### Consensus
+## Consensus
 
-To support strong consistency, many systems use a protocol called **Consensus**.
-**Consensus Protocol** enables a group of nodes to reach consensus on values,
+To build a **CP (Consistency over Availability)** environment, many systems use a protocol called **Consensus**.
+{{< term consProto >}} enables a group of nodes to reach consensus on values,
 even in the presence of failures (fault tolerance).
 
 Let's say we have a cluster of nodes.
@@ -37,7 +36,7 @@ n -> c.a: Join {
 }
 ```
 
-The cluster needs to reach a decision approving the new node.
+The cluster needs to **reach a decision** approving the new node.
 Most of the time, a decision is made when **any majority of nodes** agrees on it,
 e.g. node `A` and `B` consent `D` to join the cluster,
 although `C` is going down, `D` still becomes a member.
@@ -65,17 +64,17 @@ n -> c.a: Join
 We won't go into the details as it will take a lot of time to make clear.
 Instead, we will learn about a real implementation - [Raft Consensus Algorithm](https://raft.github.io/).
 
-### Raft Consensus Algorithm
+## Raft Consensus Algorithm
 
 **Raft** is a consensus protocol designed to manage a replicated log in distributed systems.
 **Raft** managing a cluster with two critical factors.
 
-#### Majority
+### Majority
 
 **Raft** is tolerant with network partitions as long as a **majority** of nodes can communicate.
 For example, a **Raft** cluster encounters a network partition and becomes 2 partitions.
-The partition `A` continues operating as it has a majority of members,
-and `B` becomes unavailable.
+The `Partition 1` continues operating as it has a majority of members,
+and `Partition 2` becomes unavailable.
 
 ```d2
 c: Cluster {
@@ -94,7 +93,7 @@ c: Cluster {
    a <-> b <-> c <-> d
 }
 c: Network partition {
-   a: Partition A {
+   a: Partition 1 {
       a: Node A {
          shape: circle
       }
@@ -106,13 +105,15 @@ c: Network partition {
       }
       a <-> b <-> c
    }
-   b: Partition B (Unavailable) {
+   b: Partition 2 (Unavailable) {
       d: Node D {
          shape: circle
       }
    }
 }
 ```
+
+#### Total Network Failure
 
 How about 2 partitions of 2 nodes?
 Unfortunately, the cluster will become **unavailable totally**,
@@ -157,28 +158,31 @@ c: Network partition {
 }
 ```
 
-As a side benefit, a **Raft** cluster does not generate conflict,
-as it makes sure there is always a partition to work at a time.
+#### CP Setup
 
-#### Leader
+That's the way we build **CP**, a **Raft** cluster does not generate inconsistencies,
+as it makes sure there is always a partition to work at a time.
+In other words, there is only a single writer at a time in the cluster.
+
+### Leader Election
 
 **Raft** resolves around election processes to elect a temporary leader.
-That means, a `Raft` cluster has **at most one** (0 to 1) `Leader`, the others are `Followers`.
+That means, a **Raft** cluster has **at most one** (0 to 1) `Leader`, the others are **Followers**.
 After a leader is selected, other nodes must respect and follow its demands.
 
 In essence, a node becomes the leader if it's voted by a majority of nodes.
 The leader continuously stays in power while it is still available,
 an election will take place when the leader is **unknown**, when:
 
-1. The cluster starts to work and it has no leader
-2. Or the leader has just crashed
+1. The cluster starts to work and it has no leader.
+2. Or the leader has just crashed.
 
-##### Heartbeat
+#### Heartbeat
 
 How is the leader detected as crashed?
-We define a common `timeout` for the cluster,
+We define a common **timeout** for the cluster,
 and let the leader periodically send **heartbeats** to the members.
-If the last heartbeat of a node expires, the node supposes the leader as unavailable
+If the last heartbeat of a node expires, the node supposes the leader as unavailable.
 
 E.g., `Node B` times out because its heartbeat has expired
 
@@ -195,23 +199,24 @@ c: Cluster with (Timeout = 2 seconds, Current time = 19:00:03) {
     grid-gap: 0
     style.font-color: ${colors.e}
     states: "Heartbeat = 19:00:00"
-    to: "Current time - Hearbeat = 3 seconds > Timeout (2 seconds)" {
+    to: "Current time - Heartbeat = 3 seconds > Timeout (2 seconds)" {
       style.font-color: ${colors.e}
     }
   }
 }
 ```
 
-When a node times out, it transitions to a `Candidate` and starts an election.
+When a node observes that the **Leader** has expired, it transitions to a **Candidate** and starts an election.
 That means any node of the cluster can autonomously initiate an election.
 
-##### Election
+#### Election Process
 
-To vote reliably, each node has a private number called `Term` representing its passed elections,
+In the election process, nodes need to vote to choose a new **Leader**.
+To vote reliably, each node has a private number called **Term** representing its passed elections,
 e.g., a node possesses the term of `3` means it has already passed `3` elections.
 Therefore, a node only votes for notes holding a **larger** term, implying new elections.
 
-Let's see how `Timeout`, `Heartbeat` and `Term` are used for elections.
+Let's see how **Timeout**, **Heartbeat** and **Term** are used for elections.
 Imagine we establish a cluster of three nodes with `Timeout = 3 seconds`
 <var name="cluster" value="
 
@@ -335,24 +340,28 @@ c: {
 
 </procedure>
 
-What if we have no majority or equal votes?
-The process comes to a phase called **Split Vote**
+Why is **Term** reliable?
+Because, the term value in **Raft** serves as a logical clock.
+If a candidate has a higher term than others, it signifies that more time has passed, because:
 
-- Some systems let the candidate initiate a new election by increasing its term and again requesting votes
-- Or simply, some systems select between the candidates randomly
+- Nodes time out and increase its term after a **shared** duration, a node with the lower term must live shorter the higher ones.
+- If a node escalates its term from a higher node, it must walk behind that node.
+
+#### Split Vote
+
+What if we have no majority or equal votes?
+The process comes to a phase called **Split Vote**.
+
+- Some systems let the candidate initiate a new election by increasing its term and again requesting other votes.
+- Or simply, some systems select between the candidates randomly.
 - ...
 
-The term value in **Raft** also serves as a logical clock.
-If a candidate has a higher term than others, it signifies that more time has passed
-
-- Nodes time out and increase its term after a **shared** duration, a node with the lower term must live shorter the higher ones
-- If a node escalates its term from a higher node, it must walk behind that node
-
-#### Log Replication
+### Log Replication
 
 After a leader is elected,
 changes in the cluster must be saved in the leader's log first,
 and further replicated to followers.
+That's way the cluster metadata is constantly transmitted to the entire cluster.
 
 For example, a node wants to join a cluster.
 It needs to contact the leader first,

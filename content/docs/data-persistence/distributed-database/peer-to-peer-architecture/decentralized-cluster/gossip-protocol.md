@@ -1,7 +1,9 @@
 ---
-title: Gossip
+title: Gossip Protocol
 weight: 10
 ---
+
+We'll see the first approach to maintain a {{< term p2p >}} cluster - {{< term gosProto >}}.
 
 ## Eager Reliable Broadcast
 
@@ -44,10 +46,10 @@ where a message is immediately sent to all recipients as soon as it is generated
 However, as more peers are added, the complexity of the cluster increases.  
 This approach leads to resource and bandwidth inefficiencies, as members must exchange a significant amount of redundant information.
 
-The **Gossip Protocol** was introduced to reduce the resource consumption of
+The {{< term gosProto >}} was introduced to reduce the resource consumption of
 the **Eager Reliable Broadcast** protocol by minimizing the number of exchanges.
 
-## Gossiping
+## Gossip Protocol
 
 The **Gossip Protocol** [can be illustrated by the analogy of office workers spreading rumors](https://en.wikipedia.org/wiki/Gossip_protocol).
 To make an announcement, a peer starts by communicating with a few random peers.
@@ -124,7 +126,7 @@ c: Cluster {
 }
 ```
 
-## Adding Node
+### Adding Node
 
 [Bootstrapping nodes](https://en.wikipedia.org/wiki/Bootstrapping_node) serve as designated entry points for new nodes,  
 which can be obtained using static addresses or **DNS**.
@@ -139,7 +141,7 @@ c: Cluster {
     shape: circle
     m: |||yaml
     B: UP
-    C: UP
+    C: UP (added)
     |||
   }
   b: B {
@@ -159,7 +161,7 @@ c: C {
 c <-> c.a
 ```
 
-Then, `A` informs `B` about `C`’s participation.  
+Then, `A` informs `B` about the `C`’s participation.  
 `B` becomes aware of `C` and adds it to its state list.
 
 ```d2
@@ -175,7 +177,7 @@ c: Cluster {
     shape: circle
     m: |||yaml
     A: UP
-    C: UP
+    C: UP (added)
     |||
   }
   n1 -> n2
@@ -189,8 +191,8 @@ c: C {
 }
 ```
 
-Now, `C` can join the cluster.
-Based on the cluster information, nodes can calculate and re-balance the data.
+Now, all the members recognize of `C`, that means it has joined the cluster.
+Based on the cluster information, nodes can calculate and re-balance the data if necessary.
 
 ```d2
 c: Cluster {
@@ -208,23 +210,24 @@ c: Cluster {
     C: UP
     |||
   }
-    n3: C {
-        shape: circle
-        m: |||yaml
-        A: UP
-        B: UP
-        |||
-    }
+  n3: C {
+    shape: circle
+    m: |||yaml
+    A: UP
+    B: UP
+    |||
+  }
+  n1 <-> n2 <-> n3 <-> n1
 }
 
 ```
 
-## Forwarding
+### Forwarding
 
-With [consistent hashing](../#consistent-hashing) and the cluster metadata,  
-any node can an interface
+With [consistent hashing](../../../#consistent-hashing) and the cluster metadata,  
+any node can be an interface
 
-- Serving read requests autonomously.
+- Serving read requests autonomously (or forwarding to replicas).
 - Forwarding write requests to the appropriate nodes.
 
 ```d2
@@ -248,7 +251,8 @@ c.n1 -> c.n2: "3. Forward"
 
 ## Gossip Round
 
-**Periodically**, a node selects random peers to send its state like a [heartbeat](../../../web-service/service-cluster/#heartbeat-mechanism),
+**Gossip Round** is the foundation of the protocol.
+**Periodically**, a node selects random peers to send its state (like a [heartbeat](../../../web-service/service-cluster/#heartbeat-mechanism))
 spreading this information progressively across the entire cluster.
 As the time goes by, **Gossip Rounds** will help maintain the cluster metadata between members.
 
@@ -364,9 +368,10 @@ c4: "Cluster (B gossips)" {
 
 ### Failure Detection
 
-Another benefit of **Gossip Round** is determining the failure of peers.
-A node marks another node as **DOWN** after it hasn't received any heartbeat within a certain period.  
-For example, if the heartbeat lifetime is constrained to 3 seconds,  
+A real benefit of **Gossip Round** is determining the failure of servers.
+A server marks another server as **DOWN** after it hasn't received any heartbeat within a certain period.
+
+For example, if the heartbeat lifetime is constrained to 3 seconds,
 then at the moment `5`, both `A` and `B` will assume that `C` is down, as its heartbeat has expired.
 
 ```d2
@@ -377,21 +382,23 @@ c: "Cluster (HeartbeatLifetime = 3, Time = 5)" {
     shape: circle
     m: |||yaml
     B: UP, Heartbeat = 3
-    C: DOWN, Heartbeat = 1
+    C: DOWN, Heartbeat = 1 (expired)
     |||
   }
   n2: B {
     shape: circle
     m: |||yaml
     A: UP, Heartbeat = 3
-    C: DOWN, Heartbeat = 1
+    C: DOWN, Heartbeat = 1 (expired)
     |||
   }
   n3: C {
-    shape: circle
+    class: generic-error
   }
 }
 ```
+
+#### Temporary Promotion
 
 When a node considers another node as corrupted,
 it will stop forwarding data to the failed node,
@@ -399,7 +406,6 @@ but temporarily work with a **replica** instead.
 Once the failed node revives, it can collaborate with its replicas to recover the data.
 
 ```d2
-
 grid-columns: 2
 vertical-gap: 100
 e: Node failure {
@@ -432,80 +438,15 @@ r: Recovery {
 }
 ```
 
-## Network partition
+## Data Conflicts
 
-Many potential bugs arise due to failures in a distributed system.  
-**Network partitioning** is a network failure that splits a cluster into isolated groups (partitions),
-preventing them from communicating with each other.
-
-For example,
-if the connection between `C` with `A` and `B` is corrupted,  
-the failure divides the cluster into two partitions:  
-`Partition 1 (A, B)` and `Partition 2 (C)`.
-
-```d2
-
-direction: right
-g1: Partition 1 {
-    s1: Peer A {
-        shape: circle
-    }
-    s2: Peer B {
-        shape: circle
-    }
-    s1 <-> s2
-}
-
-g2: Partition 2 {
-    s3: Peer C {
-        shape: circle
-    }
-}
-g1.s1 <-> g2.s3: "Disconnect" {
-    class: error-conn
-}
-g1.s2 <-> g2.s3: "Disconnect" {
-    class: error-conn
-}
-```
-
-To ensure fault tolerance, the **Gossip Protocol** allows partitions to work autonomously.
+The previous workflow is an **AP (Availability over Consistency)** setup.
+To ensure high availability, the **Gossip Protocol** allows partitions to work autonomously.
 In other words, different partitions can concurrently serve writing data.
-Probably, that leads to two primary issues:
 
-1. **Isolation of a Partition from a Shard**:  
-   A partition is completely isolated from a shard (unable to connect to any replica).  
-   In this case, the server receiving requests will take over the shard and temporarily write data to it.  
-   Once the network partition is resolved, all relevant servers will cooperate to calculate the final result.
-
-```d2
-
-c: Client {
-   class: client
-}
-g1: Partition 1 {
-  n1: "Peer A (Primary)" {
-    shape: circle
-  }
-  n2: "Peer B (Replica)" {
-    shape: circle
-  }
-}
-g2: "Partition 2" {
-  n3: "Peer C" {
-    shape: circle
-  }
-  n3 -> n3: "2. Temporarily perform as 'Peer A'"
-}
-c -> g2.n3: "1. Update data belonged to 'Peer A'" 
-g2.n3 <-> g1: Disconnect {
-   class: error-conn
-}
-```
-
-2. **Merging and Resolving Conflicts**:  
-   After the network heals, how do we merge and resolve conflicts from different partitions?  
-   We have two effective approaches:
+Probably, that leads to a big question.
+After the network heals, how do we merge and **resolve conflicts** from different partitions?
+We have two effective approaches:
 
 ### Last Write Wins (LWW)
 
@@ -541,52 +482,57 @@ leading to the wrong data being selected.
 ### Vector Clocks
 
 **Vector Clocks** offer a more reliable approach, independent of clock synchronization.  
-In short, **Vector Clocks** maintain conflicting versions of a record and **allow clients to resolve** conflicts autonomously.
+In short, **Vector Clocks** maintain conflicting versions of a record and allow **clients to resolve** conflicts autonomously.
 
-Instead of a timestamp, records maintain a vector clock in the form of `[(Server, Version)]`.  
-Let's say a record initially has the vector clock from its owning shard, and subsequent changes will be forwarded to the shard.
+Instead of a timestamp, records maintain a vector clock in the form of `[(Server, Version)]`.
+When a server writes a record,
+it will increases its respective version (or creates if not exists).
+
+Let's say a record initially has the vector clock from its owning shard `Server 1`.
 
 ```d2
 c: Cluster {
-    p1: Peer 1 {
+    p1: Server 1 {
         shape: circle
         r: |||yaml
         (Id = 123, Name = John, VL = [(Peer 1, 3)])  
         |||
     }
-    p2: Peer 2 {
+    p2: Server 2 {
         shape: circle
     }
-    p3: Peer 3 { 
+    p3: Server 3 { 
        shape: circle 
     }
 }
 ```
 
-Let's say a network partition occurs, the cluster is divided into three partitions.  
-All partitions update the record, which then expands the vector clock.
+Then, a network partition occurs, the cluster is divided into three partitions.  
+All partitions can update the record, which then expands the vector clock;
+
+- `Server 1` updates and increases its version.
+- `Server 3` updates and creates its own versions.
 
 ```d2
-
 c: Cluster {
     p1: Partition 1 {
-        p: Peer 1 {
+        p: Server 1 {
             shape: circle
            r: |||yaml
-           (Id = 123, Name = John, VL = [(Peer 1, 4)])  
+           (Id = 123, Name = John Doe, VL = [(Peer 1, 4)])  
            |||
         }
     }
     p2: Partition 2 {
-         p: Peer 2 {
+         p: Server 2 {
          shape: circle
         r: |||yaml
-        (Id = 123, Name = Mike, VL = [(Peer 1, 3), (Peer 2, 1)])  
+        (Id = 123, Name = John, VL = [(Peer 1, 3)])
         |||
         }
     }
     p3: Partition 3 { 
-         p: Peer 3 {
+         p: Server 3 {
             shape: circle
             r: |||yaml
             (Id = 123, Name = James, VL = [(Peer 1, 3), (Peer 3, 1)])  
@@ -604,8 +550,8 @@ c: Cluster {
 
 A conflict is detected if two vectors can’t be merged. For example:
 
-- `[(Peer 1, 4), (Peer 2, 2)]` is a descendant of `[(Peer 1, 3), (Peer 2, 1)]` and can overwrite it.
-- `[(Peer 1, 3), (Peer 2, 1)]` and `[(Peer 1, 3), (Peer 3, 1)]` generate a conflict.
+- `[(Peer 1, 4)]` is a descendant of `[(Peer 1, 3)]` and can overwrite it.
+- `[(Peer 1, 4)]` and `[(Peer 1, 3), (Peer 3, 1)]` generate a conflict.
 
 If any conflict is detected, multiple versions of the record are maintained during the merge process.
 
@@ -614,9 +560,8 @@ c: Cluster {
     p1: Peer 1 {
         shape: circle
         r1: |||yaml
-        Version 1: (Id = 123, Name = John, VL = [(Peer 1, 4)])  
-        Version 2: (Id = 123, Name = Mike, VL = [(Peer 1, 3), (Peer 2, 1)])  
-        Version 3: (Id = 123, Name = James, VL = [(Peer 1, 3), (Peer 3, 1)])  
+        Version 1: (Id = 123, Name = John Doe, VL = [(Peer 1, 4)])  
+        Version 2: (Id = 123, Name = James, VL = [(Peer 1, 3), (Peer 3, 1)])  
         |||
     }
     p2: Peer 2 {
@@ -625,13 +570,17 @@ c: Cluster {
     p3: Peer 3 { 
         shape: circle
     }
-    p1 <-> p2: Merge
-    p3 <-> p2: Merge
+    p1 <-> p2: Overwrite
+    p1 <-> p3: Conflict
 }
 ```
 
+#### Application-level Resolution
+
 The resolution step is entrusted to **the application level**.  
 This means the application may receive multiple versions of the data and must merge them accordingly.
+
+For example, an application accepts changes from the first version of the conflict.
 
 ```d2
 
@@ -643,12 +592,11 @@ d: Database {
 }
 
 r1: |||yaml
-Version 1: (Id = 123, Name = John, VL = [(Peer 1, 4)])  
-Version 2: (Id = 123, Name = Mike, VL = [(Peer 1, 3), (Peer 2, 1)])  
-Version 3: (Id = 123, Name = James, VL = [(Peer 1, 3), (Peer 3, 1)])  
+Version 1: (Id = 123, Name = John Doe, VL = [(Peer 1, 4)])  
+Version 2: (Id = 123, Name = James, VL = [(Peer 1, 3), (Peer 3, 1)])  
 |||
 r2: |||yaml
-(Id = 123, Name = John, VL = [(Peer 1, 4), (Peer 2, 1), (Peer 3, 1)])  
+(Id = 123, Name = John Doe, VL = [(Peer 1, 4)])
 |||
 s <- r1 <- d
 s -> r2: Update resolved record

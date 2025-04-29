@@ -4,15 +4,16 @@ weight: 10
 ---
 
 We have extensively discussed data sharding and replication.
-But how can we effectively combine them into a single virtual database?
-Maintaining a {{< term p2p >}} system is no easy feat.
-This architecture advocates a decentralized approach,
-aiming to remain highly available and fault-tolerant, with **no single point of failure**.
+Now, the question arises: **how can we effectively combine them into a single virtual database?**
+Maintaining a {{< term p2p >}} (peer-to-peer) system is no simple task.
+This architecture embraces decentralization, aiming for high availability and fault tolerance,
+with **no single point of failure**.
 
-Without a shared master server as the [Master-slave](../../master-slave-architecture) model,
-cluster metadata (e.g., member addresses, sharding information, etc.)
-must be somehow both reliable and consistently shared among cluster members
-to enable tasks such as replication, sharding, and promotion.
+Unlike the [Master-slave](../../master-slave-architecture) model,
+where a shared master server coordinates the cluster,
+a decentralized cluster must ensure that metadata (e.g., member addresses, sharding information, etc.)
+is both reliable and consistently shared across all members.
+This consistency is critical for enabling operations like replication, sharding, and promotion.
 
 ```d2
 p1: Peer 1 {
@@ -37,40 +38,41 @@ p1 <-> p3 {
 
 ## Distributed Properties
 
-Before going further,
-we need to learn about **CAP Theorom**,
-which is the key tradeoff in distributed cluster.
+Before moving forward, we need to explore the **CAP Theorem**,
+a fundamental trade-off that governs distributed systems.
 
-There are three common characteristics of distributed systems: {{< term cons >}}, {{< term av >}} and {{< partTol >}}.
+Distributed systems are characterized by three key properties:
+**Consistency**, **Availability** and **Partition Tolerance**.
 
 ### 1. Consistency (C)
 
-{{< term cons >}} in {{< term cap >}} means that nodes in a cluster will possess the same data
-through a synchronization method, even eventual consistency.
+**Consistency** in the context of {{< term cap >}}
+means that all nodes see the same data at the same time,
+either immediately or eventually through synchronization mechanisms.
 
 ### 2. Availability (A)
 
-**Availability (A)**, as discussed in the [Service Cluster](../../web-service/service-cluster#service-availability) section,
-**Availability** ensures that a system is reachable and responsive at any given time.
-Please note that this only mentions the responsiveness of a system,
-depsite returning errors and inconsistent data, it's still available.
+**Availability (A)** —
+as discussed in the [Service Cluster](../../web-service/service-cluster#service-availability) section —
+ensures that every request receives a (non-error) response,
+even if the response contains outdated or inconsistent data.
+In short, a system is considered **available** as long as it responds, regardless of accuracy.
 
 {{< callout type="info">}}
-We've just sparely talked about **Consistency** and **Availability** here,
-as we need more knowledge to clearly understand them in the sections below.
+We've only briefly touched on **Consistency** and **Availability** here;  
+deeper explanations will follow in the sections below.
 {{< /callout >}}
 
 ### 3. Partition Tolerance (P)
 
-To understand this property. First, we need to know what a partition:
+To understand **Partition Tolerance**, we first need to grasp the concept of a **Partition**:
 
 #### Network Partition
 
-**Network partitioning** (aka **Partition**) is a network failure that splits a cluster into isolated partitions,
-preventing them from communicating with each other.
+A **network partition** occurs when failures split a cluster into isolated groups of nodes,  
+preventing them from communicating with one another.
 
-For example, we have a cluster of 3 servers.
-They constantly coop with each other to maintain the cluster.
+For example, consider a cluster of three servers that constantly cooperate to maintain synchronization:
 
 ```d2
 sa: Server A {
@@ -85,9 +87,8 @@ sc: Server C {
 sa <-> sb <-> sc <-> sa
 ```
 
-Then, a network problem happens,
-the connections between `C` with `A` and `B` are corrupted.
-The failure divides the cluster into two partitions: `Partition 1 (A, B)` and `Partition 2 (C)`.
+Now imagine a network failure disrupts communication between `Server C` and the others:  
+The cluster splits into two isolated partitions: `Partition 1 (A, B)` and `Partition 2 (C)`.
 
 ```d2
 direction: right
@@ -128,35 +129,34 @@ c2: "" {
 c1 -> c2
 ```
 
-**Partition Tolerance (P)** refers to a
-system’s ability to continue functioning despite a network partition between nodes.
+**Partition Tolerance (P)** is a system’s ability to continue functioning correctly despite these network partitions.
 
 ## CAP Theorem
 
-The **CAP theorem** states that a distributed database can provide **at most two** of the three properties.  
-Therefore, there are three possible combinations: **AP**, **CP**, and **CA**.
+The **CAP theorem** states that a distributed database can satisfy **only two**
+of the following three properties simultaneously: **Consistency**, **Availability**, and **Partition Tolerance**.
+
+Thus, practical systems must choose between three design patterns: **AP**, **CP**, or **CA**.
 
 ### CA System
 
-A **CA** system provide {{< term cons >}} and {{< term av >}} but {{< term partTol >}},
-that type of system is possible but **impractical**.
-A **CA** system cannot tolerate network partitions, meaning whenever a partition occurs,
-despite a single node, the system will malfunction or stop working entirely,
-both of the options are bad and unacceptable.
+A **CA** system provides **Consistency** and **Availability** but not **Partition Tolerance**.
+In theory, this sounds ideal, but in practice, it’s **impractical**.
 
-More importantly, network partitions are unavoidable and often happen,
-a system that not providing the **Partition Tolerance (P)** property is good for nothing.
+When a network partition occurs, a **CA** system would either stop working entirely or behave incorrectly —
+both outcomes are unacceptable.
+Since network partitions are inevitable in real-world environments,
+a system that does not tolerate partitions is essentially unusable.
 
-Thus, the battle remains between **AP** and **CP**.  
-In the event of network partitions, following {{< term cap>}},
-the system must choose between **Consistency (C)** or **Availability (A)**.
+Thus, the real-world battle comes down to **AP** vs **CP**.  
+In the presence of a partition, a distributed system must choose between **Consistency** and **Availability**.
 
-### CP (Consistency over Availability) System
+### CP (Consistency over Availability) Systems
 
-Let's see an example cluster of 2 servers:
+Consider a cluster of two servers:
 
-- `A` holds `Shard 1`, `B` contains a replica of the shard.
-- If clients write to `Shard 1` from `B`, B can forward the request to shard owner `A`.
+- `A` hosts `Shard 1`; `B` maintains a replica of it.
+- If clients write to `Shard 1` via `B`, `B` forwards the request to `A` (the shard owner).
 
 ```d2
 client: Client {
@@ -177,9 +177,8 @@ client -> c.sb: '1. Write to "Shard 1"'
 c.sb -> c.sa: 2. Forward to the owner
 ```
 
-Unfortunately, a partition happens, the cluster is divided into 2 partitions.
-`Partition 2` can't contact with `A` (the owner of `Shard 1`);
-therefore, when clients connnect to `Partition 2`, they can only read data from `Shard 1`.
+Suppose a network partition occurs, separating `A` from `B`.
+Now, clients connecting to `B` can **only read** from the replica — **writes are disabled** to preserve consistency.
 
 ```d2
 c: Cluster {
@@ -205,15 +204,13 @@ client -> c.g1.sa : Read and write
 client -> c.g2.sb: Read only
 ```
 
-This is a **CP** setup.
-In this system, we prefer **Consistency** over **Availability**,
-sacrificing the `Partition 2` writing capability.
+This is a **CP** system:
+it prioritizes **Consistency** over **Availability**, sacrificing write operations on isolated replicas.
 
-### AP (Availability over Consistency) System
+### AP (Availability over Consistency) Systems
 
-Let's see how **AP** is implemented in the previous example.
-Instead of stoping,
-we will allows writing data to `Replica 1` on `B` to temporarily.
+Now, let's modify the previous example to favor **Availability**.
+Instead of disabling writes, `B` temporarily accepts writes even while partitioned from `A`.
 
 ```d2
 c: Cluster {
@@ -239,13 +236,8 @@ client -> c.g1.sa : Read and write
 client -> c.g2.sb: Read and write
 ```
 
-In this setup, **Avalability** is preferred to **Consistency**,
-we try to maintain the full functionality of parititions.
-The problem is,
-data can be written differently in different partitions,
-leading to inconsistencies.
-If clients connect to different partitions,
-they'll see different versions of data.
+In this **AP** system, partitions remain fully functional —
+but at the cost of **Consistency**: different partitions may accept conflicting updates.
 
 ```d2
 c: Cluster {
@@ -282,19 +274,14 @@ c1 -> c.g1.sa : Write
 c2 -> c.g2.sb: Write
 ```
 
-**Consistency** we're talking here may not be as what you're expecting.
-We've previously categorized into {{< term strCons >}} and {{< term eveCons >}},
-demonstrating how data is replicated **between nodes**.
-Briefly, if nodes are interconnected,
-they can somehow synchronize data and ensure consistency.
+**Important:**  
+Consistency here refers to **cross-partition consistency** during a network split,
+not the usual node-to-node replication consistency.
+Since partitions **cannot communicate**, inconsistencies persist until the cluster is healed.
+After recovery, conflict resolution strategies must be applied
 
-However, in this topic, we've referring to the consistency **between partitions** in the event of a network partition.
-Partitions are **unable to communicate**,
-inconsistencies emerge at different partitions will stand still until the cluster is recovered.
-Morever, changes can be conflicted with each other and need resolving, such as in the diagram above.
+Choosing between **Consistency** and **Availability** is a fundamental decision when designing a distributed database.  
+In the following sections, we will explore two major approaches for managing decentralized clusters:
 
-Choosing between **Consistency** and **Availability** is a crucial decision when designing a distributed database.  
-Let's dive into two common approaches maintaining a decentralized cluster:
-
-- {{< term gosProto >}} for **AP** systems.
-- {{< term consProto >}} for **CP** systems.
+- {{< term gosProto >}}.
+- {{< term consProto >}}.
