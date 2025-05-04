@@ -176,7 +176,7 @@ Account {
     grid-gap: 0
     a: "(Id = A, Balance = 50, Committed = True, Transaction Id = 1000)"
     b: "(Id = A, Balance = 70, Committed = False, Transaction Id = 1001)" {
-        style.fill: ${colors.b}
+        style.fill: ${colors.i2}
     }
 }
 t -> Account.b
@@ -191,7 +191,7 @@ Account {
     grid-columns: 1
     grid-gap: 0
     a: "(Id = A, Balance = 50, Committed = True, Transaction Id = 1000)" {
-        style.fill: ${colors.b}
+        style.fill: ${colors.i2}
     }
     b: "(Id = A, Balance = 70, Committed = False, Transaction Id = 1001)"
 }
@@ -207,7 +207,7 @@ Account {
     grid-columns: 1
     grid-gap: 0
     a: "(Id = A, Balance = 50, Committed = True, Transaction Id = 1000)" {
-        style.fill: ${colors.b}
+        style.fill: ${colors.i2}
     }
 }
 t -> Account.a
@@ -395,7 +395,7 @@ t1 -> a: Update the balance (50 - 30 = 20)
 t1 -> a: Commit the balance {
     style.bold: true
 }
-t -> a: Update the balance (40 - 30 = 10) (previous update ignored)
+t -> a: Update the balance (40 - 30 = 10) (previous update ignored) {
     class: error-conn
 }
 t -> a: Commit the balance {

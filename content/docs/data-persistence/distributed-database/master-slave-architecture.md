@@ -103,7 +103,7 @@ If one master fails, others can continue to process writes, avoiding downtime.
 
 ### SQL Usage
 
-The most widely adopted form of the {{< term maSl >}} model is {{< sqld >}},
+The most widely adopted form of the {{< term maSl >}} model is {{< term sqld >}},
 as a single writer makes it easier to maintain strong consistency for [ACID transactions](../sql-database/concurrency-control/).
 
 Because of this, **Multi-Master** setups are rarely used in practice.

@@ -47,9 +47,9 @@ gg: Google
 fb: Facebook
 aws: AWS
 sql: SQL
-sqld: SQL Database
+sqld: SQL Databases
 nosql: NoSQL
-nosqld: NoSQl Database
+nosqld: NoSQl Databases
 postgres: PostgreSQL
 api: API
 apigw: API Gateway
