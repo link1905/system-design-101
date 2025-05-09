@@ -58,6 +58,9 @@ db.p3 -> sv.s3
 ```
 
 Each peer is responsible for managing a portion of the database.
+Even if some of them go down, only the respective shards become unavailable—
+while the rest of the system remains fully functional.
+
 Importantly, we are **not** splitting the database into large storage blocks and distributing them across servers.
 Instead, each **individual record** is assigned to a peer based on its **unique key**.
 

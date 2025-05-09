@@ -6,6 +6,8 @@ hs: Horizontal Scaling
 ds: Distributed System
 ioc: Inversion of Control
 mq: Message Queue
+es: Event Stream
+esp: Event Streaming Platform
 msg: Messaging
 health: Health
 hb: Heartbeat
@@ -47,9 +49,7 @@ gg: Google
 fb: Facebook
 aws: AWS
 sql: SQL
-sqld: SQL Databases
 nosql: NoSQL
-nosqld: NoSQl Databases
 postgres: PostgreSQL
 api: API
 apigw: API Gateway
@@ -72,3 +72,4 @@ cap: CAP
 gosProto: Gossip Protocol
 acid: ACID
 base: BASE
+kk: Kafka

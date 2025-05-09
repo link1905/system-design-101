@@ -183,6 +183,23 @@ s: Client {
 s -> db.c
 ```
 
+Moreover, if the **Master** node becomes unresponsive,
+the **Coordinator** detects the failure and promptly promotes a **Replica** to take over its responsibilities.
+
+```d2
+c: Coordinator {
+  class: server
+}
+m: Master {
+  class: generic-error
+}
+r: Replica {
+  class: server
+}
+c -> m: Detect failure
+c -> r: Promote to master
+```
+
 ### Connection Pooling
 
 Opening a new database connection is both slow and resource-intensive.
@@ -230,17 +247,11 @@ However, this simplicity conceals several **critical issues**,
 most of which stem from the centralized control of the master server:
 
 - The master becomes the {{< term spof >}}.
-Its failure halts all write operations,
+Its failure halts **all write operations**,
 therefore, the {{< term maSl >}} model does not guarantee {{< term ha >}}.
 
 - The master handles all write operations,
 quickly becoming a **performance bottleneck**, especially in write-heavy applications.
-
-Even if we can promote or recover the master extremely quickly,
-there’s always a **downtime**, however brief.
-And that downtime is **unpredictable**.
-As a result, the database's availability affects its services, which cascades and impacts other services
-([Aggregate Availability](../../web-service/service-cluster.md#aggregate-availability)).
 
 In the next section,
 we'll dig deeper into this challenge and explore a decentralized approach to building robust database clusters.
