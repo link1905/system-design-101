@@ -11,7 +11,7 @@ Instead, they quietly degrade data quality, even if the codebase itself remains 
 As a result, applications must anticipate and handle these problems from the outset.
 
 In this topic, we’ll explore concurrency control techniques —
-one of the more difficult aspects of maintaining a reliable {{< term sqld >}}.
+one of the more difficult aspects of maintaining a reliable {{< term sql >}} databases.
 This knowledge isn’t limited to a single database; it’s equally valuable for managing distributed transactions.
 
 ## Concurrent Transactions
@@ -30,7 +30,7 @@ Although these are two separate steps, they are wrapped into a single `Withdraw`
 
 ### Race Condition
 
-{{< term sqld >}} allows multiple transactions to run simultaneously.
+{{< term sql >}} databases allows multiple transactions to run simultaneously.
 A **race condition** occurs when two or more transactions attempt to access and modify the same data concurrently.
 
 In our withdrawal example,
@@ -84,10 +84,10 @@ the transaction should only `commit` if both debit and credit operations succeed
 shape: sequence_diagram
 a: Account A
 t: Transaction
-b: Account B 
+b: Account B
 t -> a: Decrease the balance (- X)
 t -> b: Increase the balance (+ X)
-t -> t: Commit {    
+t -> t: Commit {
     style.bold
 }
 ```
@@ -99,9 +99,9 @@ the transaction should **rollback** the debit operation to maintain data integri
 shape: sequence_diagram
 a: Account A
 t: Transaction
-b: Account B 
+b: Account B
 t -> a: Decrease the balance (- X)
-t -> t: Rollback {    
+t -> t: Rollback {
     class: error-conn
 }
 ```
@@ -122,10 +122,10 @@ shape: sequence_diagram
 t1: Another Transaction
 a: Account A
 t: Transfer Transaction
-b: Account B 
+b: Account B
 t -> a: Decrease the balance (- X)
 t1 -> a: Read the balance
-t -> t: Rollback {    
+t -> t: Rollback {
     class: error-conn
 }
 ```
@@ -234,7 +234,7 @@ This durability is typically achieved through logging mechanisms like the
 
 ## Concurrency Phenomena
 
-Concurrency phenomena are common issues that emerge from [race conditions](#race-condition).  
+Concurrency phenomena are common issues that emerge from [race conditions](#race-condition).
 They typically occur due to inadequate [isolation](#isolation) between concurrent transactions,
 leading to inconsistencies and violations of the {{< term acid >}} guarantees.
 
@@ -269,7 +269,7 @@ shape: sequence_diagram
 d: Withdrawal 1 (10)
 a: Account (Balance = 50)
 w: Withdrawal 2 (20)
-d -> a: Update balance = 50 - 10 = 40 
+d -> a: Update balance = 50 - 10 = 40
 w -> a: Update balance = 40 - 20 = 20 {
     style.bold: true
 }
@@ -291,7 +291,7 @@ shape: sequence_diagram
 d: Withdrawal 1 (10)
 a: Account (Balance = 50)
 w: Withdrawal 2 (20)
-d -> a: Update balance = 50 - 10 = 40 
+d -> a: Update balance = 50 - 10 = 40
 w -> a: Update balance = 50 - 20 = 30 (not read dirty data) {
     style.bold: true
 }
@@ -321,7 +321,7 @@ shape: sequence_diagram
 t: Withdrawal Transaction (40)
 a: Account A (50)
 t1: Another Withdrawal (30)
-t -> a: Reads and verifies the balance (50 > 40) 
+t -> a: Reads and verifies the balance (50 > 40)
 t1 -> a: Updates the balance (50 - 30 = 20)
 t1 -> a: Commits the balance {
     style.bold: true
@@ -347,7 +347,7 @@ When multiple transactions access the same data, two main strategies are used:
 
 ##### Snapshot Isolation
 
-One approach to implementing isolation is through **Snapshot Isolation**.  
+One approach to implementing isolation is through **Snapshot Isolation**.
 In this model, transactions see only the data version that existed when they started —
 newer updates are **isolated** from them.
 
@@ -370,7 +370,7 @@ t2: Transaction 2 (T2)
 t1 -> a: Read balance (50)
 t2 -> a: Update the balance (50 - 40 = 10)
 t2 -> Commit
-t1 -> a: Read balance (50) 
+t1 -> a: Read balance (50)
 ```
 
 Thus, transactions are guaranteed **repeatable reads** —
@@ -390,7 +390,7 @@ shape: sequence_diagram
 t: Withdrawal Transaction (40)
 a: Account A (50)
 t1: Another Withdrawal (30)
-t -> a: Read and verify the balance (50 > 40) 
+t -> a: Read and verify the balance (50 > 40)
 t1 -> a: Update the balance (50 - 30 = 20)
 t1 -> a: Commit the balance {
     style.bold: true
@@ -415,8 +415,8 @@ other transactions must wait for the release before they can access the row.
 
 ```d2
 shape: sequence_diagram
-t1: Transaction 1 
-a: Account 
+t1: Transaction 1
+a: Account
 t1 -> a: Acquire a lock
 t2: Transaction 2
 t2 -> a: Wait... {
@@ -448,8 +448,8 @@ but for now, here are some essential rules you should be familiar with:
 
 ```d2
 shape: sequence_diagram
-t1: Transaction 1 
-a: Table 
+t1: Transaction 1
+a: Table
 t1 -> a: Acquire a XL
 t2: Transaction 2
 t2 -> a: Acquire another lock (XL or SL)
@@ -461,13 +461,13 @@ t1 -> a: Release the lock
 t2 -> a: Read
 ```
 
-On the other hand, if **Transaction 1** has acquired a **Shared Lock (SL)**,  
+On the other hand, if **Transaction 1** has acquired a **Shared Lock (SL)**,
 then **Transaction 2** must wait if it attempts to acquire an **Exclusive Lock (XL)** on the same data.
 
 ```d2
 shape: sequence_diagram
-t1: Transaction 1 
-a: Table 
+t1: Transaction 1
+a: Table
 t1 -> a: Acquire a SL
 t2: Transaction 2
 t2 -> a: Acquire an XL
@@ -488,8 +488,8 @@ t2 -> a: Read
 
 ```d2
 shape: sequence_diagram
-t1: Transaction 1 
-a: Table 
+t1: Transaction 1
+a: Table
 t1 -> a: Acquire a SL
 t2: Transaction 2
 t2 -> a: Acquire a SL
@@ -513,7 +513,7 @@ A deadlock occurs when two transactions are waiting for each other to release a 
 
 Let’s walk through a scenario involving two concurrent withdrawals:
 
-1. Both transactions read and verify the account balance, acquiring an **SL**.  
+1. Both transactions read and verify the account balance, acquiring an **SL**.
 Since shared locks are compatible with one another,
 both transactions can safely access the record concurrently.
 
@@ -523,11 +523,11 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies balance (50 > 40) - SL 
+t1 -> a: Reads and verifies balance (50 > 40) - SL
 t2 -> a: Reads and verifies balance (50 > 30) - SL
 ```
 
-2. Both transactions then attempt to update the balance.  
+2. Both transactions then attempt to update the balance.
 One transaction (e.g., `T1`) proceeds first and tries to acquire an **Exclusive Lock (XL)**,
 but it’s blocked because the other transaction still holds an **SL**.
 
@@ -537,8 +537,8 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies balance (50 > 40) - SL 
-t2 -> a: Reads and verifies balance (50 > 30) - SL 
+t1 -> a: Reads and verifies balance (50 > 40) - SL
+t2 -> a: Reads and verifies balance (50 > 30) - SL
 t1 -> a: XL (Waiting for T2 SL...) {
     style.stroke-dash: 3
 }
@@ -554,8 +554,8 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies balance (50 > 40) - SL 
-t2 -> a: Reads and verifies balance (50 > 30) - SL 
+t1 -> a: Reads and verifies balance (50 > 40) - SL
+t2 -> a: Reads and verifies balance (50 > 30) - SL
 t1 -> a: XL (Waiting for T2 SL...) {
     style.stroke-dash: 3
 }
@@ -590,12 +590,12 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies the balance (50 > 40) 
+t1 -> a: Reads and verifies the balance (50 > 40)
 t2 -> a: Reads and verifies the balance (50 > 30)
 t1 -> a: Updates the balance (50 - 40 = 10) - XL
 t2 -> a: XL (Waiting for T1) {
     style.stroke-dash: 3
-} 
+}
 ```
 
 Now, under the isolation level, we divide this scenario into two cases:
@@ -608,12 +608,12 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies the balance (50 > 40) - Read 
+t1 -> a: Reads and verifies the balance (50 > 40) - Read
 t2 -> a: Reads and verifies the balance (50 > 30) - Read
 t1 -> a: Updates the balance (50 - 40 = 10) - Update
 t2 -> a: Wait {
     style.stroke-dash: 3
-} 
+}
 t1 -> t1: Rollback {
     class: error-conn
 }
@@ -630,12 +630,12 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies the balance (50 > 40) - Read 
+t1 -> a: Reads and verifies the balance (50 > 40) - Read
 t2 -> a: Reads and verifies the balance (50 > 30) - Read
 t1 -> a: Updates the balance (50 - 40 = 10) - Update
 t2 -> a: Wait {
     style.stroke-dash: 3
-} 
+}
 t1 -> t1: Commit
 t2 -> t2: Rollback {
     class: error-conn
@@ -665,7 +665,7 @@ Consider an example from a banking system that processes loan applicants:
 2. It then creates a new loan program record with the calculated total.
 3. Finally, the system loops through the eligible accounts to create individual loan accounts.
 
-Meanwhile, another transaction inserts additional accounts that meet the loan eligibility criteria.  
+Meanwhile, another transaction inserts additional accounts that meet the loan eligibility criteria.
 As a result, the original transaction processes more accounts than initially counted, leading to a phantom read
 
 ```d2
@@ -737,7 +737,7 @@ For example, in a banking system:
 shape: sequence_diagram
 t: Loan Transaction
 a: "Account A (2.000)"
-l: Loan 
+l: Loan
 t1: "Withdrawal Transaction (700)"
 t -> a: "Reads and verifies the balance (2.000 > 1.000)"
 t1 -> a: "Reads and verifies the balance (1.000 > 700)"
@@ -754,7 +754,7 @@ Since the transactions do not compete for updates on the same row,
 
 #### 3. Serializable Isolation Level
 
-The **Serializable Isolation Level** is the highest isolation level.  
+The **Serializable Isolation Level** is the highest isolation level.
 It guarantees that transactions produce the same result as if they were executed one after another, sequentially.
 
 There are two strategies to implement serializable isolation: **Optimistic** and **Pessimistic**.
@@ -783,7 +783,7 @@ a: Account
 "1. Growing Phase": {
    t -> a: XL
 }
-"2. Shrinking Phase": { 
+"2. Shrinking Phase": {
    t -> a: Reads and verifies the balance
    t -> a: Decreases the balance
    t -> a: Release
@@ -805,13 +805,13 @@ because it needs to update data afterward.
 shape: sequence_diagram
 t: Loan Transaction
 a: "Account A (2.000)"
-l: Loan 
+l: Loan
 t1: "Withdrawal Transaction (700)"
 t1 -> a: "Reads and verifies the balance (1.000 > 700) - XL"
 t -> a: "Waits - SL"
 t1 -> a: "Updates the balance to 300"
 t1 -> t1: Commit
-t -> a: "Reads the balance and fails (300 < 1.000)" 
+t -> a: "Reads the balance and fails (300 < 1.000)"
 ```
 
 While this ensures correctness, it can hinder **parallelism**,
@@ -837,10 +837,10 @@ the predicate (`AccountId = A`) is temporarily recorded in memory.
 shape: sequence_diagram
 t: Loan Transaction
 a: Account A (2.000)
-l: Loan 
+l: Loan
 t1: "Withdrawal Transaction (700)"
 "Predicate AccountId = A" {
-   t -> a: "Reads and verifies the balance (2.000 > 1.000)" 
+   t -> a: "Reads and verifies the balance (2.000 > 1.000)"
    t1 -> a: "Reads and verifies the balance (1.000 > 700)"
 }
 ```
@@ -854,17 +854,17 @@ so it aborts **the least costly transaction** (the one that has done less work).
 shape: sequence_diagram
 t: Loan Transaction
 a: "Account A (2.000)"
-l: Loan 
+l: Loan
 t1: "Withdrawal Transaction (700)"
 "Predicate AccountId = A" {
-   t -> a: "Reads and verifies the balance (2.000 > 1.000)" 
+   t -> a: "Reads and verifies the balance (2.000 > 1.000)"
    t1 -> a: "Reads and verifies the balance (1.000 > 700)"
 }
 "Conflict AccountId = A" {
    t1 -> a: "Updates the balance to 300"
-   t -> t: Aborted (because of conflicting predicate) { 
+   t -> t: Aborted (because of conflicting predicate) {
       class: error-conn
-   } 
+   }
    t1 -> t1: Commit
 }
 t -> l: Creates a new loan record
@@ -881,19 +881,19 @@ So, the predicate lock is actually released when **all** overlapping transaction
 shape: sequence_diagram
 t: Loan Transaction
 a: Account A (2.000)
-l: Loan 
+l: Loan
 t1: "Withdrawal Transaction (700)"
 "Predicate AccountId = A" {
-   t -> a: "Reads and verifies the balance (2.000 > 1.000)" 
+   t -> a: "Reads and verifies the balance (2.000 > 1.000)"
    t1 -> a: "Reads and verifies the balance (1.000 > 700)"
 }
 t -> l: Creates a new loan record
 t -> t: Commit (the predicate lock is not released here)
 "Conflict AccountId = A" {
    t1 -> a: "Updates the balance to 300"
-   t1 -> t1: Aborted (because of conflicting predicate) { 
+   t1 -> t1: Aborted (because of conflicting predicate) {
       class: error-conn
-   } 
+   }
 }
 ```
 
@@ -920,7 +920,7 @@ First and foremost, developers should:
 
 - Identify potential anomalies for each transaction.
 - Choose the **lowest possible isolation level** that safely prevents them.
-  
+
 There’s no guarantee that the selected isolation levels will be perfect!
 Testing under various transaction scenarios is essential to
 uncover subtle issues and fine-tune isolation choices.

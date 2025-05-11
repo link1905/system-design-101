@@ -3,25 +3,25 @@ title: Media Storage
 weight: 40
 ---
 
-Media data (videos, images, documents...) is unstructured binary data.
-Storing them inside a database is not a smart choice,
-instead, we should directly read as a normal file system.
+Media data (videos, images, documents, etc.) consists of unstructured binary content.
+Storing such data in a traditional database is not ideal.
+Instead, it should be read and stored directly via a standard file system interface.
 
-Media data is extremely critical for client-facing services,
-it's even usually the backbone of many applications, e.g., Netflix, YouTube...
-In this topic, we will go through some common ways to manage it
+Media data is especially critical for client-facing services and often serves as the backbone of many applications, such as Netflix and YouTube.
+In this section, we will explore common approaches to managing media data effectively.
 
 ## File Storage
 
-**File Storage** refers to a solution that builds the storage as a live file system,
-helping scale a machine and its storage unit independently.
+**File Storage** refers to a system that exposes storage as a live file system,
+allowing independent scaling of compute and storage resources.
 
-It's perfect for **high performant** and low-latency applications while
-they can work with complete files directly through network.
-Additionally, multiple clients (service or end-user) can rely on the same storage server.
+It is well-suited for **high-performance** and low-latency applications, enabling them to access complete files directly over the network.
+Moreover, multiple clients (either services or end-users) can share the same storage backend.
+
+For example, two services share the same file storage system.
 
 ```d2
-s1: Server 1 {
+s1: Service 1 {
   class: server
 }
 d1: File Storage {
@@ -39,15 +39,14 @@ d1: File Storage {
     }
   }
 }
-s2: Server 2 {
+s2: Service 2 {
   class: server
 }
-s1 <-> d1 
+s1 <-> d1
 s2 <-> d1
 ```
 
-Of course,
-we can build replicas to enhance availability and performance.
+To improve availability and performance, we can add replicas.
 
 ```d2
 p: Primary File Server {
@@ -67,9 +66,7 @@ p -> r2 {
 }
 ```
 
-However, this setup reminds us of the [Master-slave model](../distributed-database/master-slave-architecture).
-The primary server becomes a single point of failure,
-degrading the service availability.
+However, this setup resembles the [Master-Slave model](../distributed-database/master-slave-architecture), where the primary server becomes a single point of failure, reducing overall service availability.
 
 ## Object Storage
 
@@ -80,12 +77,19 @@ resulting in a highly available and fault-tolerant system.
 
 Let's see how an **Object Storage** is implemented in attempts:
 
+## Object Storage
+
+Although a relatively new technology, **Object Storage** has been rapidly gaining popularity.
+
+The key advantage of Object Storage lies in its **distributed architecture**. Files, now referred to as **objects**, are independent and autonomously distributed across multiple servers. This results in a highly available and fault-tolerant system.
+
+Let’s explore how Object Storage is implemented in practice.
+
 ### Object Distribution
 
-Similar to what we did in the [Peer-to-peer architecture](../distributed-database/peer-to-peer-architecture) topic.
-We want to distribute objects to many servers,
-allowing them to write changes concurrently.
-To make it better, a server also has some replicas.
+As discussed in the [Peer-to-peer architecture](../distributed-database/peer-to-peer-architecture), we aim to distribute objects across multiple servers. This allows concurrent writes and improves scalability. Additionally, each server maintains replicas to increase fault tolerance.
+
+For example, two servers continuously replicate data to one another.
 
 ```d2
 s1: Server 1 {
@@ -109,35 +113,34 @@ s1 <-> s2
 
 #### Object Naming
 
-However, this make the way of interacting with objects more complex.
-Normally, we access objects with a tree-like pattern, such as `Docs/doc.md".
-But for now, we don't have a centralized file system,
-that means there is no relationship (directory, sibling...) between objects.
+However, this distributed model complicates how we interact with objects.
+Traditionally, we access files using a hierarchical path structure like `Team/Docs/doc.md`.
+Without a centralized file system, there’s no inherent relationship between objects (e.g., directories or siblings).
 
-**Object Storage** tends to mimic the file system notation by including the **full path** in object keys,
-such as:
+To simulate the familiar file system structure, **Object Storage** systems often include the **full path** in the object’s key, for example:
 
 ```d2
 s1: Server 1 {
-  "Image/img.png": {
+  "Users/Image/img.png": {
     class: file
   }
-  "Docs/doc.md": {
+  "Team/Docs/doc.md": {
+    class: file
+  }
+}
+s2: Server 2 {
+  "Team/Docs/README.md": {
     class: file
   }
 }
 ```
 
-But this is only a trick,
-when performing folder operations like *listing all files in a folder*,
-we still needs to scan and work with all relevant severs.
+This is merely a naming convention.
+Operations like _listing files in a folder_ still require scanning across multiple servers.
 
 ### Chunking
 
-Distributing objects is not enough;
-Unlike common records, objects can significantly vary in size.
-Large objects will require more storage and computing power,
-easily causing resource imbalances between servers.
+Simply distributing objects isn’t sufficient. Unlike typical database records, object sizes can vary dramatically. Large objects demand more storage and processing resources, which can lead to imbalances across servers.
 
 ```d2
 s1: Server 1 {
@@ -152,17 +155,15 @@ s2: Server 2 {
 }
 ```
 
-Continue to the division process,
-we divide objects into fixed-size storage units called **chunks**.
-Apart from balancing resources,
-**Chunking** is also beneficial for reading/writing in parallel to different servers.
+To address this, we divide objects into fixed-size units called **chunks**.
+Chunking not only balances resource usage but also allows parallel read/write operations across servers.
 
 #### Object Chunking
 
-The most straightforward approach to chunk objects is slice them to equal parts.
+The most straightforward chunking strategy is to divide objects into equal-sized parts.
 
-For example, a service is configured the chunk size to `100MB`,
-an object of `200MB` is cut to 2 chunks potentially placed on different servers.
+For instance, if the configured chunk size is `100MB`,
+a `200MB` object will be split into two chunks, which can be stored on different servers:
 
 ```d2
 f: "img.png (200MB)" {
@@ -185,11 +186,11 @@ f -> o.s1
 f -> o.s2
 ```
 
-But this approach is problematic in certain cases:
+However, this approach has some trade-offs:
 
-- Let's say we want configure the chunk size to small to ensure balancing resources.
-But it results in a high number of chunks in different server,
-accessing objects will require much computing power from the servers.
+- Using small chunk sizes improves load balancing but results in too many chunks spread across servers.
+  Retrieving an object then requires significant coordination and computing effort.
+  For example, an object is distributed across five servers, requiring queries to all of them for retrieval.
 
 ```d2
 f: "img.png (500MB)" {
@@ -197,31 +198,11 @@ f: "img.png (500MB)" {
 }
 o: Object Storage {
   grid-rows: 1
-  s1: Server 1 {
-    "img.png.chunk_1 (100MB)" {
-      class: file
-    }
-  }
-  s2: Server 2 {
-    "img.png.chunk_2 (100MB)" {
-      class: file
-    }
-  }
-  s3: Server 3 {
-    "img.png.chunk_3 (100MB)" {
-      class: file
-    }
-  }
-  s4: Server 4 {
-    "img.png.chunk_4 (100MB)" {
-      class: file
-    }
-  }
-  s5: Server 5 {
-    "img.png.chunk_5 (100MB)" {
-      class: file
-    }
-  }
+  s1: Server 1 { "img.png.chunk_1 (100MB)" { class: file } }
+  s2: Server 2 { "img.png.chunk_2 (100MB)" { class: file } }
+  s3: Server 3 { "img.png.chunk_3 (100MB)" { class: file } }
+  s4: Server 4 { "img.png.chunk_4 (100MB)" { class: file } }
+  s5: Server 5 { "img.png.chunk_5 (100MB)" { class: file } }
 }
 f -> o.s1
 f -> o.s2
@@ -230,84 +211,63 @@ f -> o.s4
 f -> o.s5
 ```
 
-- However, if we adapt the chunk size wider, reducing the number of chunks.
-This solution is easy to create imbalances,
-as small objects tend to be ignored in the chunking process.
+- On the other hand, using large chunk sizes reduces the number of chunks
+  but can create resource imbalances—small objects may be underutilized or ignored.
+  For example, objects smaller than the chunk size are inefficiently stored on the same server.
 
 ```d2
-f: "img.png (200MB)" {
-  class: file
-}
-d1: "doc1.md (10MB)" {
-  class: file
-}
-d2: "doc2.md (20MB)" {
-  class: file
-}
-d3: "doc3.md (30MB)" {
-  class: file
-}
-o: Object Storage {
+f: "img.png (200MB)" { class: file }
+d1: "doc1.md (10MB)" { class: file }
+d2: "doc2.md (20MB)" { class: file }
+d3: "doc3.md (30MB)" { class: file }
+d4: "doc4.md (40MB)" { class: file }
+o: Object Storage (chunk size = 100MB) {
   grid-rows: 1
   s1: Server 1 {
-    "img.png.chunk_1 (100MB)" {
-      class: file
-    }
-    "doc1.md.chunk_1 (10MB)" {
-      class: file
-    }
-    "doc2.md.chunk_1 (20MB)" {
-      class: file
-    }
-    "doc3.md.chunk_1 (30MB)" {
-      class: file
-    }
+    "img.png.chunk_1 (100MB)" { class: file }
+    "doc1.md.chunk_1 (10MB)" { class: file }
+    "doc2.md.chunk_1 (20MB)" { class: file }
+    "doc3.md.chunk_1 (30MB)" { class: file }
+    "doc4.md.chunk_1 (40MB)" { class: file }
   }
   s2: Server 2 {
-    "img.png.chunk_2 (100MB)" {
-      class: file
-    }
+    "img.png.chunk_2 (100MB)" { class: file }
   }
 }
 f -> o.s1
 d1 -> o.s1
 d2 -> o.s1
 d3 -> o.s1
+d4 -> o.s1
 f -> o.s2
 ```
 
 #### Chunk Packing
 
-Let's approach in a more controlled angle,
-instead of relying on cutting user objects,
-we will define and pack them into system-customized chunks.
-In other words, a chunk is a **fixed-size file** containing many objects.
+To achieve better control, instead of slicing user objects arbitrarily,
+we define **fixed-size system chunks** and **pack multiple objects** into each chunk.
 
-For example, we'll configure the chunk size to `100MB`.
-If an object is larger than the size,
-it's placed in multiple chunks.
+In this model, a chunk is a system-level file containing multiple objects.
+If an object exceeds the chunk size, it’s split across multiple chunks.
+
+For instance, three objects are packed into two chunks, which are stored on two separate servers.
 
 ```d2
-f1: "img1.png (50MB)" {
-  class: file
-}
-f2: "img2.png (100MB)" {
-  class: file
-}
-f3: "img3.png (50MB)" {
-  class: file
-}
+f1: "img1.png (50MB)" { class: file }
+f2: "img2.png (100MB)" { class: file }
+f3: "img3.png (50MB)" { class: file }
 o: Object Storage {
   grid-rows: 1
   s1: Server 1 {
-    grid-columns: 2
     c1: "chunk_1" {
       grid-rows: 2
       grid-gap: 0
       "img1.png (50MB)"
       "img2.png.chunk_1 (50MB)"
     }
-    c2: "chunk_2" {
+  }
+  s2: Server 2 {
+    c1: "chunk_1" {
       grid-rows: 2
       grid-gap: 0
       "img2.png.chunk_2 (50MB)"
@@ -315,175 +275,105 @@ o: Object Storage {
     }
   }
 }
-f -> o.s1
-f -> o.s2
+f1 -> o.s1
+f2 -> o.s1
+f2 -> o.s2
+f3 -> o.s2
 ```
 
-Programmatically, we can implement by only appending data to existing chunks until they're full.
-This approach is preferred in building **Object Storage** solutions.
-We also use this for below sections.
+In practice, chunks are filled by appending object data until the chunk reaches capacity.
+This method is common in modern **Object Storage** systems and will be used in the following sections.
 
 ### Erasure Coding
 
-Absolutely, we need to replicate chunks on multiple servers as a backup in case of data loss.
-
-Let's say we have 2 chunks on 2 servers.
-To prevent data loss, we replicate each chunk to the other server.
-The storage cost is **at least two times** the real usage;
-If one of the servers go down, we can still recover the chunks.
+To prevent data loss, we must replicate chunks across servers.
+A simple way is to duplicate each chunk to another server:
 
 ```d2
 s1: Server 1 {
-  c1: "chunk_1" {
-    class: file
-  }
-  c2: "chunk_2_replica" {
-    class: file
-  }
+  c1: "chunk_1" { class: file }
+  c2: "chunk_2_replica" { class: file }
 }
 s2: Server 2 {
-  c1: "chunk_2" {
-    class: file
-  }
-  c2: "chunk_1_replica" {
-    class: file
-  }
+  c1: "chunk_2" { class: file }
+  c2: "chunk_1_replica" { class: file }
 }
-
-s1.c1 -> s2.c2 {
-  style.animated: true
-}
-s2.c1 -> s1.c2 {
-  style.animated: true
-}
+s1.c1 -> s2.c2 { style.animated: true }
+s2.c1 -> s1.c2 { style.animated: true }
 ```
 
-[**Erasure Coding (EC)**](https://en.wikipedia.org/wiki/Erasure_code) is a data integrity technique commonly used in distributed systems.
+However, this basic replication results in **2x storage overhead**.
 
-Let's say we have 2 data chunks.
-We can create 1 **parity block** by using an encoding algorithm.
-It's complex to see how the parity is created, we may image a simple math like `chunk_1 + chunk_2 = parity`.
+#### Parity Blocks
+
+[**Erasure Coding (EC)**](https://en.wikipedia.org/wiki/Erasure_code) offers a more storage-efficient alternative. For example, with 2 data chunks, we can generate 1 **parity block** using an encoding function. Think of it conceptually as: `parity = chunk_1 + chunk_2`
 
 ```d2
 direction: right
-c1: chunk_1 {
-  class: file
-}
-c2: chunk_2 {
-  class: file
-}
-c3: parity {
-  class: file
-}
+c1: chunk_1 { class: file }
+c2: chunk_2 { class: file }
+c3: parity { class: file }
 c1 -> c2: "+"
 c2 -> c3: "="
 ```
 
-Now, if any of the blocks is corrupted, e.g., `chunk_2`, we can recover the original data like `chunk_2 = parity - chunk_1`.
+If one chunk is lost (e.g., `chunk_2`), it can be recovered as: `chunk_2 = parity - chunk_1`
 
 ```d2
 direction: right
-c1: chunk_1 {
-  class: file
-}
-c2: chunk_2 {
-  class: generic-error
-}
-c3: parity {
-  class: file
-}
+c1: chunk_1 { class: file }
+c2: chunk_2 { class: generic-error }
+c3: parity { class: file }
 c2 -> c3: "="
 c3 -> c1: "-"
 ```
 
-**Erasure Coding** is wider technique,
-stating that if we maintains `m` number of parities,
-we can recover the original data as long as **no more than `m` blocks** are lost.
-
-For example,
-if we have 3 chunks and 2 parities,
-let's place them on different servers,
-the data is probably safe although **any** 2 servers are corrupted.
+With `m` parity blocks, we can tolerate loss of up to `m` chunks.
+For example, with 3 data chunks and 2 parities, data remains safe even if **any two servers** fail:
 
 ```d2
 direction: right
-s1: Server 1 {
-  c1: chunk_1 {
-    class: file
-  }
-}
-s2: Server 2 { 
-  c2: chunk_2 {
-    class: generic-error
-  }
-}
-s4: Server 4 { 
-  c4: parity_1 {
-    class: file
-  }
-}
-s5: Server 5 { 
-  p1: parity_2 {
-    class: generic-error
-  }
-}
+s1: Server 1 { c1: chunk_1 { class: file } }
+s2: Server 2 { c2: chunk_2 { class: generic-error } }
+s4: Server 4 { c4: parity_1 { class: file } }
+s5: Server 5 { p1: parity_2 { class: generic-error } }
 ```
 
-Let's compare with the method of fully replicating data.
-To achieve the previous power,
-for each chunk, we will replicate it to 2 other servers.
-That means, the system is tolerant to any 2 server failures.
-We observe that the storage cost for redundancy data is doubly higher than **Erasure Coding**,
-to provide the same guarantee.
+In comparison, using full replication for the same level of fault tolerance would require 3 total copies per chunk:
 
 ```d2
-s1: Server 1 {
-  c1: "chunk_1" {
-    class: file
-  }
-}
-s2: Server 2 {
-  c1: "chunk_2" {
-    class: file
-  }
-}
+s1: Server 1 { c1: "chunk_1" { class: file } }
+s2: Server 2 { c1: "chunk_2" { class: file } }
 s3: Server 3 {
-  c1: "chunk_1_replica" {
-    class: file
-  }
-  c2: "chunk_2_replica" {
-    class: file
-  }
+  c1: "chunk_1_replica" { class: file }
+  c2: "chunk_2_replica" { class: file }
 }
 s4: Server 4 {
-  c1: "chunk_1_replica" {
-    class: file
-  }
-  c2: "chunk_2_replica" {
-    class: file
-  }
+  c1: "chunk_1_replica" { class: file }
+  c2: "chunk_2_replica" { class: file }
 }
 ```
 
-In general, **Erasure Coding** is usually implemented by maintaining the number of parities to a half number of original data blocks.
-Based on that, we beneficially reduce the storage cost of data protection approximately by half.
+**Erasure Coding** typically uses a parity-to-data ratio of 1:2,
+reducing storage overhead by roughly half compared to full replication.
 
-However,
-**Erasure Coding** make write operations and data recovery processes slower and consumer more resources,
-as it needs to deal with encoding/decoding handlers.
+However, **Erasure Coding** increases **write latency and resource usage**,
+due to the encoding and decoding processes involved.
 
 ### Metadata Server
 
-Move to the final aspect of this section.
+Let's move to the final aspect of this section.
 In the [Distributed Database](../distributed-database) topic,
-we've routed a record to an owner server by leveraging its unique key.
-But now, everything is much more sophisticated,
-object keys (or paths) are not as important as they are bundled into system chunks.
+we routed a record to its owning server using a unique key.
+However, in Object Storage, the situation is more complex—object keys (or paths) are no longer central, as objects are bundled into system-managed chunks.
 
-Thus, to maintain an **Object Storage** cluster,
-we need to also build an additional **Metadata Server** alongside the real storage servers.
-This server needs to keep track where to retrieve an object through its key,
-it can be a simple **Key-value store** with `key -> [(containing server, chunk, position in chunk, size in chunk)]`.
+To manage an **Object Storage** cluster effectively,
+we must introduce a dedicated **Metadata Server** in addition to the actual storage servers.
+This server is responsible for tracking where each object resides based on its key.
+It can be implemented as a simple **Key-value store**, mapping keys to metadata like:
+`key -> [(server, chunk, position within chunk, size within chunk)]`.
+
+For example, a file is mapped on the **Metadata Server** to its actual storage locations.
 
 ```d2
 Object Storage {
@@ -526,15 +416,14 @@ Object Storage {
 
 ## CDN (Content Delivery Network)
 
-{{< term cdn >}} plays a big role in serving media data.
-In short, a {{< term cdn >}} contains two parts
+{{< term cdn >}} plays a crucial role in delivering media content efficiently.
+In essence, a {{< term cdn >}} is composed of two main components:
 
 ### 1. Caching Layer
 
-{{< term cdn >}} stands as a [read-through](Caching-Patterns.md#cache-aside-cache) caching layer before a data source.
+A {{< term cdn >}} functions as a [read-through caching layer](Caching-Patterns.md#cache-aside-cache) positioned in front of the data source.
 
-For example, a piece of data is initialized once,
-and it's quickly retrieved through the {{< term cdn >}} later.
+For example, once a piece of data is initialized, it can be quickly retrieved from the CDN in subsequent requests:
 
 ```d2
 shape: sequence_diagram
@@ -555,55 +444,57 @@ cdn -> cdn: 3. Cache {
 }
 cdn -> c: 4. Respond
 c -> cdn: 5. Request the data again
-cdn -> c: 6. Respond the cached data immediately {
+cdn -> c: 6. Respond with cached data immediately {
   style.bold: true
 }
 ```
 
 ### 2. Backbone Network
 
-Normally, data is exchanged through the public internet.
-A long distance between endpoints creates many network hops and high latencies.
+Typically, data is transferred over the public internet.
+However, long distances between endpoints result in many network hops and increased latency.
 
-In the background, a {{< term cdn >}} is built on an **internal network** called **Backbone Network**.
-This network consists of dedicated, high-speed fiber-optic links to significantly reduce the latency,
-rather than relying on the public internet.
-The network resides in many regions, transmitting data within it is extremely fast.
+Behind the scenes, a {{< term cdn >}} is built on an **internal high-speed network**,
+known as the **Backbone Network**.
+This network consists of dedicated fiber-optic links across regions,
+offering significantly faster transmission than the public internet.
 
-When a client connects to {{< term cdn >}}, it will be routed to the nearest server first,
-further forwarded to the target server.
+When a client connects to the CDN, their request is first routed to the nearest CDN server,
+which may then forward it internally to the target server:
 
 ```d2
 cdn: CDN {
   s1: Server at Southeast Asia {
     class: server
   }
-  s2: Server at North America { 
+  s2: Server at North America {
     class: server
-  } 
+  }
 }
 c: Client in Vietnam {
   class: client
 }
 
 c -> cdn.s1: 1. Routed to the nearest server
-cdn.s1 -> cdn.s2: 2. Forward within the internal network {  
+cdn.s1 -> cdn.s2: 2. Forward through the internal network {
   style.bold: true
 }
 cdn.s2 -> cdn.s1
 cdn.s1 -> cdn.s1: 3. Cache data
 ```
 
-> A {{< term cdn >}} provider (AWS, Cloudflare) is in charge of its own network.
-> To reduce cost, some big tech (Facebook, Netflix) build their proprietary networks instead
+> Major CDN providers like AWS and Cloudflare operate their own backbone networks.
+> Some large tech companies (e.g., Facebook, Netflix) even build
+> proprietary networks to optimize performance and reduce costs.
 
 ### Usages
 
-There are two common mistakes of using {{< term cdn >}}:
+There are two common misuses of CDNs:
 
-1. Remember that {{< term cdn >}} means for caching data,
-frequently updated data is not suitable, we should consider directly querying the data source.
-If the source is far away, we can leverage the **Backbone Network** for replicating data to a closer position.
+1. **Caching frequently updated data**:
+   CDNs are designed for caching static or infrequently changing content.
+   For dynamic data that updates often, it's better to query the source directly.
+   If the source is geographically distant, consider using the **Backbone Network** to replicate data to a nearby location:
 
 ```d2
 cdn: CDN {
@@ -623,28 +514,30 @@ s -- cdn {
 }
 cdn -> o: Replicate {
   style.animated: true
-}  
-c -> o: Query a nearby store 
+}
+c -> o: Query the nearby replica
 ```
 
-2. If data is only distributed to nearby locations (e.g., within a country), the **Backbone Network** may be redundant.
-We may develop a simple caching service for a cheaper solution.
+2. **Overengineering local deployments**:
+   If content is only accessed within a limited geographic area (e.g., within one country), using a full CDN and Backbone Network might be overkill.
+   A simpler, localized caching system may offer a more cost-effective solution.
 
 ### Edge Computing
 
-**Edge Computing** is a distributed computing paradigm based on **Backbone Network**.
-In short, when we want to transmit a lot of data,
-we should **preprocess** it in the nearest server (called **Edge Server**) before sending the result to the target server (called **Origin Server**),
-e.g., compression, aggregation...
+**Edge Computing** is a distributed computing model that builds upon the CDN's **Backbone Network**.
+The key idea is to **preprocess** data at the closest possible server (called the **Edge Server**)
+before sending it to the main server (the **Origin Server**).
+
+This preprocessing can include operations like compression, filtering, or aggregation.
 
 ```d2
 cdn: CDN {
   s1: Server at Southeast Asia {
     class: server
   }
-  s2: Server at North America { 
+  s2: Server at North America {
     class: server
-  } 
+  }
 }
 c: Client in Vietnam {
   class: client
@@ -656,8 +549,8 @@ c -> cdn.s1: 1. Routed to the nearest server
 cdn.s1 -> cdn.s1: 2. Preprocess data {
   style.bold: true
 }
-cdn.s1 -> cdn.s2: 3. Forwards the preprocessed data
+cdn.s1 -> cdn.s2: 3. Forward preprocessed data
 cdn.s2 -> s
 ```
 
-**Edge Computing** significantly reduces traffic bandwidth and network latency because data is preprocessed and optimized.
+**Edge Computing** dramatically reduces both bandwidth usage and latency by optimizing data closer to the client before transmission.

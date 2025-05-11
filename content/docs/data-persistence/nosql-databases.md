@@ -3,18 +3,19 @@ title: NoSQL Databases
 weight: 30
 ---
 
-**SQL** has long been the primary choice for data storage.
+{{< term sql >}} has long been the primary choice for data storage.
 Its general-purpose design makes it suitable for many use cases—but not all.
 To address the rapid growth of data and its diverse requirements,
-many alternative systems have been developed that outperform **SQL** in specific scenarios.
+many alternative systems have been developed that outperform {{< term sql >}} in specific scenarios.
 These are collectively referred to as {{< term nosql >}} (**Not Only SQL**).
 
-{{< term sqld >}} relies on the unified [Relational Model](https://www.geeksforgeeks.org/relational-model-in-dbms/),
-while {{< term nosql >}} encompasses various types of databases with different data models tailored to specific purposes.
+{{< term sql >}} relies on the unified [Relational Model](https://www.geeksforgeeks.org/relational-model-in-dbms/),
+while {{< term nosql >}} encompasses various types of databases with different data models
+tailored to specific purposes.
 
 ## NoSQL Characteristics
 
-Despite having diverse data models, {{< term nosqld >}} databases often share several common characteristics.
+Despite having diverse data models, {{< term nosql >}} databases often share several common characteristics.
 
 ### 1. Schemaless
 
@@ -25,7 +26,7 @@ meaning they don’t require predefined data schemas. This flexibility is possib
 - Others infer schema dynamically from the data as it's inserted, rather than requiring it upfront.
 
 This makes {{< term nosql >}} especially useful for
-handling flexible or irregularly structured data—something that **SQL** struggles with.
+handling flexible or irregularly structured data—something that {{< term sql >}} struggles with.
 
 For example, consider the following customer records with different attributes:
 
@@ -178,11 +179,11 @@ At a high level, documents are conceptually similar to SQL **rows**, and collect
 However, there are some key differences:
 
 - Documents within the same collection can have different schemas.
-For example, `student_b` has more fields than `student_a`.
-This schema flexibility means structural changes to one document do not impact the rest of the collection.
+  For example, `student_b` has more fields than `student_a`.
+  This schema flexibility means structural changes to one document do not impact the rest of the collection.
 
 - There's no native concept of relationship.
-Instead, references are made using plain values—e.g., `student_b` refers to `class_a` by storing its `id` as a string.
+  Instead, references are made using plain values—e.g., `student_b` refers to `class_a` by storing its `id` as a string.
 
 ### Data Denormalization {id="doc_denormalize"}
 
@@ -248,7 +249,7 @@ student_collection: {
 
 We can perform fast queries on any indexed field—like `name` or `gpa`—which is not possible in **Key-Value Stores** that only support lookups by key.
 
-### Use Cases {id="use-cases\_doc"}
+### Use Cases {id="use-cases_doc"}
 
 In a way, a **Document Store** feels like a more flexible,
 schema-relaxed version of {{< term sql >}}—a natural fit in the {{< term nosql >}} world.
@@ -262,13 +263,13 @@ Document Stores are particularly effective when:
 
 ### Row-Oriented Model
 
-In {{< term sqld >}}, data is typically stored in a **row-oriented** layout,
+In {{< term sql >}} databases, data is typically stored in a **row-oriented** layout,
 where each complete row is stored contiguously on disk.
 For example, a simple student table in an {{< term sql >}} database might look like this:
 
 ```md
-student1, Steve, 3.5  
-student2, Mike, 3.0  
+student1, Steve, 3.5
+student2, Mike, 3.0
 student3, John, 2.5
 ```
 
@@ -289,8 +290,8 @@ A **Column-Oriented Store** takes the opposite approach: it groups and stores da
 Rewriting the student data in columnar format:
 
 ```md
-student1, student2, student3  
-Steve, Mike, John  
+student1, student2, student3
+Steve, Mike, John
 3.5, 3.0, 2.5
 ```
 
@@ -337,7 +338,7 @@ row-1:
   name: Steve
   gpa: 3.5
 
-row-2: 
+row-2:
   id: student2
   name: Mike
   gpa: 3
@@ -359,17 +360,17 @@ Column-Family Stores are typically backed by a **Log-Structured Merge Tree (LSM)
 In memory, LSM combines two principles:
 
 1. [Write-Ahead Logging (WAL)](System-Recovery.md#logging)]:
-Writes are **immediately logged** to disk via a **WAL** for durability.
+   Writes are **immediately logged** to disk via a **WAL** for durability.
 2. [Write-Behind Caching](Caching-Patterns.md#write-behind-caching):
-Changes are temporarily stored in an in-memory **MemTable**.
-When the **MemTable** reaches a size threshold, it is flushed to disk to save data.
+   Changes are temporarily stored in an in-memory **MemTable**.
+   When the **MemTable** reaches a size threshold, it is flushed to disk to save data.
 
 ```d2
 direction: right
 s: Store {
     m: MemTable {
-        class: cache       
-    }    
+        class: cache
+    }
     wal: WAL {
         class: file
     }
@@ -440,7 +441,7 @@ s: Store {
         style.fill: ${colors.e}
         "a=110"
         "d=70"
-    }    
+    }
     l1: Level 1 {
         s0: SSTable 0 (Existing) {
             "a=100"
@@ -529,7 +530,7 @@ s: Store {
         s0: SSTable 0 {
             "e=120"
             "f=2000"
-        }        
+        }
         s1: SSTable 1 (Moved) {
           style.fill: ${colors.i2}
           "a=110"
@@ -553,7 +554,7 @@ s: Store {
       s0: SSTable 0 {
           "e=120"
           "f=2000"
-      }        
+      }
       s1: SSTable 1 {
         style.fill: ${colors.i2}
         "a=110"
@@ -633,7 +634,7 @@ fromNameToIds:
   John: ["student02"]
 ```
 
-This reversal is particularly powerful for text search, where we want to know *where* a given word appears.
+This reversal is particularly powerful for text search, where we want to know _where_ a given word appears.
 
 ### Full-Text Search
 
@@ -704,8 +705,8 @@ o: "Little Prince"
 t: Terms {
   grid-gap: 0
   grid-columns: 1
-  t2: little 
-  t3: prince 
+  t2: little
+  t3: prince
 }
 a: Analyzer
 o -> a -> t
@@ -739,7 +740,7 @@ Search engines are typically **not** used as the primary database. Reasons inclu
 - **Limited non-text capabilities**: Operations like aggregations, transactional updates, or structured queries are often better handled by traditional databases.
 
 Instead, they shine as **search satellites**—
-replicas optimized for querying, layered on top of primary databases like **SQL** or **Document Stores**:
+replicas optimized for querying, layered on top of primary databases like {{< term sql >}} or **Document Stores**:
 
 ```d2
 main: "Main Database" {

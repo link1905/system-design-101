@@ -199,7 +199,7 @@ This process can involve a large number of physical servers, significantly incre
 
 ## Shard Replication
 
-Allowing shards to reside on only one server is risky.  
+Allowing shards to reside on only one server is risky.
 If that server crashes without recovery, the shard and its data will be lost.
 
 Thus, we introduce **replication**:
@@ -246,7 +246,7 @@ peer: Peer-to-peer cluster {
   s2: "Server 2" {
     grid-gap: 50
     grid-columns: 1
-    p1: Shard 2 master 
+    p1: Shard 2 master
     p2: Shard 3 replica
   }
   s3: "Server 3" {
@@ -276,7 +276,7 @@ A simple strategy is to pick the next servers clockwise on the ring.
 
 ![Picking Replicas](consistent-hashing-pick-replicas.png)
 
-Some systems strengthen this further by considering **infrastructure diversity** —  
+Some systems strengthen this further by considering **infrastructure diversity** —
 for example, placing replicas across different data centers or regions to guard against localized failures.
 
 ## Master-Slave And Peer-to-peer
@@ -288,13 +288,13 @@ and reliance on it significantly degrades the system’s availability.
 {{< term p2p >}} provides a more flexible and highly available cluster,
 making nodes inside a cluster equally important.
 
-However, maintaining consistency across peers becomes increasingly difficult as the network scales.  
-For highly coupled data models like {{< term sql >}}, this approach can be challenging.  
+However, maintaining consistency across peers becomes increasingly difficult as the network scales.
+For highly coupled data models like {{< term sql >}}, this approach can be challenging.
 Data is scattered across multiple servers, and actions like transactions or {{< term sql >}} joins
 across many servers over the network become extremely costly and, at times, impossible.
 
-In fact, many {{< term sqld >}} treat the {{< term maSl >}} model as their native setup.  
-On the other hand, {{< term nosqld >}}, which avoid joins and transactions, use {{< term p2p >}}
+In fact, many {{< term sql >}} databases treat the {{< term maSl >}} model as their native setup.
+On the other hand, {{< term nosql >}} databases, which avoid joins and transactions, use {{< term p2p >}}
 for high availability and fault tolerance.
 
 ## Decentralized Cluster
@@ -355,7 +355,7 @@ even if the response contains outdated or inconsistent data.
 In short, a system is considered **available** as long as it responds, regardless of accuracy.
 
 {{< callout type="info">}}
-We've only briefly touched on **Consistency** and **Availability** here;  
+We've only briefly touched on **Consistency** and **Availability** here;
 deeper explanations will follow in the sections below.
 {{< /callout >}}
 
@@ -365,7 +365,7 @@ To understand **Partition Tolerance**, we first need to grasp the concept of a *
 
 ##### Network Partition
 
-A **network partition** occurs when failures split a cluster into isolated groups of nodes,  
+A **network partition** occurs when failures split a cluster into isolated groups of nodes,
 preventing them from communicating with one another.
 
 For example, consider a cluster of three servers that constantly cooperate to maintain synchronization:
@@ -383,7 +383,7 @@ sc: Server C {
 sa <-> sb <-> sc <-> sa
 ```
 
-Now imagine a network failure disrupts communication between `Server C` and the others:  
+Now imagine a network failure disrupts communication between `Server C` and the others:
 The cluster splits into two isolated partitions: `Partition 1 (A, B)` and `Partition 2 (C)`.
 
 ```d2
@@ -444,7 +444,7 @@ both outcomes are unacceptable.
 Since network partitions are inevitable in real-world environments,
 a system that does not tolerate partitions is essentially unusable.
 
-Thus, the real-world battle comes down to **AP** vs **CP**.  
+Thus, the real-world battle comes down to **AP** vs **CP**.
 In the presence of a partition, a distributed system must choose between **Consistency** and **Availability**.
 
 #### CP (Consistency over Availability) Systems
@@ -570,13 +570,13 @@ c1 -> c.g1.sa : Write
 c2 -> c.g2.sb: Write
 ```
 
-**Important:**  
+**Important:**
 Consistency here refers to **cross-partition consistency** during a network split,
 not the usual node-to-node replication consistency.
 Since partitions **cannot communicate**, inconsistencies persist until the cluster is healed.
 After recovery, conflict resolution strategies must be applied
 
-Choosing between **Consistency** and **Availability** is a fundamental decision when designing a distributed database.  
+Choosing between **Consistency** and **Availability** is a fundamental decision when designing a distributed database.
 In the following sections, we will explore two major approaches for managing decentralized clusters:
 
 - {{< term gosProto >}}.

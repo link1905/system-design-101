@@ -3,11 +3,11 @@ title: SQL Database
 weight: 10
 ---
 
-Despite the growing momentum of {{< term nosqld >}} in recent years,
-{{< term sqld >}} remains the most widely used database pattern.
+Despite the growing momentum of {{< term nosql >}} databases in recent years,
+{{< term sql >}} databases remains the most widely used database pattern.
 
 In this topic,
-we’ll take a closer look at {{< term sqld >}},
+we’ll take a closer look at {{< term sql >}} databases,
 exploring how it’s structured and examining techniques to improve its efficiency.
 
 This section is largely based on my experience with {{< term posgres >}}.

@@ -20,10 +20,10 @@ dc: Database cluster {
       class: db
     }
     r1: Replica 1 {
-      class: db 
+      class: db
     }
     r2: Replica 2 {
-      class: db 
+      class: db
     }
     w -> r1: Replicate {
       style.animated: true
@@ -54,10 +54,10 @@ dc: Database cluster {
       class: db
     }
     r1: Read server 1 {
-      class: db 
+      class: db
     }
     r2: Read server 2 {
-      class: db 
+      class: db
     }
     w2: Write sever 2 {
       class: db
@@ -103,7 +103,7 @@ If one master fails, others can continue to process writes, avoiding downtime.
 
 ### SQL Usage
 
-The most widely adopted form of the {{< term maSl >}} model is {{< term sqld >}},
+The most widely adopted form of the {{< term maSl >}} model is {{< term sql >}} databases,
 as a single writer makes it easier to maintain strong consistency for [ACID transactions](../sql-database/concurrency-control/).
 
 Because of this, **Multi-Master** setups are rarely used in practice.
@@ -150,7 +150,7 @@ d2: Database (failure) {
 
 ## Centralized Cluster
 
-The {{< term maSl >}} model is often deployed as a centralized cluster,  
+The {{< term maSl >}} model is often deployed as a centralized cluster,
 with a **Coordinator** that acts as the cluster's entry point.
 
 Since each server has a predefined role (master or replica), the **Coordinator** can:
@@ -175,7 +175,7 @@ db: Database cluster {
   c -> w: "Write"
   c -> r1: "Read"
   c -> r2: "Read"
-  
+
 }
 s: Client {
     class: client
@@ -220,7 +220,7 @@ s: Client  2 {
 }
 p: Coordinator (Pool Manager) {
   vertical-gap: 50
-  grid-rows: 2 
+  grid-rows: 2
   c1: Connection 1 {
     class: conn
   }

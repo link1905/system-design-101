@@ -4,15 +4,14 @@ weight: 50
 ---
 
 {{< callout type="warning" >}}
-Many concepts below inherit from the [Distributed Database topic](Distributed-Database.md),
-please have a look at it before diving into this topic!
+Many of the concepts discussed below build upon the [Distributed Database topic](Distributed-Database.md).
+Please review it before diving into this section.
 {{< /callout >}}
 
 ## Message Queue
 
-We've used {{< term mq >}} for [decoupling a system](Microservice.md#service-decoupling) in the first topic.
-When referring a {{< term mq >}},
-we want to mention a shared message container between many processes.
+We've previously used a {{< term mq >}} to illustrate [system decoupling](Microservice.md#service-decoupling) in microservices.
+In general, a {{< term mq >}} refers to a shared message container that facilitates communication between multiple processes.
 
 ```d2
 s1: Server 1 {
@@ -28,16 +27,16 @@ s1 <-> m
 s2 <-> m
 ```
 
-However, we've left out its detailed implementation which includes two aspects:
+However, we haven’t yet explored the detailed mechanics of a message queue. It typically involves two key aspects:
 
 ### 1. Message Delivery
 
-First, there are two common ways messages can be delivered to consumers.
+There are two common strategies for delivering messages to consumers:
 
 #### Streaming
 
-**Streaming** means messages should be consumed one-by-one immediately after being produced.
-This workflow let the system quickly adapt and handle messages.
+**Streaming** delivery means messages are consumed one by one, immediately after being produced.
+This approach allows systems to react and process events as soon as possible.
 
 ```d2
 direction: right
@@ -50,7 +49,7 @@ m1: Message 1 {
 m2: Message 2 {
     class: msg
 }
-s: Service 
+s: Service {
     class: server
 }
 e -> m1 -> s
@@ -59,11 +58,11 @@ e -> m2 -> s
 
 #### Batching
 
-Another delivery style is **Batching**,
-meaning messages can be stacked up to be processed in large batches.
-This results in far less resources consumptions,
-as we don't need a *24/7* system to handle messages,
-consumers can be lightweight short-lived processes.
+In **Batching**, messages are accumulated and processed together in groups.
+This approach significantly reduces resource consumption,
+as it removes the need for continuously running services.
+Consumers can instead be lightweight,
+short-lived processes triggered on demand or at scheduled intervals.
 
 ```d2
 direction: right
@@ -79,7 +78,7 @@ m2: Message 2 {
 b: Batch {
     class: batch
 }
-s: Service 
+s: Service {
     class: server
 }
 e -> m1 -> b
@@ -89,12 +88,12 @@ b -> s
 
 ### 2. Message Durability
 
-Next, a {{< term mq >}} should show how message are persisted overtime.
+Another critical aspect of {{< term mq >}} is **message durability**—how messages are stored over time.
 
-For some solutions,
-they choose to temporarily store messages and delete them after being consumed.
+Some implementations store messages temporarily and delete them once they are consumed:
 
 ```d2
+direction: right
 s1: Service 1 {
     class: server
 }
@@ -104,39 +103,36 @@ m: Message Queue {
 s2: Service 2 {
     class: server
 }
-s1 -> m: Produce a message
-s2 <- m: Consume the message
-m -> m: Delete the message 
+s1 -> m: 1. Produce a message
+s2 <- m: 2. Consume the message
+m -> m: 3. Delete the message
 ```
 
-This behavior reduces resources consumptions.
-However, it's insensible for sensitive systems;
-Messages are valuable,
-they help keep track of what happened in a system.
-Thus,
-some solutions try to save messages durably in physical disks.
+While this behavior is resource-efficient,
+it's not suitable for systems requiring high reliability or audit trails.
+In such cases, messages are considered valuable—they record what occurred within the system.
+To address this, more robust solutions persist messages durably on physical storage,
+ensuring they are retained even after being consumed.
 
 ## Event Streaming Platform
 
-{{< term esp >}} is a {{< term mq >}} implementation
-in a distributed manner with high availability and fault-tolerance.
+An {{< term esp >}} is a distributed implementation of a {{< term mq >}},
+designed to offer high availability and fault tolerance.
 
-First, let's explain the term **Event**.
+Before diving deeper, let’s first clarify the concept of an **Event**.
 
 ### Event
 
-**Message** is a broad term referring to every piece of information transmitted within a system.
-In common, messages can be categorized into:
+The term **Message** broadly refers to any piece of information exchanged within a system.
+Messages generally fall into two main categories:
 
-1. **Command** is a request sent to the system.
-2. **Event** refers to a fact happened in the past.
+1. **Command** – A directive sent to the system, requesting it to perform a specific action.
+2. **Event** – A record of something that has already occurred.
 
-For example,
-in a payment transaction:
+Let’s consider a payment transaction as an example:
 
-- **Command**: the client starts the transaction with a command `InitiateTransaction`.
-- **Event**: within the execution, the transaction can leave some events in the system,
-such as `AccountBalanceChanged`, `TransactionCompleted`, `TransactionFailed`...
+* **Command**: The client begins the transaction by issuing a command such as `InitiateTransaction`.
+* **Event**: As the system processes the transaction, it generates events like `AccountBalanceChanged`, `TransactionCompleted`, or `TransactionFailed`.
 
 ```d2
 c: Client {
@@ -160,22 +156,22 @@ s -> m2
 s -> m3
 ```
 
-**Event** is used instead of **Message**,
-based on a real usage pattern,
-in fact, many systems opt for just storing events durably and ignoring commands.
-We'll explain why in the [Event-driven Architecture topic](event-driven-architecture).
+In modern systems, the term **Event** is often favored over **Message**,
+as it better reflects real-world usage.
+Many architectures focus on durably storing events and may even bypass command persistence entirely.
+We'll explore the reasons behind this in the [Event-driven Architecture](event-driven-architecture) section.
 
-We've also explained **Streaming** above,
-that means events should be delivered and handled immediately once they're created.
-Theory enough!
-Let's see how to build an {{< term esp >}}!
-In the next section,
-we'll use [**Apache Kafka**](https://kafka.apache.org/) as demonstration purposes,
-this is the most common {{< esp >}} currently.
+We’ve also touched on the concept of **Streaming**,
+which emphasizes the immediate delivery and processing of events as soon as they are produced.
+
+Let’s explore how to build an {{< term esp >}}.
+In the following section, we’ll draw heavily on concepts from **Apache Kafka**—
+the most widely used {{< term esp >}} in the industry today.
 
 ## Event Streaming Cluster
 
-{{< term esp >}} works as a decentralized cluster revolving around many servers, usually called **brokers**.
+An {{< term esp >}} operates as a decentralized cluster composed of multiple servers,
+commonly referred to as **brokers**.
 
 ```d2
 b1: Broker 1 {
@@ -190,8 +186,8 @@ b3: Broker 3 {
 b1 <-> b2 <-> b3 <-> b1
 ```
 
-{{< term kk >}} favors consistency over availability.
-One of the brokers will be elected as the **Controller** (**Leader**) node by the [Raft algorithm](Peer-to-peer-Architecture.md#).
+For example, {{< term kk >}} prioritizes **consistency** over **availability**.
+One broker is elected as the **Controller** (or **Leader**) node using the [Raft algorithm](Peer-to-peer-Architecture.md#).
 
 ```d2
 b1: Broker 1 (Controller) {
@@ -213,30 +209,33 @@ b1 -> b3: Replicate logs {
 
 ### Topic
 
-Topic is the concept grouping all events of the same type for simple management, e.g. `AccountCreated` topic will have following events
+A **Topic** is a logical grouping of events of the same type, simplifying event organization and management.
+For example, a topic named `AccountCreated` might contain events like the following:
 
 ```yaml
 AccountCreated:
-- event1:
-    accountId: acc1
-    at: 00:01
-- event2:
-    accountId: acc2
-    at: 00:02
+  - event1:
+      accountId: acc1
+      email: mylovelyemail@mail.com
+      at: 00:01
+  - event2:
+      accountId: acc2
+      email: nottoday@mail.com
+      at: 00:02
 ```
 
-Simply, you can imagine a topic as a {{< term sql >}} table containing events (rows) of the same type.
+> You can think of a topic as a {{< term sql >}} table, where each row represents a single event of the same type.
 
 ### Partition
 
-Maintaining a topic on a single broker is inefficient.
-Because the storage and access volume of each topic can vary, possibly creating imbalances between brokers
+Storing an entire topic on a single broker is inefficient.
+The storage and access load for each topic may vary significantly,
+potentially causing uneven load distribution across brokers.
 
-Hence, a topic is divided into smaller **partitions** distributed across brokers.
-That reminds us of [sharding](Peer-to-peer-Architecture.md#shard) in a {{< term p2p >}} cluster.
+To address this, topics are split into smaller units called **partitions**, which are distributed across brokers.
+This concept is similar to [sharding](Peer-to-peer-Architecture.md#shard) in a {{< term p2p >}} cluster.
 
 ```d2
-
 classes: {
   part: {
     width: 200
@@ -279,11 +278,9 @@ t.p3 -> sv.s3
 
 ### Partition Replication
 
-Of course,
-We need to replicate a partition to different brokers to guarantee data loss.
+To ensure fault tolerance and prevent data loss, partitions must be replicated across multiple brokers.
 
-For example,
-`Partition 1`, `Partition 2`, `Partition 3` are replicated to `Broker 3`, `Broker 1`, `Broker 2` respectively.
+For instance, `Partition 1`, `Partition 2`, and `Partition 3` are each assigned to a primary broker and replicated to another broker:
 
 ```d2
 classes: {
@@ -317,7 +314,7 @@ peer: Cluster {
   s2: "Broker 2" {
     grid-gap: 50
     grid-columns: 1
-    p1: Partition 2 primary 
+    p1: Partition 2 primary
     p2: Partition 3 replica
   }
   s3: "Broker 3" {
@@ -343,10 +340,12 @@ db.p3 -> peer.s3.p1
 
 ## Data Structure
 
-For simplicity, {{< term esp >}} basically supports two operations: **Produce** (Write) and **Consume** (Read).
-there is no update or delete operations.
-They typically organize events as **only-appended files** in brokers,
-changing something in between will cause entries to move around.
+At a fundamental level, an {{< term esp >}} supports two operations: **Produce** (write) and **Consume** (read).
+There are no update or delete operations.
+
+Events are stored as **append-only files** on brokers.
+Modifying an event in the middle of the log would require shifting all subsequent entries,
+which is inefficient and generally avoided.
 
 ```d2
 b: Broker {
@@ -387,11 +386,9 @@ b: Broker {
 
 ## Producing
 
-Producing is nothing but appending data to the primary partition,
-further synchronizing to replicas.
+Producing simply means appending data to the primary partition and subsequently synchronizing it to the replicas.
 
 ```d2
-
 direction: right
 mq: MQ cluster {
     b1: Broker 1 (Primary)
@@ -406,18 +403,17 @@ mq.b1 -> mq.b2: 2. Replicate {
 }
 ```
 
-### In-sync Replica (ISR)
+### In-Sync Replica (ISR)
 
-Periodically, replicas will fetch and compare with data from the primary partition.
-This ensures a new (or just corrupted) replica can keep up with the latest data.
+Replicas periodically fetch and compare data from the primary partition.
+This ensures that any newly added or previously corrupted replicas can catch up with the latest data.
 
-**In-sync Replicas (ISR)** refers to replicas that are in sync with the primary partition.
-This is configured with a duration value, a replica is considered **out-of-sync**
-if it falls behind (the last fetch) by more than the threshold.
-For example, the ISR threshold is set as `2s`,  `S2` is supposed as **out-of-sync**.
+**In-Sync Replicas (ISR)** are those replicas currently in sync with the primary partition.
+This is governed by a configurable time threshold. If a replica's last fetch exceeds the threshold, it is considered **out-of-sync**.
+For example, with an ISR threshold of 2 seconds, a replica that fetched data last at 00:02 while the primary is at 00:05 is **out-of-sync**.
 
 ```d2
-l: Primary (Time = 00:05, ISP = 2s) {
+l: Primary (Time = 00:05, ISR Threshold = 2s) {
     shape: server
 }
 b: Replica 1 (LastFetch = 00:04) {
@@ -429,12 +425,13 @@ c: Replica 2 (LastFetch = 00:02) {
 ```
 
 Similar to [Quorum-based consistency](Distributed-Database.md#quorum-based-consistency),
-a producing request contains an acknowledgement (**ACK**)
-value defining the number of brokers (including the primary partition) an event will be saved before responding back to producers.
+a produce request includes an acknowledgement (**ACK**) setting.
+This determines how many brokers (including the primary) must successfully save the event before the producer receives a response.
+Please keep **ACK** in mind, this mechanism is crucial for understanding [Delivery Semantics](#delivery-semantics).
 
-There are 3 types of **ACK** settings for producing:
+There are three **ACK** levels:
 
-- **ACK=0**: No save is requested. That means data loss is not a problem.
+- **ACK=0**: No replication is required. This allows for the lowest latency but risks data loss.
 
 ```d2
 shape: sequence_diagram
@@ -449,7 +446,7 @@ p -> s: 2. Respond
 p -> p: 3. Save
 ```
 
-- **ACK=1**: Only the primary partition is requested. Data loss may occur if it goes down before replicating to any replica.
+- **ACK=1**: Only the primary must save the data. If the primary fails before replication, data may be lost.
 
 ```d2
 shape: sequence_diagram
@@ -465,12 +462,12 @@ r: Replica {
 s -> p: 1. Produce (ACK = 1)
 p -> p: 2. Save
 p -> s: 3. Respond
-p -> r: 4. Replicate (data loss if fails here) {
+p -> r: 4. Replicate (data loss if failure occurs here) {
     class: error-conn
 }
 ```
 
-- **ACK=ALL**: All **ISRs** are requested to save data. Data loss is evaded in case the primary partition is corrupted.
+- **ACK=ALL**: All **ISRs** must save the data. This ensures no data loss even if the primary fails.
 
 ```d2
 shape: sequence_diagram
@@ -492,21 +489,18 @@ p -> r1: 3. Replicate
 p -> s: 4. Respond
 ```
 
-Keep in mind these patterns as they're extremely important in the [Delivery Semantics](#delivery-semantics) section.
-
-Why does it use **ISRs** instead of normal replicas?
-There is a high chance that an **out-of-sync** replica crashes or is partitioned,
-waiting for it will slow down the partition, or even unavailable if the replica is actually down.
-When the replica is in-sync again, it can fetch missed events from the primary partition.
+Why use **ISRs** instead of all replicas?
+**Out-of-sync replicas** might be slow or unavailable due to crashes or partitioning.
+Waiting for them can degrade performance or block the partition entirely. Once a replica becomes in-sync again, it will fetch the missed events from the primary.
 
 ## Consumer
 
-**Event Streaming** usually implements [Long Polling](Communication-Protocols.md#long-polling) for event delivery,
-as it helps decouple the service from consumers, increasing availability.
+**Event Streaming** typically uses [Long Polling](Communication-Protocols.md#long-polling) for event delivery.
+This approach decouples producers and consumers, improving system availability.
 
 ### Commit Offset
 
-Callback to the data structure, **Offset** refers to the position of events in only-appended files.
+In streaming systems, **Offset** refers to the position of an event in an append-only log.
 
 ```d2
 b: Partition {
@@ -523,12 +517,16 @@ b: Partition {
         offset: 1
         accountId: acc02
         |||
+        e3: |||yaml
+        offset: 2
+        accountId: acc10
+        |||
     }
 }
 ```
 
-To prevent consumers from pulling duplicated events,
-a partition needs to member the **offset** of the last consumed event of each consumer.
+To avoid processing the same event multiple times,
+each partition tracks the **last consumed offset** for every consumer.
 
 ```d2
 b: Partition {
@@ -537,7 +535,7 @@ b: Partition {
         consumer1:
             lastOffset: 0
         consumer2:
-            lastOffset: 1 
+            lastOffset: 1
         |||
     }
     f1: "AccountCreated.events" {
@@ -555,11 +553,9 @@ b: Partition {
 }
 ```
 
-Consumers periodically pull new events from the primary partition,
-handle them and **commit offset** (increase the last offset) to ignore consumed events.
+Consumers periodically fetch new events from the primary, handle them, and then **commit/increase the offset** to avoid reprocessing.
 
 ```d2
-
 shape: sequence_diagram
 c: Consumer {
     class: client
@@ -567,7 +563,7 @@ c: Consumer {
 q: Event {
     class: mq
 }
-c -> q: 1. Consumes
+c -> q: 1. Consume
 q -> c: 2. Return an event
 c -> c: 3. Handle the event
 c -> q: 4. Commit offset
@@ -575,16 +571,13 @@ c -> q: 4. Commit offset
 
 ### Consumer Group
 
-A topic can be large with a lot of partitions,
-letting a single consumer handle it is not a efficient solution.
-Instead, we can build a consumer as a group,
-different workers can read different partitions concurrently.
+A topic may have multiple partitions, making it inefficient for a single consumer to handle alone.
+Instead, a **consumer group** allows multiple consumers to read different partitions in parallel.
 
-Consumers within a group use the same name to commit offset
-to make sure the group can't read an event twice.
+All consumers in a group share the same name and commit offset collectively, ensuring each event is processed only once by the group.
 
-For example, `Group 1` consumes `Topic 1`.
-Each consumer member tries to read a partition
+For example, in `Group 1` each consumer handles a separate partition from `Topic 1`.
+In `Group 2` there is only one consumer, so it handles all partitions of the topic.
 
 ```d2
 grid-rows: 2
@@ -599,48 +592,30 @@ c: Consumers {
         c1: Consumer 1
         c2: Consumer 2
     }
-}
-q.t1.p1 -> c.cg1.c1
-q.t1.p2 -> c.cg1.c2
-```
-
-`Group 2` consumes `Topic 2`.
-The group has only 1 member, so, it must consume from all partitions of the topic.
-
-```d2
-grid-rows: 2
-q: Topics {
-    t2: Topic 2 {
-        p1: Partition 1    
-        p2: Partition 2    
-    }
-}
-c: Consumers {
     cg2: Consumer Group 2 {
         c1: Consumer 1
     }
 }
-q.t2.p1 -> c.cg2.c1
-q.t2.p2 -> c.cg2.c1
+q.t1.p1 -> c.cg1.c1
+q.t1.p2 -> c.cg1.c2
+q.t1.p1 -> c.cg2.c1
+q.t1.p2 -> c.cg2.c1
 ```
 
-As a side node,
-replicas are only used for data backup and recovery, consumers must work with the primary server.
-Unlike other data stores, read operation generates no side effect;
-In {{< term esp >}}, event consumption is [non-idempotent](API-Design.md#idempotency),
-it will change consumer offset, and a replica is expected to not modify data.
+**Note:** Replicas are only used for backup and recovery. Consumers must always read from the primary.
+Unlike traditional databases, read operations leave the system unchanged.
+In {{< term esp >}}, consumption is [non-idempotent](API-Design.md#idempotency) because it changes the consumer’s offset.
 
 ## Delivery Semantics
 
-There are many problems arisen when both committing in **Event Streaming** and another datasource.
-These are two separate steps, errors can happen in between to make them mismatched.
+Numerous challenges arise when committing changes to both **Event Streaming** platforms
+and other data sources simultaneously.
+These two steps are independent, and failures between them can lead to inconsistencies.
 
-For example, a consumer processes an event successfully,
-makes changes in another store but crashing before committing offset.
-When the consumer lives again, it will unexpectedly read the event again.
+For example, a consumer might successfully process an event and apply changes to another data store but crash before committing the event offset.
+Upon recovery, the consumer may reprocess the same event unexpectedly.
 
 ```d2
-
 shape: sequence_diagram
 c: Consumer {
     class: server
@@ -664,22 +639,23 @@ c <- e: Pull and process the event again {
 }
 ```
 
-**Delivery Semantics** guarantee the delivery of events based on the collaboration producing and consumption.
-There are 3 types of them offering tradeoffs between latency and durability.
+**Delivery semantics** define the guarantees around event delivery during production and consumption. There are three main types, each offering trade-offs between latency, durability, and reliability.
 
 ### At-most-once Delivery
 
-As the name suggests, this approach ensures events will be delivered **0** or 1 time
+### At-most-once Delivery
+
+This delivery model ensures that an event is delivered **zero or one time**.
 
 #### Producer {id="prod_amo"}
 
-**Producer** sends events with **ACK=0** to get lowest latency.
-Even the requests fail, they will be not retried to prevent data duplication.
+The **producer** sends events with **ACK=0** to achieve the lowest latency.
+Even if a request fails, it won't be retried to avoid duplication.
 
-For example, a producer can’t receive the response from the broker due to a network error.
-If the producer tries to re-produce the event,
-we'll encounter duplicated events.
-Thus, we'll prohibit retrying, despite failures.
+For example,
+if the producer doesn’t receive a response from the broker due to a network error and retries the operation,
+duplicated events may occur.
+To prevent this, retries are disabled—even in failure scenarios.
 
 ```d2
 shape: sequence_diagram
@@ -690,9 +666,9 @@ q: Partition {
     class: mq
 }
 p -> q: Produce an event
-q -> p: Respond but the producer can not receive {
+q -> p: Respond but the producer cannot receive {
     class: error-conn
-} 
+}
 p --> q: Continue without retry {
     class: error-conn
 }
@@ -700,8 +676,7 @@ p --> q: Continue without retry {
 
 #### Consumer {id="con_amo"}
 
-In the consumer side, it commits events **before** handling it.
-This helps prevent from handling an event twice in case the consumer fails to commit it.
+The **consumer** commits the event **before** handling it. This approach ensures the event won't be processed more than once if the consumer crashes before committing.
 
 ```d2
 shape: sequence_diagram
@@ -719,10 +694,7 @@ c -> q: Commit the last offset {
 c -> c: Handle the event
 ```
 
-For example,
-a consumer succeeds handling an event but crashes before committing it.
-If the consumer commits offset late,
-it will unpextedly pulls the event again after recovering.
+For instance, if a consumer processes an event successfully but crashes before committing, and the commit is delayed, the event will be reprocessed after recovery.
 
 ```d2
 shape: sequence_diagram
@@ -741,23 +713,22 @@ c -> c: Crash and fail to commit offset {
 c -- c: Recover
 c -> q: Consume the event again {
     class: generic-error
-
+}
 ```
 
-Thus, events should be committed before handling.
+Thus, events must be committed **before** they are processed.
 
-This approach ensures that events will be only delivered at most 1 time.
-Moreover, it brings the lowest latency.
-It's perfectly fit for cases which **data loss is acceptable**, e.g., metrics monitoring.
+This model guarantees delivery **at most once** and offers the lowest latency.
+It is suitable for scenarios where **data loss is acceptable**, such as metrics collection.
 
 ### At-least-once Delivery
 
-This approach ensures events will be delivered once or **more times**.
+This model guarantees that every event is delivered **at least once**, possibly more.
 
 #### Producer {id="prod_alo"}
 
-**Producer** sends events with **ACK=1 or ALL** and **retry on failure** to ensure them to be persisted.
-Although, as we've discussed, the retry behavior may cause data duplication.
+The **producer** uses **ACK=1 or ALL** and enables retries on failure to ensure event persistence.
+However, retries may result in duplicate events.
 
 ```d2
 shape: sequence_diagram
@@ -768,9 +739,9 @@ q: Broker {
     class: mq
 }
 p -> q: Produce an event
-q -> p: Respond but the producer can not receive {
+q -> p: Respond but the producer cannot receive {
     class: error-conn
-} 
+}
 p --> q: Retry to produce the event (duplicated) {
     class: error-conn
 }
@@ -778,8 +749,7 @@ p --> q: Retry to produce the event (duplicated) {
 
 #### Consumer {id="con_alo"}
 
-**Consumer** commits events **after** handling it.
-That means an event can be consumed more than once if the consumer fails to commit it.
+The **consumer** commits the offset **after** processing. If it crashes before committing, the event may be reprocessed.
 
 ```d2
 shape: sequence_diagram
@@ -805,30 +775,22 @@ c <- e: Pull the event again {
 }
 ```
 
-This approach ensures data durability but possibly encountering data duplication,
-the performance is also lower than **At-most-once Delivery**.
-Consider this model if data duplication is acceptable or **resolvable**, e.g., user activity tracking,...
+This method offers stronger durability guarantees but may result in duplicate data and reduced performance compared to **at-most-once** delivery.
+It's a good fit when **data duplication is acceptable or resolvable**, such as in user activity tracking.
 
 ### Exactly-once Delivery
 
-Events are delivered exactly once, this is the most expected and hardest setup.
-Unfortunately, this model is not supported natively by {{< term esp >}} solutions,
-we need to equip the system with more techniques to achieve it.
+This is the most reliable but also the most complex delivery model, ensuring each event is delivered **exactly once**.
+Native {{< term esp >}} solutions don't fully support this out of the box, so additional techniques are required.
 
 #### Exactly-once Producer
 
-**Producer** works similarly to **At-least-once Delivery** with **ACK=ALL** for reliable durability.
+The producer works similarly to the **at-least-once** model, using **ACK=ALL**. To prevent duplication, it uses **idempotency keys**:
 
-To prevent duplication, it will assign idempotency keys to producers:
+* Each producer is assigned a **PID** (producer ID) and a **seq** (sequence number), which it increments locally after receiving an acknowledgment.
+* The broker tracks the `(PID, seq)` pair to detect and ignore duplicates.
 
-- A producer is assigned a **PID** (producer id) and a **seq** (sequential number).
-The producer increases the number **locally** after receiving an producing acknowledgement.
-- Partitions maintain pairs of **(PID, seq)** to ignore duplicates.
-
-For example, a producer produces an event but
-fails to receive the respective acknowledgement due to a network error.
-It then retries to produce the event again,
-but the event is ignored as its **seq** is outdated.
+Example:
 
 ```d2
 shape: sequence_diagram
@@ -860,24 +822,22 @@ sp {
 sp -> p: Fail to respond {
     class: error-conn
 }
-p -> sp: Publish an event (seq = 1)
-sp -> p: Ignore (seq = 2 > event seq = 1)
+p -> sp: Retry (seq = 1)
+sp -> p: Ignore (seq = 2 > event seq = 1) {
+  style.bold: true
+}
 p {
-   "seq = 2" 
+   "seq = 2"
 }
 ```
 
 #### Exactly-once Consumer
 
-{{< term esp >}} is unable to resolve the duplicated consumption problem itself when a consumer fails to commit,
-because it has no idea whether the consumer has failed or succeeded.
-Resolving the issue needs additional workloads,
-typically, we have 3 solutions.
+{{< term esp >}} cannot distinguish whether a consumer has processed an event if it crashes before committing. To achieve exactly-once semantics, we must introduce one of the following approaches:
 
-##### 1. Consume-process-produce Pipeline
+##### 1. Consume–Process–Produce Pipeline
 
-For a specific scenario when an event is transformed to another event and doesn’t make changes to external datasets,
-{{< term esp >}} can help natively.
+If the event is simply transformed into another event (with no external side effects), {{< term esp >}} can manage this flow.
 
 ```d2
 direction: right
@@ -901,10 +861,8 @@ t -> sp: 3. Produce new event
 
 ###### Transactional Commit
 
-{{< term esp >}} can implement **Transactional Commit**.
-An event has 2 states: **committed** and **uncommitted**, by default, consumers can only see committed events.
-
-Any failure between will abort the entire transaction and make uncommitted changes invalidated.
+{{< term esp >}} supports **Transactional Commit**, where consumers can only see **committed** events.
+If a failure occurs mid-process, the transaction is aborted, and all uncommitted changes are discarded.
 
 ```d2
 shape: sequence_diagram
@@ -925,26 +883,19 @@ c -> q: 5. Commit the transaction {
 }
 ```
 
-Obviously, it's not exactly-once delivery.
-This approach ensures that an event only generates a result (the associated event),
-if the consumer fails in between, it will not produce duplicated events.
-However, it's only possible when the even processing generates no side effect.
+This guarantees the **transformation process** won't produce duplicates.
+However, it only applies to stateless processing with no external side effects.
 
 ##### Two-phase Commit
 
-In [the distributed transaction](Low-level-Protocols.md#two-phase-commit-2pc) topic,
-we will talk about commiting changes in multiple stores concurrently.
-
-In short,
-we leverage `Two-phase commit` to make sure that the offset and changes (in another store) are both committed
+To synchronize multiple systems, we can use [{{< term 2pc >}}](Low-level-Protocols.md#two-phase-commit-2pc):
 
 ```d2
-
 shape: sequence_diagram
 c: Consumer {
     class: client
 }
-q: Event Streaming  {
+q: Event Streaming {
     class: mq
 }
 d: External Store {
@@ -965,22 +916,20 @@ c -> d: COMMIT {
 }
 c -> q: COMMIT {
     style.bold: true
-} 
+}
 ```
 
-Two-phase commit comes with the problem of infinite blocking (we will explain in depth in [the corresponding topic](Low-level-Protocols.md#two-phase-commit-2pc)).
-Sometimes, this feature is even not supported.  
+However, {{< term 2pc >}} introduces the risk of infinite blocking and is not always supported.
+This is discussed further in [this topic](Low-level-Protocols.md#two-phase-commit-2pc).
 
 ##### Event Idempotency
 
-Similar to [Request Idempotency](API-Design.md#idempotency), this method **requires** events to have a unique id.
-In other words, this supports `exactly-once delivery` by filtering duplication on the consumer side
+This approach requires each event to carry a **unique identifier**.
+Consumers then check for this ID before processing.
 
-For example, we store completed events persistently,
-then we check the existence of events (by `id`) to consider continuing processing them
+For example, a consumer verifies whether an event has already been processed before handling it.
 
 ```d2
-
 shape: sequence_diagram
 c: Consumer {
     class: client
@@ -991,27 +940,29 @@ q: Event Streaming {
 d: External Store {
     class: db
 }
-q -> c: Pull and handle "event-1"
-c -> d: Save "event-1" to the database {
+q -> c: Pull "event-1"
+c -> d: Handle and save "event-1" {
     style.bold: true
 }
-c -- c: The consumer is corrupted here, the event won't be committed {
+c -- c: The consumer crashes, offset not committed {
     class: error-conn
 }
-c -> c: Recovers {
+c -> c: Recover {
     style.bold: true
 }
-q -> c: Pull "event-1" because it wasn't committed
-c -> d: Verify and see that "event-1" was consumed
-c -> c: Ignores the event {
+q -> c: Pull "event-1" again
+c -> d: Check and find "event-1" already stored
+c -> q: Commit the event {
     style.bold: true
 }
 ```
 
-This approach is preferred than `Two-phase commit` because of its simplicity,
-frequently combined with the [Saga](Compensating-Protocols.md#saga) distributed pattern  
+This approach is often preferred over {{< term 2pc >}} due to its relative simplicity and better fault tolerance.
+It is commonly used in combination with the [Saga](Compensation-Protocol.md) pattern to manage long-running, distributed operations.
 
-We see that there is no real exactly-once delivery when working with external systems,
-you may equip additional handlers to achieve it.
-`Exactly-once` delivery is perfectly fit for critical systems which both data loss and duplication are unacceptable,
-e.g., banking systems
+However, this method does not provide full atomicity across the system—
+there can be consistency drift between the streaming platform and the underlying data store.
+We’ll explore this limitation in more detail in the [Distributed Transaction](Distributed-Database.md) section.
+
+Ultimately, **exactly-once** delivery is difficult to guarantee when external systems are involved.
+It requires additional mechanisms and is best suited for **mission-critical systems** where both data loss and duplication are unacceptable (e.g., banking platforms).
