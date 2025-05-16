@@ -28,7 +28,7 @@ c -> s: Address?
 s -> c: 1.2.3.4
 ```
 
-The complete set of these commands, together with other rules (such as authorization), constitutes an {{< term api >}}.  
+The complete set of these commands, together with other rules (such as authorization), constitutes an {{< term api >}}.
 For example, here’s the API definition from the earlier example:
 
 ```yaml
@@ -51,7 +51,7 @@ is an **architectural style** first introduced by [Roy Fielding](https://en.wiki
 It comprises a set of high-level principles promoting scalability, simplicity, and compatibility.
 
 It's **not tied** to any specific protocol or framework, such as `HTTP` or `WebSocket`.
-To clarify these principles, we will use [HTTP](../communication-protocols/) for the examples
+To clarify these principles, we will use [HTTP]({{< ref "communication-protocols" >}}) for the examples
 in the following sections.
 
 ## Resource
@@ -84,7 +84,7 @@ f <-> s.i
 
 ## 1. Statelessness
 
-The first principle of {{< term rest >}} is [statelessness](../service-cluster.md#stateless-service).  
+The first principle of {{< term rest >}} is [statelessness]({{< ref "service-cluster#stateless-service" >}}).
 This means servers do not retain any session state between requests.
 
 For example, if a user resource tracks a credit offset between calls, the server would have to maintain local state, making it **stateful**.
@@ -322,7 +322,7 @@ c <- p: 4. Failed because the transaction is being processed {
 }
 ```
 
-The idempotency of a request depends on its **effect**, not just the method.  
+The idempotency of a request depends on its **effect**, not just the method.
 For example, an `update` request that cancels a `payment` might also create a new `payment cancellation` record. In this case, the overall action is no longer idempotent, since repeating the same request would generate additional resources.
 
 By carefully understanding and designing for idempotency, we can build robust APIs that handle retries and duplicate requests gracefully, improving both reliability and client experience.
@@ -365,7 +365,7 @@ xc: XML Client
 jc -> p: "Accept: application/json" {
    style.bold: true
 }
-p -> jc: "Content-Type: application/json" 
+p -> jc: "Content-Type: application/json"
 jc {
    json: |||json
    {
@@ -377,9 +377,9 @@ jc {
 xc -> p: "Accept: text/xml" {
    style.bold: true
 }
-p -> xc: "Content-Type: text/xml" 
+p -> xc: "Content-Type: text/xml"
 xc {
-   xml: |||xml 
+   xml: |||xml
    <user>
        <id>1234</id>
        <name>John Doe</name>
@@ -423,7 +423,7 @@ fc -> p: "Accept: application/vnd.user.full+json" {
 p -> fc
 fc {
     json {
-        content: |||json 
+        content: |||json
         {
             "id": 1234,
             "name": "John Doe",
@@ -455,7 +455,7 @@ resources based on the **hypermedia links** included in responses.
 
 ### Hypermedia links
 
-For example, a user's orders might only contain the total number of orders with a link.  
+For example, a user's orders might only contain the total number of orders with a link.
 The user can then follow the link to retrieve the actual orders.
 
 **Example: GET /users/1234**

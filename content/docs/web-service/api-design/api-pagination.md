@@ -29,7 +29,7 @@ c: Client {
 s: Server {
     class: server
 }
-c -> s: Request file  
+c -> s: Request file
 s -> c: Metadata (myfile.png, image, 20MB)
 ```
 
@@ -45,7 +45,7 @@ s: Server {
     class: server
 }
 
-c -> s: Request file  
+c -> s: Request file
 s -> c: "Metadata (myfile.png, image, 20MB)"
 c <- s: "Download chunk 1 [0, 10]"
 c <- s: "Download chunk 2 [11, 20]"
@@ -175,7 +175,7 @@ the database still processes the entire result set up to the specified offset.
 This can become a performance concern on large tables,
 as it consumes unnecessary I/Os and processing resources for each paginated request.
 
-> For a deeper explanation, see [](Query-Optimization.md).
+> For a deeper explanation, see [SQL Query Optimization]({{< ref "query-optimization" >}}).
 
 ### Keyset Pagination
 
@@ -223,7 +223,7 @@ Thus, due to agility, **Rowset Pagination** is still a more preferred approach.
 
 ### Static Views
 
-**Static View** is a [Refresh-ahead caching](Caching-Patterns.md#refresh-ahead-caching) implementation.
+**Static View** is a [Refresh-ahead caching]({{< ref "caching-patterns#refresh-ahead-caching" >}}) implementation.
 When an application doesn’t require real-time updates, pages can be **precomputed at scheduled intervals**.
 This allows clients to quickly access any page by **page key**, without triggering additional server-side computation.
 
@@ -234,7 +234,7 @@ Clients can subsequently request any page, assured of its immediate availability
 db0: Database (00:00) {
     r: |||json
     {
-        "Page 0": [    
+        "Page 0": [
             {
               "id": 1,
               "name": "John"
@@ -245,8 +245,8 @@ db0: Database (00:00) {
 }
 db5: Database (01:00) {
     r: |||json
-    [    
-        "Page 0": [    
+    [
+        "Page 0": [
             {
               "id": 1,
               "name": "John"
@@ -261,8 +261,8 @@ db5: Database (01:00) {
 }
 db10: Database (02:00) {
     r: |||json
-    [    
-        "Page 0": [    
+    [
+        "Page 0": [
             {
               "id": 1,
               "name": "John"

@@ -3,7 +3,7 @@ title: Distributed Database
 weight: 20
 ---
 
-As discussed in the [{{< term hs >}}](../web-service/microservice#horizontal-scaling) section,
+As discussed in the [{{< term hs >}}]({{< ref "microservice#horizontal-scaling">}}) section,
 hosting everything on a single server becomes impractical as systems grow.
 This is particularly true for databases, which prioritize data durability.
 Overloading a single server risks turning it into a {{< term spof >}};
@@ -33,10 +33,10 @@ dc: Database cluster {
       class: db
     }
     r1: Replica 1 {
-      class: db 
+      class: db
     }
     r2: Replica 2 {
-      class: db 
+      class: db
     }
     w -> r1: Replicate {
       style.animated: true
@@ -51,7 +51,7 @@ Why do we need to replicate data?
 
 - **Prevent Data Loss**: If data exists only on a single server, a failure could result in total data loss.
 Distributing data ensures it can be recovered in the event of failure.
-- **Improve Performance**: Multiple servers can handle requests concurrently, reducing the load on any single server.
+- **Improve Performance**: Multiple servers can handle read requests concurrently, reducing the load on any single server.
 - **Increase Availability**: If the primary server fails, a replica can be promoted to replace it quickly, minimizing downtime.
 
 ## Data Consistency
@@ -72,10 +72,10 @@ dc: Database cluster {
       class: db
     }
     r1: Replica 1 {
-      class: db 
+      class: db
     }
     r2: Replica 2 {
-      class: db 
+      class: db
     }
 }
 c -> dc.w: Update
@@ -100,7 +100,7 @@ w: Primary {
   class: db
 }
 r: Replica {
-  class: db 
+  class: db
 }
 c -> w: 1. Update data
 w -> r: 2. Replicate synchronously
@@ -109,8 +109,9 @@ w -> c: 3. Respond to client
 
 This method is straightforward and safe, as it guarantees immediate consistency and maintains a reliable backup
 if the primary server fails.
+
 However, it doesn't support {{< term ha >}} effectively.
-If a replica goes down, the primary must stop processing updates to avoid unprotected writes.
+If a replica goes down, the primary must stop processing updates to avoid unsafe writes.
 
 ```d2
 shape: sequence_diagram
@@ -122,7 +123,7 @@ w: Primary {
   class: db
 }
 r: Replica {
-  class: generic-error 
+  class: generic-error
 }
 c -> w: 1. Update data
 w -> r: 2. Fail to replicate {
@@ -150,7 +151,7 @@ w: Primary {
   class: db
 }
 r: Replica {
-  class: db 
+  class: db
 }
 c -> w: 1. Update data
 w -> c: 2. Respond to client
@@ -160,11 +161,11 @@ w -> r: 3. Replicate data {
 ```
 
 {{< callout type="info">}}
-In practice, replication is handled in a separate thread or process and can sometimes complete
+In practice, replication is handled in a **separate thread** or process and can sometimes complete
 before the client receives the response.
 {{< /callout >}}
 
-This approach offers higher availability since the primary can continue serving requests even if a replica fails.
+This approach offers better availability since the primary can continue serving requests even if a replica fails.
 It also reduces write latency. However, it introduces important challenges:
 
 - **Weak Consistency**: Updates may not immediately appear on all replicas, leading to temporary inconsistencies.
@@ -179,11 +180,11 @@ w: Primary {
     class: db
 }
 r: Replica {
-    class: db 
+    class: db
 }
 client -> w: 1. Update data
 w -> client: 2. Respond to client immediately
-w -> w: 3. Crash before replicating {
+w -> w: 3. Crash before replicating (data loss) {
     class: error-conn
 }
 ```
@@ -200,7 +201,7 @@ before it’s considered successful.
 A **Write Quorum (WQ)** specifies how many replicas must confirm a write synchronously.
 The remaining replicas can be updated asynchronously.
 
-For example, with three replicas and a `WQ` of 1:
+For example, with three replicas and a `WQ of 1`:
 
 - 1 replica is updated synchronously.
 - 2 replicas are updated asynchronously (`Replicas - WQ = 2`).
@@ -214,7 +215,7 @@ w: Primary Server {
     class: db
 }
 r1: Replica 1 {
-    class: db 
+    class: db
 }
 r2: Replica 2 {
     class: db
@@ -239,8 +240,8 @@ w -> r3: 4. Replicate asynchronously {
 
 A **Read Quorum (RQ)** defines how many servers must agree on a read operation before a response is returned.
 
-For instance, with an `RQ` of 2, reading from `Replica 1` involves verifying with
-two other servers to ensure the **latest value among them** is retrieved.
+For instance, with an `RQ of 2`, reading from `Replica 1` involves verifying with
+two other servers to ensure **the latest value among them** is retrieved.
 
 ```d2
 shape: sequence_diagram
@@ -248,7 +249,7 @@ client: Client {
     class: client
 }
 r1: Replica 1 {
-    class: db 
+    class: db
 }
 w: Primary {
     class: db
@@ -264,7 +265,7 @@ r1 -> client: 3. Respond the latest value
 
 ## Consistency Level
 
-The combination of write and read quorums defines the database’s **consistency level**,
+The combination of write and read quorums defines a database’s consistency level,
 determining how strongly data consistency is enforced.
 
 ### Strong Consistency Level
@@ -274,9 +275,9 @@ determining how strongly data consistency is enforced.
 To achieve this, the sum of `WQ + RQ` must be greater than or equal to the total number of replicas.
 This guarantees **overlap** between read and write operations.
 
-For example, in a cluster with 2 replicas:
+For example, in a cluster with 2 replicas, we define:
 
-- `WQ` is 1 (e.g., `Replica 1` is up-to-date).
+- `WQ` is 1, e.g., `Replica 1` is up-to-date.
 - `RQ` is 1.
 
 Now, imagine a read request initially reaches an inconsistent replica, such as `Replica 2`.
@@ -296,7 +297,7 @@ w: Primary {
     class: db
 }
 r1: Replica 1 (Consistent) {
-    class: db 
+    class: db
 }
 client -> r2: 1. Read data
 r2 -> r1: 2. Use the quorum here
@@ -311,27 +312,8 @@ Here, `WQ + RQ` is less than the number of replicas.
 
 For example, we configure a cluster of 2 replicas as:
 
-- `WQ` is 1 (e.g., `Replica 1` is up-to-date).
+- `WQ` is 1, e.g., `Replica 1` is up-to-date.
 - `RQ` is set to 0, meaning read operations can return results without verifying data with other servers.
-
-```d2
-direction: right
-dc: Database cluster {
-    w: Primary {
-      class: db
-    }
-    r1: Replica 1 {
-      class: db 
-    }
-    r2: Replica 2 {
-        class: db
-    }
-    w -> r1: Replicate synchronously 
-    w -> r2: Replicate asynchronously {
-        style.animated: true
-    }
-}
-```
 
 Now, imagine a client performs an update on the primary server.
 The server synchronously replicates the update to `Replica 1` before sending a response to the client,
@@ -347,7 +329,7 @@ p: Primary {
     class: db
 }
 r1: Replica 1 {
-    class: db 
+    class: db
 }
 r2: Replica 2 {
     class: db
@@ -377,7 +359,7 @@ On the other hand,
 all replicas will eventually converge to a consistent state.
 If temporary inconsistencies are acceptable and can be resolved over time,
 {{< term eveCons >}} provides faster responses and higher system availability.
-In such cases, the **Read Quorum** is sometimes set to zero—or even omitted entirely—to maximize performance and responsiveness.
+In such cases, the **Read Quorum** is often set to zero to maximize performance and responsiveness.
 
 ### Standby Server
 
@@ -386,3 +368,16 @@ it’s strongly recommended to keep the **Write Quorum** at least 1.
 As asynchronous replicas are inherently unreliable for immediate recovery,
 having at least one synchronously updated, consistent server is crucial for safeguarding data.
 These reliable, up-to-date servers are commonly known as **Standby Servers**.
+
+```d2
+direction: right
+p: Primary Server {
+  class: server
+}
+s: Standby Server {
+  class: server
+}
+p -> s: Replicate synchronously {
+  style.animated: true
+}
+```

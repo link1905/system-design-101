@@ -15,6 +15,7 @@ hc: Health Check
 av: Availability
 cons: Consistency
 partTol: Partition Tolerance
+fauTol: Fault Tolerance
 netPart: Network Partition
 ha: High Availability
 spof: Single Point of Failure
@@ -75,3 +76,4 @@ base: BASE
 kk: Kafka
 2pc: Two-phase Commit
 saga: Saga
+cdn: CDN

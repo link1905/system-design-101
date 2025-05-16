@@ -2,7 +2,7 @@
 title: Streaming Protocols
 weight: 20
 ---
-We've previously highlighted the most popular protocols in the [previous topic](../).
+We've highlighted the most popular protocols in the [previous topic](../).
 While those are versatile and suitable for various use cases, they aren't particularly optimized for streaming media data — large, continuous streams like video or audio. Given the increasing importance of media streaming today, let’s take a brief look at some protocols better suited for this purpose.
 
 ## WebRTC
@@ -181,7 +181,7 @@ ICE A:
     Local address: 192.168.1.1
     Public address: 1.2.3.4:80
     TURN candidates: [3.3.3.3:70, 4.4.4.4:90]
-    
+
 ICE B:
     Local address: 192.168.1.1
     Public address: 4.5.6.7:90
@@ -234,7 +234,7 @@ continuous live server, {{< term hls >}} offers a resilient, distributed system.
 
 It works through **segmentation**, splitting audio or video into small, independent segments (files), usually a few seconds long.
 
-- These segments are stored independently (typically an [object store](Media-Storage.md#object-storage)),
+- These segments are stored independently (typically an [Object Store]({{< ref "media-storage#object-storage" >}})),
 potentially different servers.
 - A **Master Record** (e.g., a {{< term sql >}} row) manages and indexes these segments.
 
@@ -244,13 +244,13 @@ m: Master Record {
   grid-rows: 1
   grid-gap: 0
   s1: "Segment 1 (Length = 5s)" {
-    width: 300  
+    width: 300
   }
   s2: "Segment 2 (Length = 5s)" {
-    width: 300  
+    width: 300
   }
   s3: "Segment 3 (Length = 3s)" {
-    width: 300  
+    width: 300
   }
 }
 s: Storage {

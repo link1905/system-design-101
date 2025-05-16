@@ -11,8 +11,8 @@ Instead, they quietly degrade data quality, even if the codebase itself remains 
 As a result, applications must anticipate and handle these problems from the outset.
 
 In this topic, we’ll explore concurrency control techniques —
-one of the more difficult aspects of maintaining a reliable {{< term sql >}} databases.
-This knowledge isn’t limited to a single database; it’s equally valuable for managing distributed transactions.
+one of the more difficult aspects of maintaining a reliable {{< term sql >}} database.
+This knowledge isn’t limited to a single database, it’s equally valuable for managing distributed transactions.
 
 ## Concurrent Transactions
 
@@ -36,24 +36,34 @@ A **race condition** occurs when two or more transactions attempt to access and 
 In our withdrawal example,
 if another transaction initiates a withdrawal while the first one is still in progress,
 a race condition could emerge.
+Both passed the verification step and then modified the balance concurrently, resulting in an invalid final value.
 
 ```d2
 shape: sequence_diagram
 w: Withdrawal (30)
 a: Account (Balance = 50)
 d: Withdrawal (40)
+a {
+  "50"
+}
 w -> a: Verify balance (50 > 30)
 d -> a: Verify balance (50 > 40)
 d -> a: Update balance = 50 - 40 = 10 {
     style.bold: true
 }
-w -> a: Update balance = 10 - 30 = -20? {
+a {
+  "10"
+}
+w -> a: Update balance = 10 - 30 = -20 {
     style.bold: true
+}
+a {
+  "-20?"
 }
 ```
 
 Notice what happens here —
-the balance drops below zero without any error or exception.
+the balance goes wrong without any error or exception.
 The system silently produces incorrect results.
 
 ## ACID
@@ -69,9 +79,9 @@ It’s important to note that {{< term acid >}} is a consistency model, not a sp
 Developers must design their transactions to uphold these properties,
 though most SQL systems provide mechanisms to support them.
 
-### Atomicity
+### 1. Atomicity
 
-Atomicity ensures a transaction is treated as a **single, all-or-nothing operation**.
+**Atomicity** ensures a transaction is treated as a **single, all-or-nothing operation**.
 It can conclude in two possible ways:
 
 - **Commit**: All changes are successfully applied.
@@ -99,33 +109,42 @@ the transaction should **rollback** the debit operation to maintain data integri
 shape: sequence_diagram
 a: Account A
 t: Transaction
-b: Account B
+b: Account B (Blocked)
 t -> a: Decrease the balance (- X)
+t -> b: Fail to increase the balance {
+  class: error-conn
+}
 t -> t: Rollback {
-    class: error-conn
+  class: error-conn
 }
 ```
 
 Now you might ask:
 does a rollback restore the original balance or simply cancel the decrease? The next property explains this.
 
-### Isolation
+### 2. Isolation
 
-Isolation guarantees that transactions operate independently and their intermediate states remain invisible to others.
+**Isolation** guarantees that transactions operate independently and their intermediate states remain invisible to others.
 Changes become visible only after a transaction **commits**.
 
 Consider a situation where another transaction reads the balance while a transfer is in progress.
 
 ```d2
-
 shape: sequence_diagram
-t1: Another Transaction
-a: Account A
 t: Transfer Transaction
-b: Account B
+a: Account A
+t1: Another Transaction
+a {
+  "50"
+}
 t -> a: Decrease the balance (- X)
-t1 -> a: Read the balance
-t -> t: Rollback {
+a {
+  "50 - X"
+}
+t1 <- a: Read the balance (50) {
+  style.bold: true
+}
+t -> t: Commit {
     class: error-conn
 }
 ```
@@ -135,15 +154,15 @@ unaltered balance because uncommitted changes are isolated within the `Transfer 
 
 #### Physical Isolation
 
-Recall how table rows are organized in the [physical layer](SQL-Database.md).
+Recall how table rows are organized in the [Physical Layer]({{< ref "physical-layer" >}}) topic.
 Uncommitted changes don’t overwrite existing data.
 Instead, they create **new tuples** alongside the originals, tagged with metadata:
 
-- Commit status
-- IDs of the transactions that inserted, updated, or deleted the tuple
+- Commit status.
+- IDs of the transactions that inserted, updated, or deleted the tuple.
 
 When a query runs,
-the database determines which tuple to return based on the **transaction context** and this metadata.
+the database determines which tuple to return based on the **transactional context** and this metadata.
 
 Let's model this using our transfer example. Initially, there's a committed tuple:.
 
@@ -156,20 +175,9 @@ Account {
 ```
 
 When a new transaction (`Id = 1001`) updates the balance, it creates a new, uncommitted tuple.
-
-```d2
-Account {
-    grid-columns: 1
-    grid-gap: 0
-    a: "(Id = A, Balance = 50, Committed = True, Transaction Id = 1000)"
-    b: "(Id = A, Balance = 70, Committed = False, Transaction Id = 1001)"
-}
-```
-
 Within the same transaction, queries will read the latest version.
 
 ```d2
-
 t: Transaction (Id = 1001)
 Account {
     grid-columns: 1
@@ -182,7 +190,8 @@ Account {
 t -> Account.b
 ```
 
-Based on [HOT Update](../physical-layer/#hot-update), other transactions will only see the most recently **committed** tuple.
+Based on [Tuple Chaining]({{< ref "physical-layer#tuple-chaining" >}}), other transactions will only see the most recently **committed** tuple.
+E.g., the transaction with `Id = 1002` will ignore the dirty row.
 
 ```d2
 
@@ -200,20 +209,7 @@ t -> Account.a
 
 Rolling back the transaction actually removes the uncommitted tuple.
 
-```d2
-
-t: Transaction (Id = 1002)
-Account {
-    grid-columns: 1
-    grid-gap: 0
-    a: "(Id = A, Balance = 50, Committed = True, Transaction Id = 1000)" {
-        style.fill: ${colors.i2}
-    }
-}
-t -> Account.a
-```
-
-### Consistency
+### 3. Consistency
 
 The **consistency** property ensures that a transaction transforms the database from one valid state to another —
 either by successfully committing or by rolling back.
@@ -225,12 +221,25 @@ It’s dictated by business rules, such as:
 - An account’s balance must not fall below zero.
 - And so forth.
 
-### Durability
+#### Trigger Problems
+
+Many developers choose **SQL Triggers** to enforce data consistency.
+Personally, I avoid using this feature for several reasons:
+
+- First, I prefer not to embed business logic directly into the database through trigger procedures.
+This can make applications harder to debug and troubleshoot.
+- Second, triggers execute on every update to the associated table,
+which can significantly degrade database performance.
+
+Instead, I prefer to enforce data integrity within the application using transactions.
+This approach ensures that any potentially unsafe operation is preceded by explicit checks.
+For example, a `Withdrawal` transaction should first verify that the user has sufficient balance before proceeding to deduct it.
+
+### 4. Durability
 
 Once a transaction is committed, its changes become permanent, even in the event of a system crash.
-
-This durability is typically achieved through logging mechanisms like the
-[Write-Ahead Log (WAL)](System-Recovery.md#logging), which records changes before they’re applied to the database.
+This durability is typically achieved through logging mechanisms like
+[Write-Ahead Log (WAL)]({{< ref "system-recovery#logging" >}}), which records changes before they’re applied to the database.
 
 ## Concurrency Phenomena
 
@@ -241,7 +250,7 @@ leading to inconsistencies and violations of the {{< term acid >}} guarantees.
 ### Isolation Level
 
 **Isolation Level** determines the degree to which a transaction is isolated from others.
-To maintain consistency, transactions might not be fully isolated and may share certain states.
+To maintain consistency, transactions might not be fully isolated and may **share certain states**.
 The less they share, the faster transactions can be executed in parallel execute.
 
 Phenomena resulting from concurrent transactions are categorized into **predictable types**.
@@ -250,10 +259,10 @@ SQL databases provide different isolation levels to manage them:
 - Each isolation level addresses one or more specific phenomena.
 - Higher isolation levels encompass the capabilities of lower ones.
 
-However, **higher isolation levels** reduce parallelism and impact performance.
+However, higher isolation levels reduce parallelism and impact performance.
 Therefore, selecting the appropriate isolation level is essential to balance consistency and performance.
 
-### Dirty Read
+### Dirty Read Phenomenon
 
 A **Dirty Read** occurs when a transaction reads uncommitted changes made by another transaction —
 essentially accessing **dirty records** in progress.
@@ -303,7 +312,7 @@ d -> a: Rollback {
 This is the default isolation level in many SQL databases,
 and in most systems, reading uncommitted data is rare and generally discouraged.
 
-### Unrepeatable Read
+### Unrepeatable Read Phenomenon
 
 An **Unrepeatable Read** occurs when a transaction reads the same record **twice**,
 but the value changes between reads due to another committed transaction.
@@ -321,15 +330,21 @@ shape: sequence_diagram
 t: Withdrawal Transaction (40)
 a: Account A (50)
 t1: Another Withdrawal (30)
-t -> a: Reads and verifies the balance (50 > 40)
-t1 -> a: Updates the balance (50 - 30 = 20)
-t1 -> a: Commits the balance {
+a {
+  "50"
+}
+t -> a: Read and verifies the balance (50 > 40)
+t1 -> a: Update the balance (50 - 30 = 20)
+a {
+  "20"
+}
+t1 -> a: Commit the balance {
     style.bold: true
 }
-t -> a: Updates the balance (20 - 30 = -10?) {
+t -> a: Update the balance (20 - 30 = -10?) {
     class: error-conn
 }
-t -> a: Commits the balance {
+t -> a: Commit the balance {
     style.bold: true
 }
 ```
@@ -347,30 +362,28 @@ When multiple transactions access the same data, two main strategies are used:
 
 ##### Snapshot Isolation
 
-One approach to implementing isolation is through **Snapshot Isolation**.
-In this model, transactions see only the data version that existed when they started —
+**Snapshot Isolation** states that transactions see only the data version that existed when they started —
 newer updates are **isolated** from them.
+
+> The mechanism behind this isolation is discussed [above](#physical-isolation).
 
 For example, consider two transactions operating on the same account:
 
 - `T1` reads the account balance twice.
 - `T2` updates the balance between `T1`'s two reads.
 
-Even though `T2` updates the balance before `T1`'s second read,
+Even though `T2` updates and commits the balance before `T1`'s second read,
 `T1` still sees the old value because the update is isolated from its view.
 
-> The mechanism behind this isolation is discussed [above](#physical-isolation).
-
 ```d2
-
 shape: sequence_diagram
 t1: Transaction 1 (T1)
 a: Account A (50)
 t2: Transaction 2 (T2)
-t1 -> a: Read balance (50)
+t1 <- a: Read balance (50)
 t2 -> a: Update the balance (50 - 40 = 10)
-t2 -> Commit
-t1 -> a: Read balance (50)
+t2 -> a: Commit
+t1 <- a: Read balance (50)
 ```
 
 Thus, transactions are guaranteed **repeatable reads** —
@@ -382,7 +395,7 @@ but if multiple writers update the same data concurrently, **conflicts** will ar
 
 Returning to our earlier example, when two withdrawals happen concurrently;
 If a withdrawal transaction continues based on outdated information,
-**ignoring** intervening updates, the final balance will be **incorrect**.
+ignoring intervening updates, the final balance will be incorrect.
 Below, you can see how a later update can overwrite a previous one:
 
 ```d2
@@ -395,6 +408,9 @@ t1 -> a: Update the balance (50 - 30 = 20)
 t1 -> a: Commit the balance {
     style.bold: true
 }
+a {
+  "20"
+}
 t -> a: Update the balance (40 - 30 = 10) (previous update ignored) {
     class: error-conn
 }
@@ -406,7 +422,7 @@ t -> a: Commit the balance {
 ##### Locking Mechanism
 
 At its core, this mechanism ensures that a specific row or table can only be
-accessed in certain ways by one transaction at a time to avoid conflicts.
+accessed by **one transaction at a time** to avoid conflicts.
 Transactions can acquire **locks** to prevent others from modifying or
 accessing the data until the transaction completes.
 
@@ -419,18 +435,19 @@ t1: Transaction 1
 a: Account
 t1 -> a: Acquire a lock
 t2: Transaction 2
+t2 -> a: "Acquire a lock"
 t2 -> a: Wait... {
     style.bold: true
     style.stroke-dash: 3
 }
-t1 -> t1: Process the account
+t1 -> a: Access
 t1 -> a: Release the lock
-t2 -> a: Read
+t2 -> a: Access
 ```
 
 We commonly encounter two types of operations in database systems: **read** and **write**.
 In a highly concurrent environment, using a single, general-purpose lock would be too restrictive.
-To manage this more efficiently, most systems use two distinct types of locks that are **automatically acquired** when needed:
+To manage this more efficiently, we use two distinct types of locks that are **automatically acquired** when needed:
 
 - **Shared Lock (SL):** Might be acquired for **read-only** operations.
   > In {{< term postgres >}}, a simple **SELECT** query does **not** automatically acquire a **Shared Lock**.
@@ -441,16 +458,16 @@ To manage this more efficiently, most systems use two distinct types of locks th
 We could dedicate thousands of pages to the intricacies of this locking mechanism,
 but for now, here are some essential rules you should be familiar with:
 
-1. An **Exclusive Lock (XL)** will block other transactions if the data it covers is already locked.
+1. An **Exclusive Lock (XL)** prevents other transactions from accessing the locked resource until it is released, causing them to wait.
 
-   For example, if **Transaction 1** holds an `Exclusive Lock` on a row,
-   then **Transaction 2** must wait until **Transaction 1** releases it before proceeding.
+For example, if `Transaction 1` holds an **XL** on a row,
+then `Transaction 2` must wait until `Transaction 1` releases it before proceeding.
 
 ```d2
 shape: sequence_diagram
 t1: Transaction 1
 a: Table
-t1 -> a: Acquire a XL
+t1 -> a: Acquire an XL
 t2: Transaction 2
 t2 -> a: Acquire another lock (XL or SL)
 t2 -> a: Wait... {
@@ -458,11 +475,11 @@ t2 -> a: Wait... {
     style.stroke-dash: 3
 }
 t1 -> a: Release the lock
-t2 -> a: Read
+t2 -> a: Access
 ```
 
-On the other hand, if **Transaction 1** has acquired a **Shared Lock (SL)**,
-then **Transaction 2** must wait if it attempts to acquire an **Exclusive Lock (XL)** on the same data.
+On the other hand, if `Transaction 1` has acquired a **Shared Lock (SL)**,
+then `Transaction 2` must wait if it attempts to acquire an **Exclusive Lock (XL)** on the same data.
 
 ```d2
 shape: sequence_diagram
@@ -476,15 +493,15 @@ t2 -> a: Wait... {
     style.stroke-dash: 3
 }
 t1 -> a: Release the lock
-t2 -> a: Read
+t2 -> a: Access
 ```
 
 2. **Shared Locks (SL)** don’t block each other.
-   Multiple read-only transactions can safely acquire **SL** on the same data concurrently,
-   since none of them intends to modify it.
+Multiple read-only transactions can safely acquire **SL** on the same data concurrently,
+since none of them intends to modify it.
 
-   For example, both **Transaction 1** and **Transaction 2** can hold an
-   **SL** on the same row at the same time without causing any waiting.
+For example, both **Transaction 1** and **Transaction 2** can hold an
+**SL** on the same row at the same time without causing any waiting.
 
 ```d2
 shape: sequence_diagram
@@ -508,7 +525,7 @@ To summarize this behavior, here’s a simple compatibility matrix:
 
 ###### Deadlock
 
-By default, read operations don’t acquire a **Shared Lock (SL)** by default because it's easy to cause deadlocks.
+By default, read operations don’t acquire a **Shared Lock (SL)** because it's easy to cause deadlocks.
 A deadlock occurs when two transactions are waiting for each other to release a lock, and neither can proceed.
 
 Let’s walk through a scenario involving two concurrent withdrawals:
@@ -523,12 +540,12 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies balance (50 > 40) - SL
-t2 -> a: Reads and verifies balance (50 > 30) - SL
+t1 -> a: Verifies balance (50 > 40) - SL
+t2 -> a: Verifies balance (50 > 30) - SL
 ```
 
 2. Both transactions then attempt to update the balance.
-One transaction (e.g., `T1`) proceeds first and tries to acquire an **Exclusive Lock (XL)**,
+One transaction, e.g., `Transaction 1`, proceeds first and tries to acquire an **Exclusive Lock (XL)**,
 but it’s blocked because the other transaction still holds an **SL**.
 
 ```d2
@@ -537,15 +554,15 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies balance (50 > 40) - SL
-t2 -> a: Reads and verifies balance (50 > 30) - SL
+t1 -> a: Verifies balance (50 > 40) - SL
+t2 -> a: Verifies balance (50 > 30) - SL
 t1 -> a: XL (Waiting for T2 SL...) {
     style.stroke-dash: 3
 }
 ```
 
 3. The second transaction then also attempts to acquire an **XL** —
-and is blocked by the first transaction’s lock request.
+and is blocked by the first transaction’s **SL**.
 Now, both are stuck waiting on each other: a classic deadlock.
 
 ```d2
@@ -554,13 +571,13 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies balance (50 > 40) - SL
-t2 -> a: Reads and verifies balance (50 > 30) - SL
+t1 -> a: Verifies balance (50 > 40) - SL
+t2 -> a: Verifies balance (50 > 30) - SL
 t1 -> a: XL (Waiting for T2 SL...) {
-    style.stroke-dash: 3
+  class: generic-error
 }
 t2 -> a: XL (Waiting for T1...) {
-    style.stroke-dash: 3
+  class: generic-error
 }
 ```
 
@@ -577,11 +594,11 @@ a transaction should only release a lock when it’s
 
 ##### Concurrent Updates With Locking
 
-Returning to the **Repeatable Read** isolation level:
-When multiple transactions compete to update the same data, **locking** is necessary to guarantee correctness.
+Returning to the **Repeatable Read Isolation Level**,
+when multiple transactions compete to update the same data, **locking** is necessary to guarantee correctness.
 
 Let’s rewrite the previous deadlock example where transactions do not acquire **Shared Locks**.
-In the update step, one of the transactions (e.g. `T1`) will proceed first and acquire an **Exclusive Lock** on the record,
+In the update step, one of the transactions, e.g. `Transaction 1`, will proceed first and acquire an **Exclusive Lock** on the record,
 while the other must wait.
 
 ```d2
@@ -590,8 +607,8 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies the balance (50 > 40)
-t2 -> a: Reads and verifies the balance (50 > 30)
+t1 -> a: Verifies the balance (50 > 40)
+t2 -> a: Verifies the balance (50 > 30)
 t1 -> a: Updates the balance (50 - 40 = 10) - XL
 t2 -> a: XL (Waiting for T1) {
     style.stroke-dash: 3
@@ -600,7 +617,7 @@ t2 -> a: XL (Waiting for T1) {
 
 Now, under the isolation level, we divide this scenario into two cases:
 
-1. **`T1` encounters an error and rolls back** – In this case, `T2` can continue without issues.
+1. **`Transaction 1` encounters an error and rolls back** – In this case, `Transaction 2` can continue without issues.
 
 ```d2
 
@@ -608,21 +625,23 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies the balance (50 > 40) - Read
-t2 -> a: Reads and verifies the balance (50 > 30) - Read
+t1 -> a: Verifies the balance (50 > 40) - Read
+t2 -> a: Verifies the balance (50 > 30) - Read
 t1 -> a: Updates the balance (50 - 40 = 10) - Update
 t2 -> a: Wait {
-    style.stroke-dash: 3
+  style.stroke-dash: 3
 }
 t1 -> t1: Rollback {
-    class: error-conn
+  class: error-conn
 }
-t2 -> Updates the balance (50 - 30 = 20) - Update
+t2 -> a: Updates the balance (50 - 30 = 20) - Update {
+  style.bold: true
+}
 t2 -> t2: Commit
 ```
 
-2. **`T1` successfully commits** — Here,
-   `T2` must roll back because it worked with stale data, and its changes could potentially lead to a skewed result.
+2. **`Transaction 1` successfully commits** — Here,
+`Transaction 2` must roll back because it may have operated on stale data, and applying its changes could result in inconsistent or incorrect outcomes.
 
 ```d2
 
@@ -630,8 +649,8 @@ shape: sequence_diagram
 t1: Withdrawal Transaction 1 (40)
 a: Account A (50)
 t2: Withdrawal Transaction 2 (30)
-t1 -> a: Reads and verifies the balance (50 > 40) - Read
-t2 -> a: Reads and verifies the balance (50 > 30) - Read
+t1 -> a: Verifies the balance (50 > 40) - Read
+t2 -> a: Verifies the balance (50 > 30) - Read
 t1 -> a: Updates the balance (50 - 40 = 10) - Update
 t2 -> a: Wait {
     style.stroke-dash: 3
@@ -646,13 +665,13 @@ In either case, only one transaction commits, and the other is expected to retry
 
 ##### Row-level Conflicts
 
-By combining **locking** and **versioning**, we achieve the **Repeatable Read** isolation level.
+By combining **locking** and **snapshotting**, we achieve the **Repeatable Read Isolation Level**.
 However, this approach only handles row-level conflicts.
 
-It does **not** prevent higher-level anomalies happing at the table level,
-such as [Phantom Read](#phantom-read) or [write skew](#write-skew)
+It does not prevent higher-level anomalies happing at the table level,
+such as [Phantom Read](#phantom-read) or [Write Skew](#write-skew)
 
-### Phantom Read
+### Phantom Read Phenomenon
 
 The **Phantom Read** phenomenon is somewhat similar to **Unrepeatable Read**,
 but occurs at the **table level**.
@@ -671,18 +690,19 @@ As a result, the original transaction processes more accounts than initially cou
 ```d2
 shape: sequence_diagram
 t: Loan Transaction
-t1: Another Transaction
 a: Account Table
 l: Loan Table
 la: Loan Account Table
+t1: Another Transaction
 a {
     old: |||yaml
     (AccountId = 2, Income = 2000)
     (AccountId = 3, Income = 1500)
     |||
 }
-t <- a: 'Get the number of eligible accounts (2)'
-t -> l: 'Create new loan program'
+t -> l: 'Create new loan program' {
+  style.bold: true
+}
 l {
     old: |||yaml
     (LoanProgramId = 2, Total = 2 * 3.000 = 6.000)
@@ -694,14 +714,15 @@ t1 -> a: Add new accounts {
 }
 a {
     new: |||yaml
+    (AccountId = 2, Income = 2000)
+    (AccountId = 3, Income = 1500)
     (AccountId = 5, Income = 4000)
     (AccountId = 6, Income = 3000)
     |||
 }
-t <- a: Loop through eligible accounts {
-    class: error-conn
+t -> la: Create loan accounts {
+  style.bold: true
 }
-t -> la: Create loan accounts
 la {
     new: |||yaml
     (AccountId = 2, LoanProgramId = 2, Income = 2000)
@@ -713,44 +734,55 @@ la {
 ```
 
 This results in an inconsistency between the `Loan` and `Loan Account` tables.
-While the total loan is calculated as `6,000`, four loan accounts are created instead of the expected two.
+While the total loan is calculated as `6,000`, `4` loan accounts are created instead of the expected `2`.
 
-The **Repeatable Read** isolation level cannot prevent this issue, as it locks **only individual rows**—not the entire table.
+The **Repeatable Read Isolation Level** cannot prevent this issue, as it locks **only individual rows**—not the entire table.
 Thus, newly inserted rows remain outside its scope.
 
 To address this, the **Serializable Isolation Level** must be used.
 It also solves another phenomenon known as **Write Skew**, which we’ll explore next.
 
-### Write Skew
+### Write Skew Phenomenon
 
 **Write Skew** occurs when two concurrent transactions read overlapping data and update
 different datasets based on their initial reads, ultimately violating business rules.
 
 For example, in a banking system:
 
-- An account qualifies for a loan if its balance is greater than `1,000`.
+- An account qualifies for a loan if its balance is greater than `1000`.
 - One transaction verifies the account balance and proceeds to create a loan record.
 - Meanwhile, another transaction withdraws funds, lowering the balance to an invalid amount.
 
 ```d2
-
 shape: sequence_diagram
 t: Loan Transaction
-a: "Account A (2.000)"
+a: "Account A (1100)"
 l: Loan
 t1: "Withdrawal Transaction (700)"
-t -> a: "Reads and verifies the balance (2.000 > 1.000)"
-t1 -> a: "Reads and verifies the balance (1.000 > 700)"
-t1 -> a: "Updates the balance to 300"
-t1 -> t1: Commit
-t -> l: Creates a new loan record
-t -> t: Commit
+a {
+  "1100"
+}
+t -> a: "Verifies the balance (1100 > 1000)"
+t1 -> a: "Deduct the balance 1100 - 700 = 400" {
+  style.bold: true
+}
+t1 -> a: Commit
+a {
+  "400"
+}
+t -> l: Creates a new loan record {
+  class: error-conn
+}
+l {
+  c: |||yaml
+  (AccountId = 1, CheckedBalance = 1100)
+  |||
+}
 ```
 
-A loan is issued even though the final balance (`300`) no longer meets the eligibility criteria.
-
+A loan is issued even though the final balance (`400`) no longer meets the eligibility criteria.
 Since the transactions do not compete for updates on the same row,
-**Repeatable Read** alone is insufficient to prevent this anomaly.
+**Repeatable Read** alone can't prevent this anomaly.
 
 #### 3. Serializable Isolation Level
 
@@ -764,7 +796,7 @@ There are two strategies to implement serializable isolation: **Optimistic** and
 The **Optimistic Strategy** assumes that transactions will succeed without conflict,
 using **strict locking** to enforce order.
 
-##### Two-phase Locking
+###### Two-phase Locking
 
 **Two-Phase Locking** requires that a transaction:
 
@@ -784,7 +816,7 @@ a: Account
    t -> a: XL
 }
 "2. Shrinking Phase": {
-   t -> a: Reads and verifies the balance
+   t -> a: Verifies the balance
    t -> a: Decreases the balance
    t -> a: Release
 }
@@ -804,30 +836,32 @@ because it needs to update data afterward.
 
 shape: sequence_diagram
 t: Loan Transaction
-a: "Account A (2.000)"
+a: "Account A (1100)"
 l: Loan
 t1: "Withdrawal Transaction (700)"
-t1 -> a: "Reads and verifies the balance (1.000 > 700) - XL"
-t -> a: "Waits - SL"
-t1 -> a: "Updates the balance to 300"
-t1 -> t1: Commit
-t -> a: "Reads the balance and fails (300 < 1.000)"
+t1 -> a: "Verifies the balance (1100 > 700) - XL"
+t -> a: "Wait - SL"
+t1 -> a: "Updates the balance to 1100 - 700 = 400"
+t1 -> a: Commit
+a {
+  "400"
+}
+t -> a: "Verifies the balance and fails (400 < 1.000)"
 ```
 
-While this ensures correctness, it can hinder **parallelism**,
-especially for **long-running transactions** that lock many rows, reducing system throughput.
+While this ensures correctness, it can hinder parallelism,
+especially for long-running transactions that lock many rows, reducing system throughput.
 
-#### Pessimistic Strategy
+##### Pessimistic Strategy
 
 In contrast, the **Pessimistic Strategy** allows transactions to run concurrently but guarantees
 serializable behavior by **detecting and resolving conflicts dynamically**.
 
-If a conflict is detected, one transaction is allowed to proceed, while the others are **aborted** immediately.
-
-##### Predicate Locking
+###### Predicate Locking
 
 **Predicate Locking** is a mechanism used to detect conflicts.
 It's not about waiting for locks on tables or rows, but logical predicates in queries.
+If a conflict is detected, one transaction is allowed to proceed, while the others are aborted immediately.
 
 Returning to the loan application example.
 Suppose two transaction reads the same account (e.g., `A`),
@@ -836,18 +870,19 @@ the predicate (`AccountId = A`) is temporarily recorded in memory.
 ```d2
 shape: sequence_diagram
 t: Loan Transaction
-a: Account A (2.000)
+a: Account A (1100)
 l: Loan
 t1: "Withdrawal Transaction (700)"
 "Predicate AccountId = A" {
-   t -> a: "Reads and verifies the balance (2.000 > 1.000)"
-   t1 -> a: "Reads and verifies the balance (1.000 > 700)"
+   t -> a: "Verifies the balance (1100 > 1000)"
+   t1 -> a: "Verifies the balance (1100 > 700)"
 }
 ```
 
-Next, the withdrawal transaction tries to update the balance.
+Next, the `Withdrawal Transaction` tries to update the balance.
 The database detects that there is an existing predicate conflicted with the update,
-so it aborts **the least costly transaction** (the one that has done less work).
+so it aborts **the least costly transaction** (the one that has done less work),
+e.g., the `Loan Transaction`.
 
 ```d2
 
@@ -857,24 +892,22 @@ a: "Account A (2.000)"
 l: Loan
 t1: "Withdrawal Transaction (700)"
 "Predicate AccountId = A" {
-   t -> a: "Reads and verifies the balance (2.000 > 1.000)"
-   t1 -> a: "Reads and verifies the balance (1.000 > 700)"
+   t -> a: "Verifies the balance (2.000 > 1.000)"
+   t1 -> a: "Verifies the balance (1.000 > 700)"
 }
 "Conflict AccountId = A" {
    t1 -> a: "Updates the balance to 300"
    t -> t: Aborted (because of conflicting predicate) {
       class: error-conn
    }
-   t1 -> t1: Commit
+   t1 -> a: Commit
 }
-t -> l: Creates a new loan record
-t -> t: Commit
 ```
 
 What if the loan transaction comes first and commits?
 If it releases the predicate lock immediately,
 nothing can stop the withdrawal transaction, and we face the anomaly again.
-So, the predicate lock is actually released when **all** overlapping transactions complete.
+So, the predicate lock is actually released when **all overlapping** transactions complete.
 
 ```d2
 
@@ -884,11 +917,13 @@ a: Account A (2.000)
 l: Loan
 t1: "Withdrawal Transaction (700)"
 "Predicate AccountId = A" {
-   t -> a: "Reads and verifies the balance (2.000 > 1.000)"
-   t1 -> a: "Reads and verifies the balance (1.000 > 700)"
+   t -> a: "Verifies the balance (2.000 > 1.000)"
+   t1 -> a: "Verifies the balance (1.000 > 700)"
 }
 t -> l: Creates a new loan record
-t -> t: Commit (the predicate lock is not released here)
+t -> t: Commit (the predicate lock is not released here) {
+  style.bold: true
+}
 "Conflict AccountId = A" {
    t1 -> a: "Updates the balance to 300"
    t1 -> t1: Aborted (because of conflicting predicate) {
@@ -897,14 +932,14 @@ t -> t: Commit (the predicate lock is not released here)
 }
 ```
 
-Predicate locking also supports range queries (e.g., `WHERE value > ...`, `WHERE value < ...`)
+**Predicate Locking** also supports range queries (e.g., `WHERE value > ...`, `WHERE value < ...`)
 and helps prevent **Phantom Reads**.
 
 However, **Predicate Locking** incurs runtime overhead:
 Each operation requires tracking predicates and checking for conflicts,
 which can significantly impact performance.
 
-The **Pessimistic Strategy** minimizes blocking by enabling concurrency,
+This **Pessimistic Strategy** minimizes blocking by enabling concurrency,
 making it suitable for complex transactions.
 But frequent transaction aborts and the cost of re-execution can offset the benefits.
 

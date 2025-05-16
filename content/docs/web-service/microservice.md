@@ -243,7 +243,7 @@ Designing a microservice-based system is a complex challenge.
 Errors in the design process can result in an overly complicated architecture
 that fails to deliver the benefits.
 This concern is overwhelming for an open chapter,
-we will see it in detail in [a later chapter](Microservice-Decomposition.md).
+we will see it in detail in [a later chapter]({{< ref "microservice-decomposition" >}}).
 
 ## Service Decoupling
 
@@ -478,8 +478,8 @@ We'll see an indirect approach to implement {{< term ioc >}} called {{< term msg
 
 ### Messaging
 
-The {{< term ioc >}} principle can be implemented using a [Message Queue (MQ)](Event-Streaming-Platform.md).
-A {{< term mq >}} is essentially an informative **message container** with two primary associates:
+The {{< term ioc >}} principle can be implemented using {{< term msg >}}.
+We essentially build an informative **message channel** with two primary associates:
 
 - **Publishers** publish messages.
 - **Consumers** consume and process messages.
@@ -489,7 +489,7 @@ direction: right
 p: Publisher {
   class: server
 }
-m: Message Queue {
+m: Message Channel {
   class: mq
 }
 c: Consumer {
@@ -499,9 +499,9 @@ p -> m: Publish
 c <- m: Consume
 ```
 
-Integrating an MQ into the first coupling example:
+Integrating {{< term msg >}} into the first coupling example:
 
-- The `Payment Service` can publish account subscription messages to the queue.
+- The `Payment Service` can publish account subscription messages to the channel.
 - The `Account Service` can later retrieve these messages to update the associated accounts.
 
 ```d2
@@ -512,7 +512,7 @@ acc: Account Service {
 p: Payment Service {
     class: server
 }
-mq: Message Queue {
+mq: Message Channel {
     class: mq
 }
 msg: |||yaml
@@ -549,7 +549,7 @@ system: System {
     p: Payment Service {
         class: server
     }
-    mq: Message Queue {
+    mq: Message Channel {
         class: mq
     }
     p -> mq: Subscription Message
@@ -571,7 +571,7 @@ system: System {
     p: Payment Service {
         class: server
     }
-    mq: Message Queue {
+    mq: Message Channel {
         class: mq
     }
     n: Notification Service {
@@ -589,13 +589,13 @@ system: System {
 
 Nevertheless, we still encounter some dependencies
 
-- Both services depend on the message queue. The dependency is minimized and barely problematic,
-  as the {{< term mq >}} exposes only basic `Publish()` and `Consume()` interfaces that rarely change.
+- Both services depend on {{< term msg >}}. The dependency is minimized and barely problematic,
+  as **Message Channels** expose only basic `Publish()` and `Consume()` interfaces that rarely change.
 - Both the publisher and consumer adhere to the same message schema, which is [Semantic Coupling](#semantic-coupling).
 
 We've just gone through some types of coupling and made messaging look mighty.
 However, keep in mind that there are more types of couplings,
-e.g., technology dependency, data dependency, flow dependency (like [SAGA](Compensating-Protocols.md#saga)), ...
+e.g., technology dependency, data dependency, flow dependency (like [SAGA]({{< ref "compensating-protocols#saga" >}})), ...
 which may weaken messaging.
 
 Occasionally, messaging may result in an **unnecessary overhead** and outweigh the benefits of decoupling.
@@ -603,7 +603,7 @@ Occasionally, messaging may result in an **unnecessary overhead** and outweigh t
 - The indirect communication model results in **slower performance**,
   making it unsuitable for low-latency workloads.
 - Asynchronous communication can lead
-  to [temporary inconsistencies](Distributed-Database.md#eventual-consistency-level), since changes aren’t immediately
+  to [temporary inconsistencies]({{< ref "distributed-database#eventual-consistency-level" >}}), since changes aren’t immediately
   reflected across services.
 - Debugging may become more challenging as failures are asynchronous and harder to trace.
 

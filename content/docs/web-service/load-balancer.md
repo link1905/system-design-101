@@ -3,7 +3,7 @@ title: Load Balancer
 weight: 40
 ---
 
-We previously introduced how to build a cluster of instances in the [Service Cluster](../service-cluster/) topic.
+We previously introduced how to build a cluster of instances in the [Service Cluster]({{< ref "service-cluster" >}}) topic.
 In this lecture, we’ll explore how to expose a service to the outside world.
 
 ## Load Balancer
@@ -134,7 +134,8 @@ s.s2 -> sd.lb: Register
 
 ### Health Check
 
-To ensure only healthy instances receive traffic, the {{< term lb >}} periodically performs [health checks](../service-cluster/#heartbeat-mechanism) and removes unhealthy ones from the pool.
+To ensure only healthy instances receive traffic,
+the {{< term lb >}} periodically performs [health checks]({{< ref "service-cluster#heartbeat-mechanism" >}}) and removes unhealthy ones from the pool.
 
 ```d2
 direction: right
@@ -190,7 +191,7 @@ s1: System {
     class: server
   }
   lb -> s1: 1st request
-  lb -> s2: 2nd request 
+  lb -> s2: 2nd request
   lb -> s3: 3rd request
   lb -> s1: 4th request
 }
@@ -255,10 +256,10 @@ lb: Load Balancer {
   Instance 2: ActiveConnections=3
   |||
 }
-lb.lb -> s.s2: Pick Instance 2 
+lb.lb -> s.s2: Pick Instance 2
 ```
 
-Is this better than **Round-robin**?  
+Is this better than **Round-robin**?
 Not necessarily — because the number of active connections doesn’t always reflect the actual resource consumption.
 For example, `10` requests on `Instance 1` might use just `1 MB` of memory, while `3` requests on `Instance 2` could consume `100 MB`.
 
@@ -293,8 +294,8 @@ c <- lb: '3. Respond with stickiness key "I1"' {
 c -> lb: '4. Use the key to connect to "I1"'
 ```
 
-**Why is this necessary?**  
-For [stateful applications](../service-cluster/#stateful-service) like multiplayer games or chat services, clients often need to consistently interact with the same server instance — for example, reconnecting to the same match or session after a temporary disconnection.
+**Why is this necessary?**
+For [stateful applications]({{< ref "service-cluster#stateful-service" >}}) like multiplayer games or chat services, clients often need to consistently interact with the same server instance — for example, reconnecting to the same match or session after a temporary disconnection.
 
 **However**, this comes at a cost.
 Session stickiness can easily lead to uneven load distribution, as it bypasses the load balancer’s configured algorithm in favor of sticking with a specific instance.
@@ -316,7 +317,7 @@ In this topic, we’ll focus solely on the **Application**, **Transport**, and *
 
 When a process sends a message to another machine, it gets steadily **encapsulated**, transforming from plain text into a network message:
 
-- **Application Layer (L7)**: the application formats the message using its specific **protocol** (e.g., [HTTP](../communication-protocols/#http-1-1)).
+- **Application Layer (L7)**: the application formats the message using its specific **protocol** (e.g., [HTTP]({{< ref "communication-protocols#http-1-1" >}})).
 - **Transport Layer (L4)**: the machine attaches the **port number** to the message.
 - **Network Layer (L3)**: the machine adds its **address** to the message.
 
@@ -455,7 +456,7 @@ b: Service B {
     class: server
   }
 }
-g -> la 
+g -> la
 la -> a
 g -> lb
 lb -> b
@@ -505,7 +506,7 @@ lb -> user: /b {
 
 #### SSL Termination
 
-A major challenge with {{< term lb7 >}} is handling encrypted traffic via [{{< term ssl >}}](Network-Protection.md#transport-layer-security-tls).
+A major challenge with {{< term lb7 >}} is handling encrypted traffic via [{{< term ssl >}}]({{< ref "network-security#transport-layer-security-tls" >}}).
 Since {{< term lb7 >}} needs to read application-level data to make decisions, it cannot work directly with end-to-end encryption.
 
 ```d2
@@ -530,7 +531,7 @@ c -> s.lb: payload=13a8f5f167f4 {
 In other words,
 we can't use {{< term lb7 >}} to ensure **complete** end-to-end encryption.
 To make it work,
-the [SSL/TLS decryption](Network-Protection.md#tls-certificate) must be shifted to the {{< term lb >}} itself.
+the **SSL/TLS decryption** must be shifted to the {{< term lb >}} itself.
 This process is known as {{< term sslt >}}.
 
 New connections are then established internally to forward plaintext traffic to services
