@@ -124,4 +124,72 @@ d2Import: >
         shape: image
         icon: ${icons-path}/cdn.svg
       }
+      google {
+        shape: image
+        icon: ${icons-path}/google.svg
+      }
+      pub-key {
+        shape: image
+        icon: ${icons-path}/pub-key.svg
+      }
+      pri-key {
+        shape: image
+        icon: ${icons-path}/pri-key.svg
+      }
+      token {
+        shape: image
+        icon: ${icons-path}/token.svg
+      }
+      burst {
+        shape: image
+        icon: ${icons-path}/burst.svg
+      }
+      resource {
+        shape: image
+        icon: ${icons-path}/resource.svg
+      }
+      os {
+        shape: image
+        icon: ${icons-path}/os.svg
+      }
+      hypervisor {
+        shape: image
+        icon: ${icons-path}/hypervisor.svg
+      }
+      monitor {
+        shape: image
+        icon: ${icons-path}/monitor.svg
+      }
+      hacker {
+        shape: image
+        icon: ${icons-path}/hacker.svg
+      }
+      ni {
+        shape: image
+        icon: ${icons-path}/ni.svg
+      }
+      folder {
+        shape: image
+        icon: ${icons-path}/folder.svg
+      }
+      container {
+        shape: image
+        icon: ${icons-path}/container.svg
+      }
+      group {
+        shape: image
+        icon: ${icons-path}/group.svg
+      }
+      code {
+        shape: image
+        icon: ${icons-path}/code.svg
+      }
+      domain-expert {
+        shape: image
+        icon: ${icons-path}/domain-expert.svg
+      }
+      dev {
+        shape: image
+        icon: ${icons-path}/dev.svg
+      }
     }

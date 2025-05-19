@@ -411,7 +411,7 @@ It is commonly used in combination with the [Saga]({{< ref "compensating-protoco
 pattern to manage long-running, distributed operations.
 
 However, this method does not provide **atomicity** across the system,
-there can be consistency drift between the streaming platform and the underlying data store.
+there can be consistency drift between the streaming platform and the external data store.
 We’ll explore this limitation in more detail in the [Distributed Transaction]({{< ref "distributed-transaction" >}}) topic.
 
 Ultimately, **exactly-once** delivery is difficult to guarantee when external systems are involved.
