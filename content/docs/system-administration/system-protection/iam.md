@@ -477,7 +477,7 @@ we should tag users with attributes later helping in the authorization process.
 In the previous example,
 we may tag developers with their positions,
 and create appropriate policies for the `Developer` role.
-In the policies, we need to check user attributes for the final decision.
+In the access policies, we need to check user attributes for the final decision.
 
 ```d2
 r: Developer Role {
@@ -521,209 +521,318 @@ p2 -> r: Assigned to
 p3 -> r: Assigned to
 ```
 
+
 ## Federated Identity Pattern
 
-Any service builds its own identity component can rise many problems
-
-- Users must keep many credentials for each service, degrading user experience
-- Management overhead: a system must maintain the IAM component its own
-
-`IAM` is a generic feature, it frequently behaves the same in almost systems.
+**IAM** is a generic feature, it frequently behaves the same in almost systems.
 Instead of developing from scratch,
-we may depend on credible identity providers `IdP` (`Facebook`, `Google`, or our own solution)
-to reduce the management overhead.
-This pattern is called `Federated Identity Pattern`,
-e.g., an application uses `Google` as its login method.
-After users are validated,
-`Google` shares **necessary resources** (user email, `GoogleDrive` access...) to the application
+we may depend on a credible **Identity Provider (IdP)**, such as **Google**, or build a managed solution.
+This pattern is called **Federated Identity Pattern**,
+relying on an independent identity solution.
 
-An identity service won't let dependent applications authenticate on behalf of users,
-this is extremely dangerous.
-A harmful application takes advantage of user credentials in between
+### Identity Provider
+
+For example, we want to rely on a social platform,
+such as **Google** as the login method.
+Naively, we can make the system act as a shim forwarding user credentials to the provider.
 
 ```d2
-%d2-import%
 direction: right
-s: Dependent application {
+s: System {
     class: server
 }
-i: IAM system {
-    class: iam
+i: Google {
+    class: google
 }
 c: Client {
     class: client
 }
-c -> s: "1. Sends email and password"
-s -> s: "2. Maliciously steals the credential" {
-    style.bold: true
+c -> s: "1. Send email and password"
+s -> i: "2. Authenticate on behalf of the user"
+```
+
+This workflow is dangerous, as applications can take advantage of user credentials in between.
+Thus, an identity provider won't let dependent applications authenticate on behalf of users.
+
+```d2
+direction: right
+s: System {
+    class: server
 }
-s -> i: "3. Authenticates on behalf of the user"
+i: Google {
+    class: google
+}
+c: Client {
+    class: client
+}
+c -> s: "1. Send email and password"
+s -> s: "2. Steal the credential" {
+  class: error-conn
+}
+s -> i: "2. Authenticate on behalf of the user"
 ```
 
 Many frameworks were born to resolve this problem.
-In general, they require users to directly interact with the identity source
-instead of proxying through an intermediate application
+In general, they require users to **directly interact** with identity providers
+instead of an intermediate application.
 
-### OAuth2.0
+#### OpenID Connect Protocol (OIDC)
 
-`OAuth2.0` is an authorization framework that allows third-party applications
-to access user resources hosted on a service
+**OpenID Connect (OIDC)** is a common protocol for this task.
 
-> How about OAuth1.0? I have no idea ![](emoji-sad-cat.svg)
-
-First, we need to know about the framework's components:
-
-- `User`: resources (e.g. files, user records...) are belonged to a specific user
-- `Application`: dependent applications which need to access resource
-- `Authorization Server`: authenticates and issues access tokens
-- `Resource Server`: store user resources
+When a user wants to use a third-party platform to sign in to our system.
+The process starts by forwarding the user to sign in with the identity provider,
+e.g., **Google**.
+After the user is authenticated successfully,
+the provider will respond back to it an **Id Token** in form of [JWT](#json-web-token-jwt).
 
 ```d2
-%d2-import%
-user: User {
+shape: sequence_diagram
+u: User {
   class: user
 }
-r: Resource server {
-  r: Resource {
-    class: res
+cb: System {
+  class: server
+}
+g: Google
+  class: google
+}
+u -> cb: Sign in with Google
+cb -> u: Forward to Google
+u -> g: Sign in Google account
+g -> u: Respond an ID token
+```
+
+The user sends the **ID token** to the system.
+A valid token means this comes from a valid **Google** account,
+the system the token to get further information in the token's payload, such as email, account id, etc.
+
+```d2
+shape: sequence_diagram
+u: User {
+  class: user
+}
+cb: System {
+  class: server
+}
+g: Google
+  class: google
+}
+u -> cb: Sign in with Google
+cb -> u: Forward to Google
+u -> g: Sign in Google account
+g -> u: Respond an ID token
+u -> s: Send the token
+s -> s: Verify and use information from the token
+```
+
+How does the system can verify the token?
+Based on [Asymmetric Encryption](#asymmetric-signature),
+
+- The identity provider secretly hold a signing key for generating new tokens.
+- Besides, the provider distributes an authentication key to the system for verifying tokens autonomously.
+
+```d2
+g: Google {
+  s: Signing (Private) Key {
+    class: pri-key
   }
 }
-app: Application {
-  class: process
+s: System {
+  a: Authentication (Public) Key {
+    class: pub-key
+  }
 }
-auth: Authorization server {
-  class: server
-}
-user -> r.r: Own
-user -> auth: Authenticate
-auth -> app: Issue access tokens
-app -> r: Access
+g.s -> s.a: Distribute
 ```
 
-Let's see how `OAuth2.0` works generally
+### Authorization And Sharing Resource
 
-1. The `Application` redirects a `User` to the `Authorization server`
-2. The `User` authenticates with the `Authorization server`
-3. The `Authorization server` responds an `authorization code` back to the `Application`
-4. The `Application` uses the code to exchange an `access token` with the `Authorization server`
-5. The `Application` uses the `access token` to access the `Resource server`
+Let's suppose a use case that we need to access a file from the user's **GoogleDrive**.
 
 ```d2
-%d2-import%
-shape: sequence_diagram
-c: Application {
+u: User {
+  class: client
+}
+s: System {
   class: server
 }
-u: Resource Owner (User) {
-  class: user
+g: GoogleDrive {
+  class: google
 }
-a: Authorization Server {
-  class: server
-}
-rs: Resource Server {
-  class: res
-}
-c -> u: 1. Redirects to Authorization Server
-u -> a: 2. Authenticates and grants necessary permissions
-a -> c: 3. Responds an authorization code
-c -> a: 4. Uses the code to exchange an access token
-c -> rs: 5. Uses the token to access resources
+u -> s: Request
+s -> g: Access a user file
 ```
 
-But why does the authorization server returns an authorization code instead of an access token immediately?
-In fact, an application usually has `frontend` (client) and `backend` (server) layers.
-The 3rd step responds to the frontend,
-but the actual actor accessing the resource is the backend.
-Sending access tokens directly to the frontend means granting it the permission too;
-Based on the [](#least-privilege) principle, this is a security problem.
+#### OAuth2.0
 
-Therefore, the `Authorization server` only exchanges access tokens with trusted targets
-holding a valid **secret identifier**.
-Let's see the procedure more specifically
+**OAuth2.0** is an authorization framework that allows third-party applications
+to access user resources hosted on a service.
+
+##### Basic Flow
+
+First, the system redirects the resource service, such as **GoogleDrive**.
+The user signs in and consents permissions giving to the system.
+Then, the resource service responds back an **Access Token**.
 
 ```d2
-%d2-import%
 shape: sequence_diagram
-cf: Application Frontend {
-  class: browser
+u: User {
+  class: client
 }
-cb: Application Backend with a secret {
+s: System {
   class: server
+}
+g: GoogleDrive {
+  class: google
+}
+u -> s: Request
+s -> u: Redirect to GoogleDrive
+u -> g: Sign in and consent permissions
+g -> u: Respond an access code {
+  style.bold: true
+}
+```
+
+The user sends the token to the system.
+With the access token,
+the system can access to resources approved by the user.
+
+```d2
+shape: sequence_diagram
+u: User {
+  class: client
+}
+s: System {
+  class: server
+}
+g: GoogleDrive {
+  class: google
+}
+u -> s: Request
+s -> u: Redirect to GoogleDrive
+u -> g: Sign in and consent permissions
+g -> u: Respond an access token
+u -> s: Send the token
+s -> g: Access resources with the token
+```
+
+This is the basic flow of **OAuth2.0**.
+However, we will encouter a security concern.
+The code is responded to the user,
+but the actual actor accessing the resource is the backend system,
+the access token should be only obtained by it.
+Sending access tokens directly to the user (browser or device)
+makes it potentially exploited here.
+
+```d2
+shape: sequence_diagram
+h: Hacker {
+  class: hacker
 }
 u: User {
-  class: user
+  class: client
 }
-a: Authorization Server {
+s: System {
   class: server
 }
-rs: Resource Server {
-  class: res
+g: GoogleDrive {
+  class: google
 }
-cf -> u: 1. Redirects to Authorization Server
-u -> a: 2. Authenticates and grants necessary permissions
-a -> cf: 3. Responds an authorization code
-cf -> cb: 4. Sends the authorization code {
-  style.bold: true
+g -> u: Respond an access token
+h -> u: Steal the token here {
+  class: error-conn
 }
-cb -> a: 5. Exchanges an access token with (authorization code + secret identifier) {
-  style.bold: true
-}
-a -> a: 6. Verifies it's a trusted target {
-  style.bold: true
-}
-a -> cb: 7. Returns an access token
+u -> s: Send the token
 ```
 
-### OpenID Connect Protocol
+##### Exchange Code
 
-We see that `OAuth2.0` is intended for authorization and sharing resource.
-For example, we want to rely on `Google` and `Facebook` as the login method
-
-`OpenID Connect (OIDC)` is built on top of `OAuth2.0`
-to support user authentication for third-party applications.
-The workflow is similar to `OAuth2.0`, except we have a new step of distributing authentication key
-(we've discussed it in the [](#asymmetric-signature) section)
+To avoid the problem,
+the concept of exchanging access tokens is introduced.
+Instead of responding access tokens directly,
+the resource service sends back an **Exchange Code**.
 
 ```d2
-%d2-import%
 shape: sequence_diagram
-cf: Client Frontend {
-  class: browser
-}
-cb: Client Backend {
-  class: server
-}
 u: User {
-  class: user
+  class: client
 }
-a: Authentication Server {
+s: System {
   class: server
 }
-a -> cb: Distributes the authentication key {
-  style.bold: true
-  style.animated: true
+g: GoogleDrive {
+  class: google
 }
-cf -> u: 1. Redirects to Authentication Server
-u -> a: 2. Authenticates and grants necessary permissions
-a -> cf: 3. Responds an authentication code
-cf -> cb: 4. Sends the authentication code
-cb -> a: 5. Exchanges an access token with (code + secret identifier) {
-  style.bold: true
-}
-cb -> cb: 6. Verifies the token with the key {
+u -> s: Request
+s -> u: Redirect to GoogleDrive
+u -> g: Sign in and consent permissions
+g -> u: Respond an exchange code {
   style.bold: true
 }
 ```
 
-Verifying an access token successfully means this is a valid (`Google`, `Facebook`...) user,
-we may use it to create a linked user in our system.
+The user needs to send the token to the system.
+In order to access resources,
+the system uses the code to exchange an actual access token.
 
-Please distinguish between `OAuth2.0` and `OIDC` properly
+```d2
+shape: sequence_diagram
+u: User {
+  class: client
+}
+s: System {
+  class: server
+}
+g: GoogleDrive {
+  class: google
+}
+u -> s: Request
+s -> u: Redirect to GoogleDrive
+u -> g: Sign in and consent permissions
+g -> u: Responds an exchange code
+u -> s: Send the exchange code
+s -> g: Exchange an access token with the code {
+  style.bold: true
+}
+```
+
+But this changes nothing if the exchange code is stolen.
+The attacker can still use it to obstain an access token.
+Thus,
+the system needs to intially register itself with the resource service.
+The resource service only exchanges tokens with trusted targets
+holding valid identifiers, typically incluing a pair of **(id, secret)**.
+
+```d2
+shape: sequence_diagram
+u: User {
+  class: client
+}
+s: System {
+  class: server
+}
+g: GoogleDrive {
+  class: google
+}
+u -> s: Request
+s -> u: Redirect to GoogleDrive
+u -> g: Sign in and consent permissions
+g -> u: Responds an exchange code
+u -> s: Send the exchange code
+s -> g: Exchange an access token with (exchange code + identifier) {
+  style.bold: true
+}
+g -> s: Respond an access token
+```
+
+Get back to the **OIDC** protocol,
+it's actually built on top of **OAuth2.0**.
+
+**OAuth2.0** and **OIDC** provides a complete identity service.
+That's when exchanged access tokens mean for authentication and authorization:
 
 - `OIDC`: used to verify a user to belong to a hosted service
   e.g., An application supports authenticate by `Google` account
 - `OAuth2.0`: used to expose user resources to third-party applications
   e.g., A user allows an application to access its `GoogleDrive` files
-
-Combining both of them provides a complete identity service.
-That's when exchanged access tokens mean for authentication and authorization

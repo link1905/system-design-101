@@ -124,4 +124,16 @@ d2Import: >
         shape: image
         icon: ${icons-path}/cdn.svg
       }
+      google {
+        shape: image
+        icon: ${icons-path}/google.svg
+      }
+      pub-key {
+        shape: image
+        icon: ${icons-path}/pub-key.svg
+      }
+      pri-key {
+        shape: image
+        icon: ${icons-path}/pri-key.svg
+      }
     }
