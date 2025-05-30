@@ -15,8 +15,24 @@ The most straightforward implementation of an authentication system is **User Se
 User session is nothing but a temporary code representing a **<username, password>** pair.
 Users can leverage this code to avoid retyping credential information.
 
-We can set up a stateful service by storing user sessions in local memory.
-E.g., a client authenticates with `Server 1`, but `Server 2` knows nothing about this and fails to identify the client.
+A stateful service can store user sessions in local memory.
+For example, if a client logs in through `Server 1`, `Server 2` will not recognize the client and cannot validate the session,
+since it has no knowledge of the session code.
+
+
+
+```d2
+direction: right
+s: Auth Service {
+    class: server
+}
+c: Client {
+    class: client
+}
+c -> s: "myusername:mypassword"
+c <- s: "session123"
+c -> s: "Request with 'session123'"
+```
 
 ```d2
 direction: right
@@ -38,7 +54,10 @@ c -> s.s2: 3. Fail to request with the code {
 }
 ```
 
-To build a stateless authenticator, we migrate user sessions to a shared store.
+To create a stateless authentication system, sessions should be stored in a shared data store accessible by all servers.
+Now, whenever a user presents a session code, any server can validate it by referencing the shared store.
+
+
 
 ```d2
 shape: sequence_diagram
@@ -66,10 +85,8 @@ s2 <- store: 5. Verify with the shared store {
 }
 ```
 
-Despite the simplicity,
-this approach is problematic in a distributed environment.
-Decreased performance and availability, with every request,
-we need to query the store to verify the request's session code.
+However, in distributed environments,
+this strategy results in performance and availability issues because every session validation requires a query to the shared store.
 
 ```d2
 direction: right
@@ -86,27 +103,32 @@ c -> s: Request
 s <-> a: Verify the session code
 ```
 
-Programmatically, comparing between sessions (unique strings) is extremely fast.
-It's beneficial for high-performed stateful services.
-E.g., A game system forwards a user to a sticky server, and the user is **locally validated** in this server.
+For stateful services, where sessions are managed locally,
+comparing session codes is very fast,
+making this approach suitable for scenarios like gaming systems where users connect to
+a specific sticky server for local validation.
 
 ### JSON Web Token (JWT)
 
-Nowadays, **JSON Web Token (JWT)** is a well-known approach for constructing an authentication system.
+**JSON Web Token (JWT)** is a widely used method for building authentication systems.
 
-In short, **JWT** is simply an **immutable** credential.
-You may see a JWT like this `eyJhbGc.eyJzdWIiO.cThIIoDv`, please note the dots.
-Cutting off the dots, we get three encoded parts respectively: **header**, **payload** and **signature**.
+At its core, a **JWT** is an **immutable** credential that represents secure information about a user or entity.
+
+A typical JWT looks like this `eyJhbGc.eyJzdWIiO.cThIIoDv`,
+where the dots (`.`) separate three encoded sections: **header**, **payload**, and **signature**.
+
+Removing the dots, you get three distinct encoded parts:
 
 ```json
 {
-  "header": "eyJhbGc"
+  "header": "eyJhbGc",
   "payload": "eyJzdWIiO",
   "signature": "cThIIoDv"
 }
 ```
 
-These parts are initially encoded with [Base64](https://en.wikipedia.org/wiki/Base64) from **JSON** values.
+Each section is encoded using [Base64](https://en.wikipedia.org/wiki/Base64),
+starting from its original **JSON** representation:
 
 ```json
 {
@@ -126,22 +148,25 @@ These parts are initially encoded with [Base64](https://en.wikipedia.org/wiki/Ba
 }
 ```
 
-- **Payload** is the custom part of a token.
-  We may use it to serve various purposes by wrapping user data, such as `role`, `username`...
-- **Header** tells about the token's cryptographic algorithm.
-- **Signature** is generated from the **payload** and used to validate the token.
+- **Header** specifies the cryptographic algorithm used to sign the token.
+- **Payload** contains the customizable data, such as `role`, `username`, or other user-related information.
+- **Signature** is generated from the payload and a **secret key**, securing the token against tampering.
 
 #### Token Validation
 
-Based on []({{< ref "data-security#signature-validation" >}}),
-**JWT** requires a **secret key** (protected on the server side) for generating the **signature**.
-Combined with the function defined in the **header** part, we can calculate `signature = alg(payload, secret key)`.
+#### Token Validation
 
-Thus, based on cryptographic instinct, once a token is created,
-any changes in the **payload** lead to a completely different **signature**.
+Based on [signature validation]({{< ref "data-security#signature-validation" >}}),
+**JWTs** rely on a **secret key** (secured server-side) for generating the **signature**.
 
-E.g. the system generates a `signature = HS256(payload, secret)`.
-Whenever the token is verified, its **signature** will be recomputed to compare with the field in the token.
+Combined with the algorithm defined in the **header**, the signature is computed as:
+`signature = alg(payload, secret key)`
+
+Any modification to the **payload** results in a completely different **signature** due to cryptographic properties.
+
+For example, when the system generates `signature = HS256(payload, secret)`:
+
+- Every time the token is validated, its **signature** is recalculated and compared with the one present in the token.
 
 ```json
 {
@@ -150,16 +175,16 @@ Whenever the token is verified, its **signature** will be recomputed to compare 
     "typ": "JWT"
   },
   "payload": {
-    "id": "user1"
+    "id": "user1",
     "role": "user"
   },
   "signature": "M5MDIy"
 }
 ```
 
-An attacker tries to change the role from `user` to `admin`, resulting in a new signature.
-However, he doesn't know the secret key, he cannot generate the valid signature.
-If the old signature is kept, the **payload** is mismatched with its signature.
+If an attacker modifies the role from `user` to `admin`, a valid signature cannot be generated without the secret key.
+
+- Using the original signature with the altered payload leads to a verification failure, as they no longer match.
 
 ```json
 {
@@ -171,16 +196,18 @@ If the old signature is kept, the **payload** is mismatched with its signature.
     "id": "user1",
     "role": "admin"
   },
-  "signature": "M5MDIy" // WRONG with the payload, it should be "UD511yc"
+  "signature": "M5MDIy" // INVALID: does not match modified payload, should be "UD511yc"
 }
 ```
 
-As long as the **secret** is protected and unrevealed,
-external entities cannot modify or generate tokens maliciously.
-Then, we resolved the availability problem of `User Session`.
-We can distribute the secret key to other services to let them validate tokens without querying any authenticator.
+As long as the **secret key** remains protected and undisclosed,
+external entities cannot forge or tamper with tokens.
 
-E.g., `Auth Service` shares the secret key to `User Service`.
+This approach also addresses the **availability** aspect of **User Session** management:
+
+- By sharing the secret key with other services,
+tokens can be validated locally—no need to query a central authenticator.
+- For instance, the `Auth Service` can distribute the key to the `User Service`.
 
 ```d2
 shape: sequence_diagram
@@ -193,6 +220,7 @@ a: Auth Service {
 o: User Service {
     class: server
 }
+
 a -> o: Distributes the secret key {
     style.animated: true
     style.bold: true
@@ -207,23 +235,21 @@ o -> o: 4. Use the distributed key to validate {
 
 #### Asymmetric Signature
 
-Distributing the secret key to consumer services is dangerous,
-as the key empowers them to generate malicious tokens independently.
+Distributing the secret key to consumer services is risky because it allows them to independently generate malicious tokens. To maintain security, consumer services should **not** be permitted to create new tokens.
 
-We should not allow consumer services to generate new tokens.
-Taking benefit of [asymmetric encryption](Data-Protection.md#asymmetric-encryption),
-we separate the secret key into
+By leveraging [asymmetric encryption](Data-Protection.md#asymmetric-encryption), this risk is addressed by separating the key into two distinct parts:
 
-- **Signing (private) key** generating tokens.
-- **Authentication (public) key** verifying tokens.
+- **Signing (private) key**: Used solely for generating tokens.
+- **Authentication (public) key**: Used for verifying tokens.
 
-Combined with a [Key store]({{< ref "data-security#key-management" >}})
+Integrating a [Key store]({{< ref "data-security#key-management" >}}) further enhances control:
 
-- The signing key is only accessed by the `Authentication Service`.
-- The authentication key is freely distributed.
+- The signing key is accessible only to the `Authentication Service`.
+- The authentication key can be distributed freely for token verification.
 
 ```d2
 shape: sequence_diagram
+
 c: Client {
     class: client
 }
@@ -236,6 +262,7 @@ o: User Service {
 k: Key Management Service {
     class: kms
 }
+
 k -> o: Distribute the authentication key {
     style.animated: true
     style.bold: true
@@ -245,52 +272,59 @@ k -> a: Distribute the signing key {
     style.bold: true
 }
 c -> a: 1. Authenticate
-a -> a: 2. Use the singing key to generate a new token {
+a -> a: 2. Use the signing key to generate a new token {
     style.bold: true
 }
-a -> c: 3. Respond the token
+a -> c: 3. Respond with the token
 c -> o: 4. Request
 o -> o: 5. Use the authentication key to validate {
     style.bold: true
 }
 ```
 
-This work is expanded to the [zero trust security model](https://en.wikipedia.org/wiki/Zero_trust_security_model),
-ensuring least privileged access to resources.
+This approach aligns with the [zero trust security model](https://en.wikipedia.org/wiki/Zero_trust_security_model), ensuring least privileged access and robust security across all services.
 
 #### Refresh Token
 
-As we do not store **JWT**, there is no way to **invalidate** generated tokens.
+Since we do not store **JWTs**, there is no mechanism to **invalidate** issued tokens directly.
+To limit potential damage if a token is compromised, **access tokens** are designed to be **short-lived**—typically lasting only 5 to 10 minutes.
 
-In fact, tokens are **short-lived** (5-10 minutes) to mitigate malicious actions in case of token loss.
-To do that, we create some fields to mark tokens' lifespan,
-authentication processes needs to consider these timestamps on checking.
+Token lifespan is managed through special fields in the token payload,
+and authentication processes must check these timestamps during verification:
 
 ```json
 {
   "header": ...,
   "payload": {
-    // Issued at: Timestamp when the token was issued
+    // Issued At: Time the token was created
     "iat": "2025-01-01 13:00",
-    // Expiration: Timestamp when the token expires
+    // Expiration: Time the token becomes invalid
     "exp": "2025-01-01 13:05"
   },
   "signature": ...
 }
 ```
 
-But it is bothersome for users to re-login frequently as tokens are quick to expire.
-A concept of `Refresh Token` is used to ensure smooth experience.
-The internal structure of a refresh token is similar to a normal JWT **header.payload.signature**.
+Short token lifespans, however, can create a poor user experience by requiring frequent logins.
+To address this, the **refresh token** mechanism is used.
+A refresh token enables users to obtain new access tokens without having to re-authenticate each time their token expires.
+The internal structure of a refresh token mirrors a standard JWT, using the familiar **header.payload.signature** format.
 
 {{< callout type="info" >}}
-Some critical systems (e.g. banking) accept the drawback of requiring users to re-authenticate without any refresh mechanism.
+Some critical systems (such as banking) opt to require users to re-authenticate each time,
+forgoing refresh tokens entirely to maximize security.
 {{< /callout >}}
 
-However, refresh token is **long-lived** (e.g., **Facebook** uses the duration of 60 days) and persistently stored in the system.
-After a successful login, the system returns an `access token` attached with a `refresh token`.
-The client also needs to save the refresh token **locally**,
-later on, it can use the token to issue new access tokens.
+Unlike access tokens,
+refresh tokens are **long-lived** (for example, **Facebook** uses a lifespan of 60 days) and are stored securely within the system.
+
+#### Refresh Token Workflow
+
+1. After a successful login, the system issues the user an **access token** and a **refresh token**.
+2. The refresh token is saved securely by the client.
+3. When the access token expires,
+the client presents the refresh token to the authentication service to obtain a new access token,
+without needing to input credentials again.
 
 ```d2
 shape: sequence_diagram
@@ -303,6 +337,7 @@ a: Auth Service {
 store: Refresh Token Store {
     class: cache
 }
+
 c -> a: 1. Sign in
 a -> store: 2. Save refresh token {
     style.bold: true
@@ -311,7 +346,7 @@ c <- a: 3. Respond access token + refresh token
 c -> a: 4. Access resource by the access token
 c -> c: 5. The access token expires
 c -> a: 6. Re-authenticate with the refresh token {
-  style.bold: true
+    style.bold: true
 }
 a <- store: 7. Check the refresh token {
     style.bold: true
@@ -319,22 +354,23 @@ a <- store: 7. Check the refresh token {
 c <- a: 8. Respond new access token
 ```
 
-**Refresh Token** comes with some benefits:
+The advantages of **Refresh Tokens** include:
 
-- Allows re-authenticating without typing and sending password.
-- Allows revocation which deletes a refresh token from the store to invalidate it.
+- Eliminates the need for users to repeatedly enter their password, improving usability.
+- Allows for **revocation**: removing a refresh token from the store immediately invalidates it.
 
-You may be confused that we are moving back to the problem of `User Session`,
-when we must verify credentials by an shared store.
-Please note that, we only leverage refresh tokens for re-authentication, not business actions.
-When an access token expires (the token itself contains enough information to check that), the client is expected to ask the `Authentication Service` for refreshing.
-In other words, the availability of consumer services are not dependendly affected.
+It’s important to note this does **not** reintroduce user session problems for regular business requests.
+Shared storage is used **only** for validating refresh tokens during re-authentication (not for business actions).
+When the **access token** expires, the client requests a new one from the authentication service using the **refresh token**.
+In other words, the availability of business services is unaffected by operations involving refresh token validation.
 
 ```d2
 direction: right
+
 c: Client {
   class: client
 }
+
 s: {
   grid-rows: 2
   class: none
@@ -345,11 +381,13 @@ s: {
     class: server
   }
 }
-c -> s: Make business requests
-c -> a: Issue/refresh token
+
+c -> s: Request with access token
+c -> a: Issue/refresh access token
 ```
 
-### Federated Identity
+
+### Federated identity
 
 Authentication is a generic requirement, it frequently behaves the same in almost systems.
 Instead of developing from scratch,
