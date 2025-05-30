@@ -1,6 +1,8 @@
 ---
 title: Data Security
 weight: 10
+aliases:
+- ../
 ---
 
 ## Data Compliance

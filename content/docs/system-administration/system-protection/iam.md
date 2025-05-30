@@ -349,6 +349,130 @@ c -> s: Make business requests
 c -> a: Issue/refresh token
 ```
 
+### Federated Identity
+
+Authentication is a generic requirement, it frequently behaves the same in almost systems.
+Instead of developing from scratch,
+we may depend on a credible **Identity Provider (IdP)**, such as **Google**, or build a managed solution.
+This pattern is called **Federated Identity Pattern**,
+relying on an independent identity solution.
+
+#### Identity Provider
+
+For example, we want to rely on a social platform,
+such as **Google** as the login method.
+Naively, we can make the system act as a shim forwarding user credentials to the provider.
+
+```d2
+direction: right
+s: System {
+    class: server
+}
+i: Google {
+    class: google
+}
+c: Client {
+    class: client
+}
+c -> s: "1. Send email and password"
+s -> i: "2. Authenticate on behalf of the user"
+```
+
+This workflow is dangerous, as applications can take advantage of user credentials in between.
+Thus, an identity provider won't let dependent applications authenticate on behalf of users.
+
+```d2
+direction: right
+s: System {
+    class: server
+}
+i: Google {
+    class: google
+}
+c: Client {
+    class: client
+}
+c -> s: "1. Send email and password"
+s -> s: "2. Steal the credential" {
+  class: error-conn
+}
+s -> i: "2. Authenticate on behalf of the user"
+```
+
+#### ID Token
+
+Many frameworks were born to resolve this problem.
+In general, they require users to **directly interact** with identity providers
+instead of an intermediate application.
+
+Let's see the procedure in details.
+When a user wants to use a third-party platform to sign in to our system.
+The process starts by forwarding the user to sign in with the identity provider,
+e.g., **Google**.
+After the user is authenticated successfully,
+the provider will respond back to it an **ID Token** in form of [JWT](#json-web-token-jwt).
+
+```d2
+shape: sequence_diagram
+u: User {
+  class: user
+}
+cb: System {
+  class: server
+}
+g: Google
+  class: google
+}
+u -> cb: Sign in with Google
+cb -> u: Forward to Google
+u -> g: Sign in Google account
+g -> u: Respond an ID token
+```
+
+The user sends the **ID token** to the system.
+The system needs to check whether this is a valid token,
+a valid token means this comes from a valid **Google** account.
+The system aslo inspects the token to get further information in the token's payload, such as `email`, `account id`, etc.
+
+```d2
+shape: sequence_diagram
+u: User {
+  class: user
+}
+cb: System {
+  class: server
+}
+g: Google
+  class: google
+}
+u -> cb: Sign in with Google
+cb -> u: Forward to Google
+u -> g: Sign in Google account
+g -> u: Respond an ID token
+u -> s: Send the token
+s -> s: Verify and use information from the token
+```
+
+How does the system can verify the token?
+Based on [Asymmetric Encryption](#asymmetric-signature),
+
+- The identity provider secretly hold a signing key for generating new tokens.
+- Besides, the provider distributes an authentication key to the system for verifying tokens autonomously.
+
+```d2
+g: Google {
+  s: Signing (Private) Key {
+    class: pri-key
+  }
+}
+s: System {
+  a: Authentication (Public) Key {
+    class: pub-key
+  }
+}
+g.s -> s.a: Distribute
+```
+
 ## Authorization
 
 After a user is identified, we must determine its rights and capabilities in the system,
@@ -403,7 +527,7 @@ For example,
 users with `Deverloper` role can read `Technical` documents.
 
 ```d2
-r: Developer Role {
+r: Developer role {
   u1: "John" {
     class: client
   }
@@ -427,7 +551,7 @@ for example,
 but `John` can't do that because of the explicit reject policy.
 
 ```d2
-r: Developer Role {
+r: Developer role {
   u1: "John" {
     class: client
   }
@@ -454,19 +578,18 @@ p2 -> r.u1: Assigned to
 #### Role Explosion
 
 Simply applying this paradigm will lead us to a problem called **role explosion**.
-As the business grows and the complexity of access control increases,
-we must manage lots of roles.
 
 Let's say `Technical` documents shared with `Developers`.
 
 - `Lead` developers have fully access to them.
-- Some `Developers` can read and write them.
+- Regular `Developers` can read and write them.
 - `Intern` developes can only read them.
 
 If we create a shared powerful `Developer` role,
 it probably leads to permission escalation.
 Thus, we need to create `Developer`, `Developer-Lead`, `Developer-Intern` add the developers into new them respectively.
-As more aspects appear (departments, projects or teams), more roles will be also needed, resulting in management overhead.
+As the business grows with more aspects (departments, projects or teams), a lot of roles will be also needed,
+resulting in management overhead.
 It's often to see some roles will be established for few users.
 
 ### Attribute
@@ -480,7 +603,7 @@ and create appropriate policies for the `Developer` role.
 In the access policies, we need to check user attributes for the final decision.
 
 ```d2
-r: Developer Role {
+r: Developer role {
   u1: "John" {
     c: |||yaml
     position: Lead
@@ -521,148 +644,75 @@ p2 -> r: Assigned to
 p3 -> r: Assigned to
 ```
 
+### Resourced-based Authorization
 
-## Federated Identity Pattern
+Since the beginning,
+we've only played the role of an administrator managing permissions.
+We manage access by creating permissions and assign them to identities (users or roles),
+this is called **Identity-based Authorization**.
+Occasionally,
+we want regular users to control access of their own resources or share resources with other users,
+but this approach is unfriendly for them.
 
-**IAM** is a generic feature, it frequently behaves the same in almost systems.
-Instead of developing from scratch,
-we may depend on a credible **Identity Provider (IdP)**, such as **Google**, or build a managed solution.
-This pattern is called **Federated Identity Pattern**,
-relying on an independent identity solution.
-
-### Identity Provider
-
-For example, we want to rely on a social platform,
-such as **Google** as the login method.
-Naively, we can make the system act as a shim forwarding user credentials to the provider.
-
-```d2
-direction: right
-s: System {
-    class: server
-}
-i: Google {
-    class: google
-}
-c: Client {
-    class: client
-}
-c -> s: "1. Send email and password"
-s -> i: "2. Authenticate on behalf of the user"
-```
-
-This workflow is dangerous, as applications can take advantage of user credentials in between.
-Thus, an identity provider won't let dependent applications authenticate on behalf of users.
+From a more granular angle,
+we can implement authorization by assigning permissions to resources,
+making the permissions' target is identities instead.
+This is called **Resource-based Authorization**.
 
 ```d2
-direction: right
-s: System {
-    class: server
+r: Technical documents {
+  class: file
 }
-i: Google {
-    class: google
+p1: Permission 1 {
+  c: |||yaml
+  target:
+    type: role
+    id: developer
+  action: Read
+  |||
 }
-c: Client {
-    class: client
+p2: Permission 2 {
+  c: |||yaml
+  target:
+    type: user
+    id: admin01
+  action: full
+  |||
 }
-c -> s: "1. Send email and password"
-s -> s: "2. Steal the credential" {
-  class: error-conn
-}
-s -> i: "2. Authenticate on behalf of the user"
+p1 -> r: Assigned to
+p2 -> r: Assigned to
 ```
 
-Many frameworks were born to resolve this problem.
-In general, they require users to **directly interact** with identity providers
-instead of an intermediate application.
+In fact, **Identity-based** and **Resource-based** authorization should be implemented together
+to make the system more flexible.
 
-#### OpenID Connect Protocol (OIDC)
+### Cross-system Resource Sharing
 
-**OpenID Connect (OIDC)** is a common protocol for this task.
+Let's suppose that we need to share a system's resources with others.
 
-When a user wants to use a third-party platform to sign in to our system.
-The process starts by forwarding the user to sign in with the identity provider,
-e.g., **Google**.
-After the user is authenticated successfully,
-the provider will respond back to it an **Id Token** in form of [JWT](#json-web-token-jwt).
-
-```d2
-shape: sequence_diagram
-u: User {
-  class: user
-}
-cb: System {
-  class: server
-}
-g: Google
-  class: google
-}
-u -> cb: Sign in with Google
-cb -> u: Forward to Google
-u -> g: Sign in Google account
-g -> u: Respond an ID token
-```
-
-The user sends the **ID token** to the system.
-A valid token means this comes from a valid **Google** account,
-the system the token to get further information in the token's payload, such as email, account id, etc.
-
-```d2
-shape: sequence_diagram
-u: User {
-  class: user
-}
-cb: System {
-  class: server
-}
-g: Google
-  class: google
-}
-u -> cb: Sign in with Google
-cb -> u: Forward to Google
-u -> g: Sign in Google account
-g -> u: Respond an ID token
-u -> s: Send the token
-s -> s: Verify and use information from the token
-```
-
-How does the system can verify the token?
-Based on [Asymmetric Encryption](#asymmetric-signature),
-
-- The identity provider secretly hold a signing key for generating new tokens.
-- Besides, the provider distributes an authentication key to the system for verifying tokens autonomously.
-
-```d2
-g: Google {
-  s: Signing (Private) Key {
-    class: pri-key
-  }
-}
-s: System {
-  a: Authentication (Public) Key {
-    class: pub-key
-  }
-}
-g.s -> s.a: Distribute
-```
-
-### Authorization And Sharing Resource
-
-Let's suppose a use case that we need to access a file from the user's **GoogleDrive**.
+For example,
+we've developing an application allowing a user to upload their files from **GoogleDrive**.
+In a way, **GoogleDrive** must approve the application to perform actions on behalf of the user.
 
 ```d2
 u: User {
   class: client
 }
-s: System {
+s: Application {
   class: server
 }
 g: GoogleDrive {
   class: google
 }
-u -> s: Request
-s -> g: Access a user file
+u -> s: Request to upload a file from Drive
+s -> g: Access the file
 ```
+
+Similar to what we did in the [Identity Provider](#identity-provider) section,
+the resource service (**GoogleDrive**) must **not** let the application keep the user credentials (passwords, access tokens)
+as they fully represent the user and therefore can be used to perform **any actions**.
+Instead, we should create a different credential for the application,
+which is limitted to granted permissions.
 
 #### OAuth2.0
 
@@ -672,15 +722,15 @@ to access user resources hosted on a service.
 ##### Basic Flow
 
 First, the system redirects the resource service, such as **GoogleDrive**.
-The user signs in and consents permissions giving to the system.
-Then, the resource service responds back an **Access Token**.
+The user signs in and consents permissions giving to the application.
+Then, the resource service responds back an **Access Token** limitted to granted permissions.
 
 ```d2
 shape: sequence_diagram
 u: User {
   class: client
 }
-s: System {
+s: Application {
   class: server
 }
 g: GoogleDrive {
@@ -694,16 +744,16 @@ g -> u: Respond an access code {
 }
 ```
 
-The user sends the token to the system.
+The user sends the token to the application.
 With the access token,
-the system can access to resources approved by the user.
+the system can access to resources shared by the user.
 
 ```d2
 shape: sequence_diagram
 u: User {
   class: client
 }
-s: System {
+s: Application {
   class: server
 }
 g: GoogleDrive {
@@ -719,21 +769,20 @@ s -> g: Access resources with the token
 
 This is the basic flow of **OAuth2.0**.
 However, we will encouter a security concern.
-The code is responded to the user,
+The code is responded to the frontend layer (browser or device),
 but the actual actor accessing the resource is the backend system,
-the access token should be only obtained by it.
-Sending access tokens directly to the user (browser or device)
-makes it potentially exploited here.
+the access token should be only obtained by it,
+otherwise it can be exploited here.
 
 ```d2
 shape: sequence_diagram
 h: Hacker {
   class: hacker
 }
-u: User {
+u: User (Frontend) {
   class: client
 }
-s: System {
+s: Application (Backend) {
   class: server
 }
 g: GoogleDrive {
@@ -758,7 +807,7 @@ shape: sequence_diagram
 u: User {
   class: client
 }
-s: System {
+s: Application {
   class: server
 }
 g: GoogleDrive {
@@ -772,16 +821,16 @@ g -> u: Respond an exchange code {
 }
 ```
 
-The user needs to send the token to the system.
+The user needs to send the token to the application (backend system).
 In order to access resources,
-the system uses the code to exchange an actual access token.
+the application first uses the code to exchange an actual access token.
 
 ```d2
 shape: sequence_diagram
 u: User {
   class: client
 }
-s: System {
+s: Application {
   class: server
 }
 g: GoogleDrive {
@@ -797,28 +846,69 @@ s -> g: Exchange an access token with the code {
 }
 ```
 
-But this changes nothing if the exchange code is stolen.
-The attacker can still use it to obstain an access token.
-Thus,
-the system needs to intially register itself with the resource service.
-The resource service only exchanges tokens with trusted targets
-holding valid identifiers, typically incluing a pair of **(id, secret)**.
+Now, attackers can only steal exchange codes, not actual access tokens.
+However, this does change nothing as
+the attacker can still use the code to obstain an access token.
+Thus, exchanging tokens is only feasible for **trusted targets**.
+
+##### Trusted Target
+
+An application needs to intially register itself with the resource service:
+
+- It's uniquely detected with an **id**.
+- It's given with a **secret** to validate in the exchanging phase.
+
+```d2
+g: GoogleDrive {
+  c: |||yaml
+  app1:
+   id: 123
+   secret: 111222
+  app2:
+   id: 234
+   secret: 222333
+  |||
+}
+a1: Application 1 {
+  c: |||yaml
+  id: 123
+  secret: 111222
+  |||
+}
+a2: Application 2 {
+  c: |||yaml
+  id: 234
+  secret: 222333
+  |||
+}
+a1 -> g: Register
+a2 -> g: Register
+```
+
+When redirecting users to the resource service,
+an application must attach its **id** to the path,
+such as `/auth/id=123` to produce its own exchange codes.
+
+When exchanging access tokens,
+the application uses its identifier (id and secret) to prove it a trusted target.
+Thus, the application needs to send the code and its identifier,
+the resource check them all before responding the token.
 
 ```d2
 shape: sequence_diagram
 u: User {
   class: client
 }
-s: System {
+s: Application 1 {
   class: server
 }
 g: GoogleDrive {
   class: google
 }
 u -> s: Request
-s -> u: Redirect to GoogleDrive
+s -> u: "Redirect to /auth/id=123"
 u -> g: Sign in and consent permissions
-g -> u: Responds an exchange code
+g -> u: Respond an exchange code
 u -> s: Send the exchange code
 s -> g: Exchange an access token with (exchange code + identifier) {
   style.bold: true
@@ -826,13 +916,6 @@ s -> g: Exchange an access token with (exchange code + identifier) {
 g -> s: Respond an access token
 ```
 
-Get back to the **OIDC** protocol,
-it's actually built on top of **OAuth2.0**.
-
-**OAuth2.0** and **OIDC** provides a complete identity service.
-That's when exchanged access tokens mean for authentication and authorization:
-
-- `OIDC`: used to verify a user to belong to a hosted service
-  e.g., An application supports authenticate by `Google` account
-- `OAuth2.0`: used to expose user resources to third-party applications
-  e.g., A user allows an application to access its `GoogleDrive` files
+Now, the application is the only one can issue access token.
+Even if exchange codes are unexpectedly stolen,
+they can't be exploited.

@@ -136,4 +136,28 @@ d2Import: >
         shape: image
         icon: ${icons-path}/pri-key.svg
       }
+      token {
+        shape: image
+        icon: ${icons-path}/token.svg
+      }
+      burst {
+        shape: image
+        icon: ${icons-path}/burst.svg
+      }
+      resource {
+        shape: image
+        icon: ${icons-path}/resource.svg
+      }
+      os {
+        shape: image
+        icon: ${icons-path}/os.svg
+      }
+      hypervisor {
+        shape: image
+        icon: ${icons-path}/hypervisor.svg
+      }
+      monitor {
+        shape: image
+        icon: ${icons-path}/monitor.svg
+      }
     }
