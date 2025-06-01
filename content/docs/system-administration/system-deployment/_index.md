@@ -3,20 +3,20 @@ title: System Deployment
 weight: 20
 ---
 
-In this topic,
-we'll some basic aspects of deploying a system.
+This section will cover some fundamental aspects of system deployment.
 
-## Deploy Options
+## Deployment Options
 
-Suppose we're trying deploy a system on a server.
-Let's see the most common options to do that:
+Suppose we aim to deploy a system on a server.
+Let's examine the most common options for achieving this:
 
 ## Bare-metal Deployment
 
-This is the most basic way,
-we essentially run the components as native processes on the server's **Operating System (OS)**.
-This model results in the **maximum performance**,
-because processes can access hardware directly without any virtual overhead.
+This is the most fundamental deployment method,
+where system components run as native processes directly on the server's **Operating System (OS)**.
+This model typically yields the **maximum performance** because
+processes can access hardware resources with minimal overhead,
+as there are no virtualization layers.
 
 ```d2
 m: Server {
@@ -43,20 +43,20 @@ m: Server {
 }
 ```
 
-However, in this model, processes share the same host's OS,
-making it prone to be exploited.
-E.g., from an attacked process,
-if the permissions of its executor are not configured correctly,
-the attacker can abuse the OS to harm other processes, or even the entire server.
+However, in this model, all processes share the same host OS.
+This shared environment can be vulnerable to exploitation.
+
+For instance, if an attacked process has incorrectly configured permissions for its executor,
+an attacker could potentially abuse the OS to compromise other processes or even the entire server.
 
 ## Virtual Machine
 
-Then, **Virtual Machine** is used to build a stricter environment.
-
-A virtual machine is similar to a physical one but run on a software called **Hypervisor** (instead of real hardward).
-Despite depending the host's OS,
-virtual machines possess their own OS and resources,
-they are **completely isolated** with each other.
+**Virtual Machines (VMs)** are employed to create a more strictly isolated environment.
+A virtual machine emulates a physical computer but runs on a software layer called a **Hypervisor**,
+rather than directly on physical hardware.
+Although VMs rely on the host's OS (via the hypervisor),
+they each possess their own independent OS and dedicated resources,
+ensuring they are **completely isolated** from one another.
 
 ```d2
 m: Server {
@@ -93,10 +93,10 @@ m: Server {
 }
 ```
 
-Then, we can deploy the system's processes on different virtual machines.
-This comes with a big security benefit,
-even some processes are attacked,
-they can't be used to affect on others and the physical machine.
+System processes can then be deployed on different virtual machines.
+This approach offers a significant security benefit:
+even if some processes on one VM are compromised,
+they cannot directly affect processes on other VMs or the underlying physical machine.
 
 ```d2
 m: Server {
@@ -128,25 +128,23 @@ m: Server {
 ```
 
 
-However, virtual machine is not good in terms of resource efficiency.
-Each virtual machine runs its own **full OS**, consuming significant CPU, memory, and storage.
-Morever, booting a virtual machine requires many setups and takes minutes to complete,
-making initializing system components longer (potentially affect [availability]({{< ref "service-cluster#availability" >}}).
+However, virtual machines are not optimal in terms of resource efficiency.
+Each VM runs its own **full operating system**, which consumes considerable CPU, memory, and storage resources.
+Moreover, booting a virtual machine involves numerous setup steps and can take several minutes to complete.
+This can prolong the initialization time for system components, potentially affecting [availability]({{< ref "service-cluster#availability" >}}).
 
-In the next topic,
-we'll learn about a more lightweight option called **Containerization**.
+In the next topic, we will explore a more lightweight option known as **Containerization**.
 
 ### Multi-tenant
 
-Not really relevant to this topic,
-but I want to explain the term **Multi-tenant** popularly used in cloud platforms.
+{{< callout type="info" >}}
+While not directly central to this topic, it's useful to explain the term **Multi-tenancy**, which is commonly used in cloud computing platforms.
+{{< /callout >}}
 
-In practice,
-we rarely build but depend on a cloud provider for the system's infrastructure.
-
-When we rent a whole physical machine and take full control of it,
-it's called **Single-tenant** or **Dedicated Server**,
-as no one else can touch your server.
+In practice, organizations often rely on cloud providers for their system infrastructure rather than building it themselves.
+When a customer rents an entire physical machine and has full control over it,
+this is known as **Single-tenancy** or a **Dedicated Server**,
+as no other customer can access that server.
 
 ```d2
 s1: Dedicated Server 1 {
@@ -165,9 +163,9 @@ u1 -> s1: Rent
 u2 -> s2: Rent
 ```
 
-By default, many cloud platforms provide the **Multi-tenant** model.
-They divide a physical machine into multiple virtual machines,
-each can be rented by a different customer.
+By default, many cloud platforms offer a **Multi-tenant** model.
+In this setup, cloud providers divide a single physical machine into multiple virtual machines,
+and each VM can be rented by a different customer.
 
 ```d2
 s: Server {
@@ -188,7 +186,6 @@ u1 -> s.v1: Rent
 u2 -> s.v2: Rent
 ```
 
-At the end of the day,
-the virtual machines still share the same hardware,
-raising the risk of data leaks if there’s a flaw in software isolation.
-**Multi-tenant** is ocasionally outright banned in some strictly security systems.
+Ultimately, in a multi-tenant environment, the virtual machines still share the same underlying hardware.
+This poses a potential risk of data leaks if there are flaws in the software isolation mechanisms.
+Consequently, multi-tenancy is sometimes prohibited in systems with extremely strict security requirements.

@@ -3,47 +3,43 @@ title: System Recovery
 weight: 40
 ---
 
-Distributed systems face various failures (node crashes, network partitions, etc.),
-and they're unavoidable.
-A distributed system must equip recovery mechanisms to ensure that
-it can continue operating or restart from a known good state.
+Distributed systems inevitably face various failures, such as node crashes or network partitions.
+It is crucial for a distributed system to be equipped with robust recovery mechanisms
+to ensure it can either continue operating or restart from a known, consistent state.
 
 ## Backward Recovery
 
-Let's take an example of transferring money from account `A` to `B`.
-Unfortunately, the application is down in between,
+Consider an example of transferring money from account `A` to account `B`.
+Unfortunately, the application crashes midway through the transaction:
 
 ```yaml
-UPDATE 1: A = A - amount
+UPDATE 1: A = A - amount  # Executed
 SYSTEM DOWN: ...
-UPDATE 2: B = B + amount
+UPDATE 2: B = B + amount  # Not executed
 ```
 
-How do we correct the transaction when the application fully recovers?
+When the application recovers, how do we correct this incomplete transaction?
+- **Backward Recovery**: We undo or roll back the first update (`A = A - amount`) to **abort** the transaction and restore the system to its state before the transaction began.
+-  **Forward Recovery**: We attempt to execute the second step (`B = B + amount`) to **complete** the transaction.
 
-- **Backward**: We roll back the first update to **abort** the transaction.
-- **Forward**: We try to execute the second step to **complete** the transaction.
-
-**Forward Recovery** adds much management and development overhead.
-Each operation may require a different strategy.
-
-Most of the time, **Backward Recovery** is applied because of the simplicity.
-A system can recover from any type of fault by easily moving back to a previously stable state.
+**Forward Recovery** can introduce significant management and development overhead,
+as each operation might require a unique recovery strategy.
+Consequently, **Backward Recovery** is more commonly applied due to its relative simplicity.
+A system can recover from many types of faults by reverting to a previously known stable state.
 
 ## Write-Ahead Logging (WAL)
 
-**Logging** is a common stategy used in many database solutions.
-This approach requires logging **all** operations performed within the application into
-is a logging file called **Write-Ahead Logging (WAL)**.
-Before performing any update, the system must log it to the file first.
+**Logging** is a fundamental strategy employed in many database solutions to ensure durability and enable recovery.
+The **Write-Ahead Logging (WAL)** approach mandates that **all** operations or changes
+intended for the data are first recorded in a sequential log file *before*
+the changes are applied to the actual data structures.
 
-Let's take a **WAL** example.
-The system crashes between a transaction;
-To recover, we need to undo the first update (`A += 100`).
+Let's revisit the money transfer.
+Upon recovery, the system would examine the WAL and invalidate the first log entry.
 
 ```yaml
 UPDATE 1:
-  id: account A
+  recored: account A
   action: SET balance = balance + 100
 SYSTEM DOWN:
 UPDATE 2 (not executed):
@@ -51,32 +47,28 @@ UPDATE 2 (not executed):
   action: SET balance = balance - 100
 ```
 
-There are two notable benefits:
 
-1. We have logged all updates before they're actually performed,
-   thus, this approach brings about reliability.
+There are two notable benefits of WAL:
+1. **Reliability**:
+Since all updates are logged before they are actually performed on the main data,
+this approach provides a high degree of reliability. If the system crashes, the WAL contains a record of what was intended.
+2. **Point-in-Time Recovery (PITR)**: Based on the log file, the system can replay operations to reconstruct the state of the data up to any specific point in time covered by the logs.
 
-2. Based on the logging file,
-   we can replay and rollback data to any stable state,
-   this feature is called **Point-in-time Recovery (PITR)**.
-
-And it also brings out two problems:
-
-1. However, a lot of operations can happen,
-   a log line is for one operation,
-   then **WAL** leads to exceptionally **high strogage**.
-
-2. To recover data from a **WAL** file,
-   we need to relay data from all log lines,
-   taking extremely long to complete.
+However, WAL also introduces challenges:
+1. **Storage Overhead**: A high volume of operations can lead to a very large WAL file,
+as each operation typically generates at least one log line.
+This can result in high storage consumption.
+2. **Recovery Time**: To retrive data from a WAL file,
+the system might need to replay a significant number of log entries,
+which can be time-consuming.
 
 ## Checkpointing
 
-### Write-through
+### Durability
 
-In reliable databases, when receiving any change,
-they will save it to the physical disk immediately.
-This behaviour is called **Write-through**.
+In reliable database systems,
+a common practice is that when the system receives any change,
+it writes that change to the physical disk (persistent storage) immediately before confirming the operation to the client.
 
 ```d2
 direction: right
@@ -93,20 +85,23 @@ c -> d: Update
 d -> h: Save
 ```
 
-This ensures the reliability,
-as physical data is always up-to-date.
+This ensures maximum reliability and durability,
+as the data on disk is always up-to-date with acknowledged changes.
+If the system crashes, no acknowledged data is lost.
 
-However, hard disks are slow to work with.
-Writing to disk is not often easy;
-Changes may result in unexpedly complex and heavy staff,
-such as serializing data formats, migrating data between files, etc.
-Briefly, it leads to degraded performance as writes will take longer to complete.
+However, hard disks are significantly slower than memory.
+Writing to disk for every operation can be complex and slow,
+especially if changes involve intricate data serialization,
+updates to multiple index structures, or data migration within files.
+This can lead to degraded performance, as write operations will take longer to complete.
 
-### Write-back
+### Checkpoint
 
-This model constracts with **Write-through**,
-where changes are first kept in memory and written to disk at **regular intervals** (e.g., after one minute, after 10 operations...).
-A captured state is called a **checkpoint** or **snapshot**.
+In this model, changes are first written to a fast in-memory buffer,
+and the operation is confirmed to the client quickly.
+These changes are then written to the physical disk at **regular intervals** or based on certain triggers
+(e.g., after one minute, after a certain number of operations, when the buffer is full).
+A captured state of the data flushed to disk is often referred to as a **checkpoint** or **snapshot**.
 
 ```d2
 d: Database {
@@ -124,26 +119,26 @@ m -> h: Flush periodically {
 }
 ```
 
-Absolutely,
-this comes with a better performance by reducing saving operations.
-Changes can respond immediately after writing to the memory,
-their durability will be handled in the background.
+This approach generally offers better performance by reducing the number of slow disk-writing operations.
+Client requests can receive immediate responses after the data is written to memory,
+while the actual persistence to disk happens asynchronously in the background.
 
-However, we easily observe the possibility of data loss,
-data processed after the latest checkpoint will not be recovered in case of failure.
-This model is benefical for use cases which data loss is acceptable, such as caching.
+However, the primary drawback is the increased risk of data loss.
+If the system fails after an update has been written to memory but before it has been flushed to disk (i.e., before the next checkpoint),
+that data will be lost.
+This model is beneficial for use cases where some data loss is acceptable in exchange for higher performance,
+such as in certain types of caching systems.
 
 ### Checkpointing And Logging
 
-Many databases try to combine between **Logging** and **Checkpointing**.
-Changes are wriiten to the logging file first and periodically flushed from the memory.
-
-- Writing changes to structed data files is complex and require much computing effort.
-  The **WAL** file is merely an linearly only-appended file,
-  it's simple and lighweight for logging new lines.
-
-- In case of failure,
-  the **WAL** works as a reliable place for recovering data.
+Writing changes to complex structured data files on disk can be computationally expensive.
+The WAL file, being an **append-only sequential** file, is simple and lightweight to write to,
+making logging new entries very fast.
+Many modern databases effectively combine **Write-Ahead Logging** with **Checkpointing** to get the benefits of both reliability and performance.
+Changes are:
+1.  First, written as a log entry to the **WAL file** (ensuring durability of intent).
+2.  Then, applied to an **in-memory version** of the data (allowing fast reads and writes).
+3.  Periodically, the in-memory data is **flushed to the main data files on disk** (this is the checkpoint).
 
 ```d2
 direction: right
@@ -168,12 +163,12 @@ c -> s.m: 1. Update in memory
 s.m -> s.wal: 2. Log the operation
 ```
 
-As we've said,
-the **WAL** file can grow exceptionally and take a lot of time to recover.
-Thanks to checkpoints,
-we can remove the old log lines to significantly reduce the file's size.
 
-For example, we have a **WAL** of 5 logs:
+As previously mentioned, the WAL file can grow exceptionally large and make recovery times long. Checkpoints are crucial here:
+- **Truncate the WAL**: Old log lines preceding the last successful checkpoint can be removed or archived, significantly reducing the WAL file's active size.
+- **Speed up Recovery**: In case of a crash, the system can restore its state from the latest checkpoint on disk and then only needs to replay WAL entries *after* that checkpoint to recover subsequent changes.
+
+For example, if a WAL has 5 log entries:
 
 ```d2
 l: Log {
@@ -187,10 +182,8 @@ l: Log {
 }
 ```
 
-With a snapshot taken at the firth update.
-We necessarily need to maintain log lines after that moment.
-Morever, recovering data is more rapid
-as we only need to replay from the snapshot (not the entire log).
+If a snapshot (checkpoint) is taken after `UPDATE 3` has been persistently stored in the main data files,
+the system only needs to retain WAL entries from `UPDATE 4` onwards for future crash recovery.
 
 ```d2
 l: Log {
@@ -199,28 +192,31 @@ l: Log {
   UPDATE 5
   |||
 }
-"SNAPSHOT at UPDATE 3"
+"SNAPSHOT at UPDATE 3" {
+  class: file
+}
 ```
 
 ## Data Reconciliation
 
-Data reconciliation is the process of comparing and resolving discrepancies between two data sets.
-This process is used a lot in distributed databases,
-where we need to to compare between nodes, such as a primary and its replica,
-to ensure data consistency in system.
+Data reconciliation is the process of comparing two or more datasets to identify and resolve any discrepancies between them.
+This process is frequently used in distributed database systems,
+particularly for ensuring data consistency between nodes,
+such as a primary node and its replicas, or between different shards.
 
 ### Hash Tree
 
-However, comparing every piece of data in sets one by one is inefficient.
-Thus, **Hash Tree** is a powerful data structure in this case.
+Comparing every piece of data in large datasets item by item can be extremely inefficient.
+The **Hash Tree**, also known as a **Merkle Tree**,
+is a powerful data structure used to efficiently verify the consistency of data between different sources.
 
-Basically, in a **Hash Tree**, we use a certain hash function:
+In a Hash Tree:
+- Each leaf node typically represents a hash of an individual data block or record.
+- Each non-leaf (parent) node is a hash of the concatenated hashes of its child nodes.
+- This continues up to a single root hash, which represents the hash of the entire dataset.
 
-- Data is determined by its hash and lives in the leave nodes.
-- A parent node is the hash from its children.
-
-For example,
-a tree of `[1, 2, 3, 4]` look like this:
+A specific hash function (e.g., **SHA-256**) is used throughout the tree.
+For example, a tree for a dataset `[1, 2, 3, 4]` might look like this (where `H()` is the hash function):
 
 ```d2
 grid-columns: 1
@@ -242,13 +238,15 @@ l3 {
 }
 ```
 
-Based on the hashing instinct, two different nodes will result in different parents.
-Traversing the trees, when detecting any two different nodes,
-that means their leaves are different.
+Due to the nature of cryptographic hash functions,
+if even a single bit of data in any leaf node is different between two trees,
+their respective parent hashes will differ, and this difference will propagate all the way up to their root hashes.
 
-Suppose we need to compare with another set `[1, 2, 3]`.
-From the root, we see the first right nodes are different,
-then we dive into the branches to find the exact discrepancies.
+Suppose we need to compare the set `[1, 2, 3, 4]` with another set `[1, 2, 3]` (missing `4`).
+Starting from the root:
+1. `Root1` will be different from `Root2`.
+2. Compare children: `H(H(1)+H(2))` from Tree 1 might match `H(H(1)+H(2))` from Tree 2.
+3. However, `H(H(3)+H(4))` from Tree 1 will differ from `H(H(3))` from Tree 2.
 
 ```d2
 grid-columns: 2
@@ -295,5 +293,7 @@ t2 {
 }
 ```
 
-This structure helps detect discrepancies efficiently with the **O(log n)** complexity,
-but that requires maintaining an subsidiary structure.
+This structure allows for efficient detection of discrepancies,
+often with a complexity related to **O(log N)** for finding the differing blocks,
+rather than O(N) for a full comparison.
+The trade-off is the overhead of constructing and maintaining this subsidiary hash tree structure.

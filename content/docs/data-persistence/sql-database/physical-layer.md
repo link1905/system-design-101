@@ -149,24 +149,18 @@ Page {
 }
 ```
 
-#### LPA Random Accessing
-
-Since tuple sizes are variable (mainly due to text fields),
-having fixed-size pointers in the **LPA** ensures fast, random access to any tuple —
-retrieving a pointer is like accessing an array element:
+Since tuple sizes can vary (primarily due to text fields),
+utilizing fixed-size pointers within the **Line Pointer Array (LPA)** guarantees fast,
+random access to any specific tuple.
+Retrieving a pointer in this manner is analogous to accessing an element in an array:
 
 ```md
 pointer[i] = page_address + pointer_size * (i - 1)
 ```
 
-Without an **LPA**, accessing a tuple would require sequential traversal:
-
-```md
-tuple[i] = address(tuple(i - 1)) + size_of(tuple(i - 1))
-```
-
-Another important role of the **LPA** is ensuring tuple reference stability,
-which we’ll touch on in the [HOT Update](#hot-update) section.
+The primary function of the **LPA** is to maintain the stability of tuple references.
+Even if a row is relocated among different tuples within the page,
+its corresponding line pointer remains constant, ensuring consistent referencing.
 
 ## Heap
 

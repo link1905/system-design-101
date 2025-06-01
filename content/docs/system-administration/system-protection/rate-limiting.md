@@ -3,28 +3,24 @@ title: Rate Limiting
 weight: 30
 ---
 
-Before wrapping up this topic,
-let's see a critical requirement of almost systems - **Rate Limiting**.
+Rate Limiting is an essential component in most systems.
+At its core, **Rate Limiting** ensures controlled access to a system by limiting the volume of
+traffic an external entity can send in a specific time period.
+Its primary purposes include:
 
-Basically, **Rate Limiting** restricts the amount of traffic an external entity can send to a system in a time period to ensure:
+- **Fair usage:** Prevents any single entity (user/system) or group from monopolizing resources.
+- **Stable performance:** Protects systems from performance degradation caused by traffic spikes, improving user experience.
+- **Attack mitigation:** Helps defend against [Denial-of-Service attacks (DoS)](https://en.wikipedia.org/wiki/Denial-of-service_attack), password brute-forcing, and more.
 
-- **Fair usage**: prevents a single entity (user/system) or a small group from abusing resources.
-- **Stable performance**: traffic spikes easily lead to degraded performance and frustating user experience,
-restricting traffic help protects from overwhelming resource usage.
-- **Mitigate attacks**: [Denial-of-service attack](https://en.wikipedia.org/wiki/Denial-of-service_attack), password brute forcing...
-
-Let's explore two famous rate limiting strategies:
+This article dives into popular strategies employed for implementing rate limiting effectively:
 
 ## Leaky Bucket
 
-The first algorithm is **Leaky Bucket**.
-Let's imagine we have a bucket having a hole at the bottom,
-traffic goes into the bucket and leak out the hole.
-Although how big the bucket is, the hole is **unchanged**.
-In other words, despite a lot of incoming traffic,
-we only allow traffic at a fixed rate
+The **Leaky Bucket** works much like its name suggests: imagine a bucket with a hole at the bottom. Requests flow into the bucket and "leak" at a constant rate. Regardless of the intensity of incoming traffic, only a fixed volume is processed.
 
-For example, a batch of 2 requests is handled for every second.
+For example,
+incoming requests are queued,
+with a limit of 2 requests can exit per second.
 
 ```d2
 grid-columns: 3
@@ -87,19 +83,21 @@ s3: 00:02 {
 }
 ```
 
-This approach ensures a **consistent rate** for processing traffic,
-traffic exceeding the capacity is either delayed or dropped.
-This rigid behaviour makes it become a straightforward and cheap strategy.
+This approach reliably maintains a **consistent processing rate** for traffic.
+Excess requests are either queued (thereby delayed) or discarded,
+rendering it an inherently straightforward and cost-effective strategy for implementation.
 
-However, due to the instinct of smoothing out traffic bursts.
-Discarding (or delaying) excessive traffic will significantly degrade user experience,
-thus, it's not a right choice for applications frequently encountering **bursts of traffic**,
-such as gaming services.
+However, its primary function is to smooth out traffic bursts.
+Consequently, discarding or delaying excessive traffic can significantly degrade the user experience.
+Therefore,
+it is not an ideal choice for applications that frequently encounter bursts of traffic,
+such as online gaming services.
 
 ## Token Bucket
 
-Instead of relying on a constant rate,
-**Token Bucket** is a more flexible approach with tokens
+The **Token Bucket** is similar but more flexible than the **Leaky Bucket**.
+Tokens represent the *permission* to process a request,
+and are added to the bucket at a steady rate.
 
 Imagine we have a bucket of tokens.
 
@@ -114,8 +112,7 @@ bucket: Bucket {
 }
 ```
 
-A token is preserved for one request,
-executing the request will pick up and delete the token from the bucket.
+When a request arrives, it picks up a token:
 
 ```d2
 b: Bucket {
@@ -138,7 +135,7 @@ r1 -> b.t1: Take
 r2 -> b.t2: Take
 ```
 
-If there is no token left, excessive requests are delayed or discarded
+If tokens are exhausted, requests are delayed or discarded:
 
 ```d2
 b: Bucket {
@@ -150,10 +147,9 @@ r3: Request 3 {
 r3 -> b: Discarded (or delayed) because of no token
 ```
 
-**Periodically**, the bucket is filled with some (configurable) tokens.
-If the bucket is full of tokens, new tokens are discarded.
-For example,
-2 tokens are added every second.
+**Periodically**, the bucket receives a configurable number of tokens.
+If the bucket reaches its capacity, any excess tokens are discarded.
+For example, 2 tokens are added every second.
 
 ```d2
 b1: Bucket (00:01) {
@@ -181,16 +177,9 @@ b2: Bucket (00:02) {
 }
 ```
 
-In this algorithm,
-we still control the average trasmission rate over time with the filling rate as **Leaky Bucket**.
-However, in this approach,
-tokens can be stacked up (up to the bucket's size) to deal with traffic bursts.
+This algorithm controls the average transmission rate over time using its filling rate, similar to the **Leaky Bucket** method. However, this approach allows tokens to accumulate (up to the bucket's capacity) to handle traffic bursts.
 
-The problem of this approach is to prepare the sytem to work effectively in case of traffic bursts.
-Traffic bursts require system services consume more resources,
-potentially leading to crashes.
-Moreover, bursts in a service may result in other services,
-and we need to make sure all of them are intolerant.
+A key challenge with this method is preparing the system to operate effectively during such bursts. Traffic bursts compel system services to consume additional resources, potentially leading to crashes. Furthermore, as bursts in one service can propagate to others, it is vital to ensure that all affected services are intolerant.
 
 ```d2
 b: "" {
@@ -214,17 +203,19 @@ b -> s.s1
 
 ## Client-side Limiting
 
-We can also deploy rate limiting on the client side.
-However, client-side stategies are unsafe,
-to what extend clients can interfere with and bypass them.
-Thus, it works best to support reduce traffic when the system encouters heavy loads.
+Rate limiting can also be implemented on the client side.
+
+However, client-side strategies are inherently **unsafe**,
+as clients can potentially interfere with or bypass them.
+Consequently, we should not rely on them exclusively.
 
 ### Exponential Backoff
 
-**Exponential Backoff** is a strategy preventing clients from intensely accessing the system.
-When a client experiences transient errors or rate-limiting responses from a server,
-it needs to postpone before retrying.
-The duration is **exponentially increased** with each retry, e.g., `1s -> 2s -> 4s -> 8s`.
+**Exponential Backoff** is a strategy that prevents clients from accessing the system too intensely.
+When a client encounters transient errors or rate-limiting responses from a server,
+it should pause before retrying.
+This pause duration is exponentially increased with each subsequent retry,
+for example: `1s -> 2s -> 4s -> 8s`.
 
 ```d2
 shape: sequence_diagram
@@ -251,22 +242,24 @@ s -> c: Respond error {
 c -> c: Wait for 4 second
 ```
 
-Why should it be exponential?
-When the server returns an error, it is often due to heavy load or even crash.
-After a few retries, exponential backoff results in significantly longer delays,
-giving the server more time to recover from high workloads.
-Linear backoff, on the other hand, may unexpectedly continue contributing to the server's heaviness.
+Why should the backoff be exponential?
+When a server returns an error, it often indicates a heavy load or even a crash.
+After a few retries, exponential backoff introduces significantly longer delays.
+This gives the server more time to recover from high workloads.
+Linear backoff, in contrast, might inadvertently continue to contribute to the server's heavy load.
 
 ### Circuit Breaker
 
-**Circuit Breaker** is a pattern used to prevent unnecessary attempts to an unavailable service.
-**Circuit Breaker** is designed for **long-term** issues,
-when we determine that requests are likely to fail,
-we will to abort them immediately to save resources.
+The **Circuit Breaker** pattern helps prevent repeated,
+unnecessary attempts to access a service that is unavailable.
+It is particularly designed for handling **long-term** issues.
+When it's determined that requests are likely to fail,
+the **Circuit Breaker** aborts them immediately,
+thereby conserving resources.
 
-The **Circuit Breaker** works as a proxy with **three states**.
+This pattern operates as a proxy and manages requests through **three distinct states**:
 
-1. **Closed**: Requests pass to the target service normally in this state.
+1. **Closed**: In this state, requests are routed to the target service as usual.
 
 ```d2
 direction: right
@@ -285,9 +278,10 @@ c -> t {
 }
 ```
 
-2. **Open**: When the breaker experiences a number of failures exceeding a **predefined threshold**,
-the circuit transitions to **Open** state cancelling requests immediately.
-This state prevents from wasting resources on calls that are **likely to fail** and gives the target service time to recover.
+2. **Open**: If the number of failures surpasses a **predefined threshold**,
+the circuit breaker transitions to the **Open** state.
+In this state, all requests are immediately cancelled.
+This prevents resource wastage on calls that are **highly likely to fail** and provides the target service with an opportunity to recover.
 
 ```d2
 direction: right
@@ -309,11 +303,12 @@ c.r -> t: Fail {
 }
 ```
 
-3. **Half-open**: After a period of time, the circuit breaker switches from **Open** to **Half-open**.
-Some trial requests are passed to the target service:
+3. **Half-Open**: After a designated timeout period,
+the circuit breaker transitions from the **Open** state to **Half-Open**.
+In this state, a limited number of trial requests are allowed to pass through to the target service:
 
-- If **any** request fails,
-the breaker assumes the fault is still happening and retains the **Open** state.
+- If **any** of these trial requests fail,
+the breaker presumes the underlying fault persists and reverts to the **Open** state.
 
 ```d2
 direction: right
@@ -339,7 +334,8 @@ c.r2 -> t: Failed {
 }
 ```
 
-- If they **all** succeed, the circuit moves back to the **Closed** state to work regularly.
+- If **all** trial requests succeed,
+the circuit breaker transitions back to the **Closed** state, resuming normal operation.
 
 ```d2
 direction: right
@@ -363,9 +359,6 @@ c.r1 -> t: Successful
 c.r2 -> t: Successful
 ```
 
-The **Half-Open** state only allows a limited amount of traffic,
-it helps the target service from being **flooded** and have more time to recover.
+The **Half-Open** state permits only a restricted volume of traffic, which helps prevent the target service from being **overwhelmed** and allows it additional time to recover.
 
-The combination of **Backoff Limit** and **Circuit Breaker** is often productive.
-We continue retrying until reaching the failure threshold,
-then the circuit breaker should be leveraged to throttle requests immediately
+Combining **Exponential Backoff** and **Circuit Breaker** strategies is often effective. Retries (potentially with exponential backoff) may continue until the Circuit Breaker's failure threshold is reached, at which point the breaker activates to throttle requests immediately.

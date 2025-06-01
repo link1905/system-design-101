@@ -456,7 +456,7 @@ Decryption {
 ```
 
 However, because it relies on a pair of keys,
-decryption with asymmetric encryption is much slower.
+decryption with asymmetric encryption is mathematically much slower.
 Whenever possible, we should prefer symmetric key encryption.
 
 #### Signature Validation
@@ -646,4 +646,4 @@ c <- ed: Decrypt data after getting from the backend
 ```
 
 This strategy requires additional support for securely sharing keys between client devices.
-Since keys are stored locally, changing or losing devices can result in key—and therefore data—loss.
+Since keys are stored locally, changing or losing devices can result in key—and therefore data loss.

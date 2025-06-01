@@ -9,8 +9,8 @@ Knowledge of these areas forms a strong foundation for {{< term sd >}} and relat
 **[1. System Protection]({{< ref "system-protection" >}})**:
 
 - Key methods for securing system data, such as **Encryption** and **Hashing**.
-- Laying the groundwork for a robust **Identity and Access Management** platform
-- Strategies for ensuring fair resource usage through **Rate Limiting**
+- Laying the groundwork for a robust **Identity and Access Management** platform.
+- Strategies for ensuring fair resource usage through **Rate Limiting**.
 
 **[2. System Deployment]({{< ref "system-deployment" >}})**:
 
@@ -21,8 +21,8 @@ Knowledge of these areas forms a strong foundation for {{< term sd >}} and relat
 **[3. System Monitoring]({{< ref "system-monitoring" >}})**:
 
 - Essential terminology for system monitoring.
-- Techniques and knowledge for enabling automatic system scaling.
+- Knowledge for enabling automatic system scaling.
 
 **[4. System Recovery]({{< ref "system-recovery" >}})**:
 
-- Brief overview of approaches for maintaining system integrity following unexpected failures
+- Brief overview of approaches for maintaining system integrity following unexpected failures.
