@@ -506,7 +506,7 @@ lb -> user: /b {
 
 #### SSL Termination
 
-A major challenge with {{< term lb7 >}} is handling encrypted traffic via [{{< term ssl >}}]({{< ref "network-security#transport-layer-security-tls" >}}).
+A major challenge with {{< term lb7 >}} is handling encrypted traffic via [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security).
 Since {{< term lb7 >}} needs to read application-level data to make decisions, it cannot work directly with end-to-end encryption.
 
 ```d2

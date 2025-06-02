@@ -144,7 +144,6 @@ t: {
 s: Trace {
   grid-rows: 1
   s1: Service 1 {
-    style.width: 200
     t: |||yaml
     trace id: 123
     span number: 1
@@ -152,7 +151,6 @@ s: Trace {
     |||
   }
   s2: Service 2 {
-    style.width: 600
     t: |||yaml
     trace id: 123
     span number: 2
@@ -160,7 +158,6 @@ s: Trace {
     |||
   }
   s3: Service 3 {
-    style.width: 200
     t: |||yaml
     trace id: 123
     span number: 3
@@ -246,7 +243,7 @@ m: Server {
         grid-rows: 1
         e: "Usage (50%)" {
           width: 150
-          style.fill: ${colors.b}
+          style.fill: ${colors.i1}
         }
         e: "Unused resources" {
           width: 150
@@ -257,7 +254,7 @@ m: Server {
         grid-gap: 0
         e: "Usage (100%)" {
           width: 100
-          style.fill: ${colors.b}
+          style.fill: ${colors.i1}
         }
     }
 }
@@ -310,7 +307,7 @@ g: Global View {
     }
     a: "Usage (65%)" {
         width: 300
-        style.fill: ${colors.b}
+        style.fill: ${colors.i1}
     }
 }
 i: Instances {
@@ -323,7 +320,7 @@ i: Instances {
         }
         a: "Usage (70%)" {
             height: 300
-            style.fill: ${colors.b}
+            style.fill: ${colors.i1}
         }
     }
     m2: Instance 2 {
@@ -335,7 +332,7 @@ i: Instances {
         }
         a: "Usage (60%)" {
             height: 250
-            style.fill: ${colors.b}
+            style.fill: ${colors.i1}
         }
     }
 }

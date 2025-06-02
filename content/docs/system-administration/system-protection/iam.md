@@ -770,7 +770,7 @@ u -> s: Request
 s -> u: Redirect to GoogleDrive
 u -> g: Sign in and consent permissions
 g -> u: Respond a limited access token {
-  style.bold: tr
+  style.bold: true
 }
 ```
 

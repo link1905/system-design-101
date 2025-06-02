@@ -44,7 +44,7 @@ c <-> s: Close the connection {
 ```
 
 Creating a {{< term tcp >}} connection is **resource-intensive**,
-especially when using [SSL]({{< ref "network-security#transport-layer-security-tls" >}}).
+especially when using [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security).
 This becomes inefficient when clients need to make multiple requests simultaneously,
 as numerous connections will be established as a result.
 

@@ -1,8 +1,6 @@
 ---
 title: Data Security
 weight: 10
-aliases:
-- ../
 ---
 
 ## Data Compliance
@@ -44,8 +42,6 @@ Example: Under **GDPR**, only personal data falls under strict regulation.
 - If data must be shared with the **Analytics** team, it should be anonymized by removing personal identifiers like names or addresses.
 
 ```d2
-direction: right
-
 c: Customer Service {
   c: |||yaml
   email: john@mymail.com
@@ -58,7 +54,7 @@ a: Analytics Service {
   problem: Failed to subscribe the service
   |||
 }
-c -> a: Remove personal identifiers
+c -> a: Remove identifiers
 ```
 
 This approach not only reduces the attack surface, making unauthorized access more difficult,
@@ -68,11 +64,11 @@ but also limits the parts of the system subject to strict compliance requirement
 
 Shifting responsibility to reputable third-party services can enhance compliance and security.
 
-For example, storing customer payment information for automatic subscriptions involves rigorous security measures and regulatory challenges,
+For example, **storing customer payment information** for automatic subscriptions involves rigorous security measures and regulatory challenges,
 not only against external threats, but also to protect data from internal misuse.
 
 If the necessary security controls cannot be guaranteed in-house,
-it is best to use a trusted third party (such as **Stripe**) that is certified for **PCI-DSS compliance** to handle these tasks.
+it is best to use a trusted third party (such as **Stripe**) to handle these tasks.
 
 Next, we’ll explore common techniques to protect data.
 
@@ -108,53 +104,60 @@ It supports safe use of realistic data for testing, analytics, and sharing witho
 
 ## Data Tokenization
 
-**Data Tokenization** involves replacing sensitive data with a unique, meaningless **token**,
-while securely storing the actual data in a protected token **Vault**.
-**Tokenization** enables systems to refer to the real data through the token,
-allowing controlled access and operations on the original information without directly exposing it.
+**Data Tokenization** involves replacing sensitive data with a unique, meaningless **token**.
+The actual, sensitive data is securely stored in a separate, protected **Vault**.
+This process, **tokenization**, enables systems to reference the real data using its corresponding token,
+allowing for controlled access and operations on the original information without direct exposure.
 
-Suppose we are developing a proprietary `Payment Service` that needs to store and handle credit card details securely:
+Consider a scenario where a proprietary `Payment Service` is being developed,
+which needs to securely store and handle credit card details:
 
-1. The client initiates a subscription and interacts with the `Subscription Service`.
-2. The `Subscription Service` forwards the client to the `Payment Service`.
-3. The client submits their card information to the `Payment Service`.
-4. The `Payment Service` generates a unique token (e.g., `TKN1234`) representing the card details and saves the mapping in a secure vault.
-5. The `Subscription Service` receives only the token and uses it for future payment operations (e.g., charging, refunding):
+1.  The client initiates a subscription by interacting with the `Subscription Service`.
+2.  The `Subscription Service` then forwards the client to the `Payment Service`.
+3.  The client submits their card information directly to the `Payment Service`.
+4.  The `Payment Service` generates a unique **token** (e.g., `TKN1234`) to represent the card details.
+5.  The `Subscription Service` receives only this **token**. It uses this **token** for future payment operations,
+such as charging or refunding.
 
 ```d2
 shape: sequence_diagram
 c: Client { class: client }
 s: Subscription Service { class: server }
-p: Payment Service { class: server }
-v: Vault { class: db }
+p: Payment Service
+v: Vault
 
-c -> s: Subscribe
-s -> p: Forward
-c -> p: Send card information
+c -> s: 1. Subscribe
+s -> p: 2. Forward
+c -> p: 3. Send card information
 p {
-    k: |||yaml
-    (Number = 1111 2222 3333 4444, CVV = 123)
-    |||
+  k: |||yaml
+  (111222333, 123)
+  |||
 }
-p -> v: Generate a random token
+p -> v: 4. Generate random token
 v {
-    k: |||yaml
-    TKN1234: (Number = 1111 2222 3333 4444, CVV = 123)
-    |||
+  k: |||yaml
+  TKN123: (111222333, 123)
+  |||
 }
-p -> s: Send the token (TKN1234)
-s -> p: Charge with token = TKN1234
+p -> s: 4. Send token TKN1234
+s -> p: 5. Charge with token TKN1234 {
+  style.bold: true
+}
 ```
 
-In short, we are hiding the credit card with an unexplainable token.
-The token is attached to the `Payment Service`,
-even so, the token is stolen, the attacker cannot compromise it,
-e.g., the token is used to charge, the deposit is actually transferred to the recipient service (not the attacker).
+In essence, **tokenization** obscures the credit card details by substituting them with a **token** that is meaningless on its own.
+This allows the `Subscription Service` to perform actions related to the card (e.g., process payments)
+without ever possessing or accessing the actual card number.
 
-This method is helpful as long as the Vault is protected,
-it should be a strictly isolated component with tightly access controlled.
+If a stolen **token** is used in an unauthorized attempt to initiate a charge,
+the transaction would still be processed by the legitimate `Payment Service`.
+Any funds would be directed to the intended merchant, not the attacker,
+because the **token** only has operational meaning within that secure payment system.
 
-However, we can't always have a centralized Vault
+The effectiveness of this method is critically dependent on the robust security of the **Vault**.
+The **Vault** must be maintained as a strictly isolated component with rigorously enforced,
+tightly controlled access mechanisms.
 
 ## Cryptographic Hashing
 
@@ -162,14 +165,15 @@ Cryptographic hashing is a security technique that protects data by converting i
 such as [MD5](https://en.wikipedia.org/wiki/MD5) or [SHA](https://en.wikipedia.org/wiki/SHA-1).
 
 Hash functions are mathematically complex.
-Even a minor change in the input (such as a single character) produces a completely different output. For example:
+Even a minor change in the input (such as a single character) produces a completely different output.
+
+For example, we hash two values with the **MD5** algorithm:
 
 - `Hash_MD5("mypassword") → "0d21908a7454"`
 - `Hash_MD5("mypassword1") → "5cc716f9be1a"`
 
 A key feature is that hash values are non-reversible, meaning the original value cannot be derived from them.
-As a result, hashed values are used only for comparison and verification purposes, not for retrieving the original data.
-
+As a result, hashed values are used only for **comparison and verification** purposes, not for retrieving the original data.
 Saving user passwords is the most common use case.
 
 Consider this example:
@@ -196,33 +200,22 @@ Password: c924729b0e04eb0d21908a7454c0218a # MD5(mystrongpassword)
 UserInput: mystrongpassword → c924729b0e04eb0d21908a7454c0218a
 ```
 
+Even if the database containing user credentials (the password store) is spitefully accessed,
+the actual user passwords can remain unrevealed.
+
 ### Pattern Recognition
 
 A common drawback of this approach is **Pattern Recognition**.
 Since hash functions always return the same output for the same input,
-attackers can use this consistency to infer original values, even though the data is encoded.
+attackers can use this consistency to infer original values.
 
 ### Rainbow Table
 
 **Rainbow Table** is a well-known hacking technique based on pattern recognition.
 It involves precomputing and storing popular passwords with their corresponding hash values.
 
-If an attacker gains access to hashed passwords,
-they can use a **Rainbow Table** to match and identify them.
-
-For example, consider a user store:
-
-```yaml
-user1:
-  Email: user1@gmail.com
-  Password: 884f755c6750cb773cbb37589a9972bf
-
-user2:
-  Email: user2@gmail.com
-  Password: fc5e038d38a57032085441e7fe7010b0
-```
-
-Now, the attacker applies the same algorithm to common passwords:
+For example,
+an attacker might pre-calculate and catalogue the cryptographic hashes for a substantial collection of frequently used passwords:
 
 ```yaml
 MD5Rainbow:
@@ -231,11 +224,22 @@ MD5Rainbow:
   mygooglepassword: 884f755c6750cb773cbb37589a9972bf
 ```
 
+Consider a user store with the same hashing algorithm:
+
+```yaml
+user1:
+  Email: user1@gmail.com
+  Password: 884f755c6750cb773cbb37589a9972bf
+user2:
+  Email: user2@gmail.com
+  Password: fc5e038d38a57032085441e7fe7010b0
+```
+
 By comparing these values, it’s clear that `user1`’s password is `mygooglepassword` and `user2`’s is `helloworld`.
 
 ### Salt
 
-Salt is a random value added to the sensitive data before hashing.
+**Salt** is a random value added to the sensitive data before hashing.
 This causes identical inputs to produce different hash results.
 
 For example, when users have the same password,
@@ -265,18 +269,29 @@ user2:
   Password: 53346d86b558b33653371c2083cd760b
 ```
 
-Salts are stored with user records, and passwords remain interpretable.
-Hashing is a resource-intensive operation, and salt makes it much harder for attackers to use **Rainbow Tables**.
-Attackers must combine every potential password with each user’s salt, greatly increasing the effort required.
+Salts are stored alongside with user records, and passwords remain interpretable.
+
+However,
+hashing is a **resource-intensive operation**,
+and the addition of **salt** makes it significantly harder for attackers to utilize **Rainbow Tables**.
+Attackers are compelled to combine every potential password with each user’s unique salt,
+greatly increasing the effort required to compromise the stored credentials
+and giving the system more time to respond.
 
 ### Pepper
 
-**Pepper** works like salt but is a **hidden, shared value** used across records.
+**Pepper** is a **hidden, shared value** used across records.
 
-For example, by adding a shared secret pepper `p1`, the hashed password is based on the set `(password, pepper, salt)`:
+For example,
+when a shared secret **pepper** (e.g., `p1`) is added,
+the hashed password is then derived from `(password, pepper, salt)`.
+
+- The **salt** works to ensure that the same password generates different hash outputs.
+- The **pepper**'s role is to hide the method by which these hashed passwords are calculated.
 
 ```yaml
 user1:
+  # Secret pepper: p1
   Salt: s1
   # MD5(mystrongpassword + p1 + s1)
   Hash: 60558839fa98235fa8cd9bdfe633b240
@@ -294,30 +309,30 @@ cryptographic algorithms and consists of two main phases:
 - **Decryption:** Uses another key to revert the ciphertext to its original form.
 
 ```d2
-direction: right
-
+grid-columns: 1
 d: Data {
-    shape: sql_table
-    id: "123"
-    name: "Stewy"
+  c: |||yaml
+  id: 123
+  name: Stew
+  |||
 }
-
-k1: Encryption Key {
-    class: key
+k {
+  class: none
+  grid-rows: 1
+  k1: Encryption {
+      class: pub-key
+  }
+  k2: Decryption {
+      class: pub-key
+  }
 }
-
-k2: Decryption Key {
-    class: key
-}
-
 c: Ciphertext {
-    bfc4aa58713836aae3f74c93be3b055d9f7d01d7
+  bfc4aa58713836
 }
-
-d -> k1
-k1 -> c: Encrypt
-c -> k2
-k2 -> d: Decrypt
+d -> k.k1
+k.k1 -> c
+c -> k.k2
+k.k2 -> d
 ```
 
 There are two main types of encryption:
@@ -327,21 +342,21 @@ There are two main types of encryption:
 **Symmetric Encryption** uses a single key for both encryption and decryption.
 
 ```d2
-k: Key {
-    class: key
-}
-
+grid-rows: 1
+horizontal-gap: 150
 d: Data {
-    shape: sql_table
-    id: "123"
-    name: "Stewy"
+  c: |||yaml
+  id: 123
+  name: Stew
+  |||
 }
-
-ed: Encrypted Data {
-    bfc4aa58713836aae3f74c93be3b055d9f7d01d7
+k: Key {
+  class: pub-key
 }
-
-d <-> k: Encrypt/Decrypt
+ed: Ciphertext {
+  bfc4aa58713836
+}
+d <-> k
 k <-> ed
 ```
 
@@ -358,28 +373,32 @@ each assigned to one phase of the process.
 - One key is used to encrypt the data.
 - The other key is used to decrypt the data.
 
+
 ```d2
-pub: Public Key {
-  class: key
-}
-
-pri: Private Key {
-  class: key
-}
-
+grid-columns: 1
 d: Data {
-  shape: sql_table
-  id: "123"
-  name: "Stewy"
+  c: |||yaml
+  id: 123
+  name: Stew
+  |||
 }
-
-ed: Encrypted Data {
-  bfc4aa58713836aae3f74c93be3b055d9f7d01d7
+k {
+  class: none
+  grid-rows: 1
+  k1: Encryption Key {
+      class: pub-key
+  }
+  k2: Decryption Key {
+      class: pub-key
+  }
 }
-d -> pub
-pub -> ed: Encrypt
-d <- pri
-pri <- ed: Decrypt
+c: Ciphertext {
+  bfc4aa58713836
+}
+d -> k.k1
+k.k1 -> c: Encrypt
+c -> k.k2
+k.k2 -> d: Decrypt
 ```
 
 One of the two keys will be published for consumers to use;
@@ -391,67 +410,23 @@ For example,
 we might distribute the public key so that the encryption step can occur on the client side,
 leaving the system responsible only for decryption.
 
-Even if the system is compromised, data cannot be decoded using only the public key.
-
 ```d2
-Encryption {
-  direction: right
-
-  pk: Public Key {
-    class: key
+direction: right
+s: System {
+  pri: Private Key {
+    class: pri-key
   }
-
-  d: Data {
-    shape: sql_table
-    id: "123"
-    name: "Stewy"
+  pub: Public Key {
+    class: pub-key
   }
-
-  client: Client {
-    class: client
-  }
-
-  ed: Ciphertext {
-    bfc4aa58713836aae3f74c93be3b055d9f7d01d7
-  }
-
-  s: System {
-    class: server
-  }
-
-  pk -> d
-  client -> d
-  d -> ed: Encrypt
-  ed -> s
 }
-
-Decryption {
-  pk: Private Key {
-    class: key
+c: Client {
+  pub: Public Key {
+    class: pub-key
   }
-
-  d: Data {
-    shape: sql_table
-    id: "123"
-    name: "Stewy"
-  }
-
-  client: Client {
-    class: client
-  }
-
-  ed: Ciphertext {
-    bfc4aa58713836aae3f74c93be3b055d9f7d01d7
-  }
-
-  s: System {
-    class: server
-  }
-
-  pk -> ed
-  s -> ed
-  ed -> d: Decrypt
-  ed -> client
+}
+s.pub -> c.pub: Distributed {
+  style.animated: true
 }
 ```
 
@@ -470,23 +445,23 @@ Suppose a system possesses both a private and public key,
 and distributes the public key to a client.
 
 ```d2
+direction: right
 s: System {
-  pub: Public Key {
-    class: key
-  }
-
   pri: Private Key {
-    class: key
+    class: pri-key
+  }
+  pub: Public Key {
+    class: pub-key
   }
 }
-
 c: Client {
   pub: Public Key {
-    class: key
+    class: pub-key
   }
 }
-
-s.pub -> c.pub: Shared
+s.pub -> c.pub: Distributed {
+  style.animated: true
+}
 ```
 
 If the system needs to securely share data,
@@ -494,49 +469,50 @@ it first encrypts the data with its private key before sharing it.
 The client then uses the public key to decrypt and verify the data.
 
 ```d2
+direction: right
 s: System {
   pri: Private Key {
-    class: key
+    class: pri-key
   }
   data: |||yaml
-  email: example@gmail.com
-  userid: 123456789
+  id: 123
+  name: Stew
   |||
-  enc: "CzAJBgNVBAMMA"
   data -> pri
-  pri -> enc: Encrypt
 }
+
+enc: "bfc4aa58713836"
 
 c: Client {
   pub: Public Key {
-    class: key
+    class: pub-key
   }
   data: |||yaml
-  email: example@gmail.com
-  userid: 123456789
+  id: 123
+  name: Stew
   |||
-  pub -> data: Decrypt
+  pub -> data
 }
 
-s.enc -> c1.pub
+enc -> c.pub: Decrypt
+s.pri -> enc: Encrypt
 ```
 
 As long as the private key remains protected, we can guarantee:
 
 - **Authentication:** Only trusted sources can produce valid data,
-since others cannot create valid ciphertext without the key.
-- **Immutability:** A given piece of data always produces a specific ciphertext.
+since others cannot create valid ciphertext without the private key.
+- **Immutability:** A given piece of data always produces a certain ciphertext.
 Any modification results in a different ciphertext, and the public key cannot decrypt tampered data.
 
 This concept is widely applied, for example:
 
 - [JWT]({{< ref "iam#json-web-token-jwt" >}})
-- [SSL/TLS]({{< ref "network-security#tls" >}})
+- [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)
 - File distribution, providing assurance that distributed files are valid and unmodified.
 
 Data encryption is a granular approach.
-It does not require reliance on a centralized vault.
-Secret holders can independently manage the encryption process,
+Key holders can independently manage the encryption/decryption process,
 making it highly efficient in distributed workflows.
 
 ## Key Management
@@ -564,19 +540,18 @@ s: Service {
     class: server
 }
 k: Key Store {
-    class: kms
+    class: pri-key
 }
 s -> k: Encrypt/Decrypt
 ```
 
 However, this method has drawbacks in terms of performance and availability.
-
 Cryptographic operations can be resource-intensive,
 so a centralized store handling all requests may become a bottleneck and a single point of failure.
 
 #### Key Distribution
 
-For scenarios requiring high performance,
+For certain cases,
 keys may be distributed to clients (typically internal services),
 enabling them to perform encryption and decryption locally.
 
@@ -584,35 +559,21 @@ enabling them to perform encryption and decryption locally.
 direction: right
 
 s: Outside Service {
-  class: server
+  k: Key {
+    class: pub-key
+  }
 }
-
 ks: Key Store {
-  class: kms
+  class: pri-key
 }
-
-k: Key {
-  class: key
-}
-
-ks -> k: Distribute key {
+ks -> s.k: Distribute key {
   style.animated: true
 }
-
-k -> s {
-  style.animated: true
-}
-
-s -> s: Encrypt/Decrypt independently
 ```
 
-Although this approach offers improved performance and flexibility,
-it introduces several security challenges:
-
-- **Management overhead:** Key distribution involves considerable work,
-such as key revocation and expiration notifications.
-- **Data compliance:** Consumers must store distributed keys securely
-and may face increased compliance obligations.
+Although this approach provides enhanced performance and flexibility,
+it introduces challenges related to **data compliance**.
+Consumers are required to securely store distributed keys and may encounter heightened compliance responsibilities as a result.
 
 ### Hold Your Own Key (HYOK)
 
@@ -623,26 +584,19 @@ This approach is especially useful when clients wish to conceal their data even 
 
 ```d2
 direction: right
-
 c: Client {
   class: client
 }
-
 s: Service {
-    class: server
+  class: server
 }
-
 ed: Encrypted Data {
-    bfc4aa58713836aae3f74c93be3b055d9f7d01d7
+  bfc4aa58713836
 }
-
-c -> ed: Encrypt data before sending to the backend
-
+c -> ed: Encrypt data before sending
 ed -> s
-
 ed <- s
-
-c <- ed: Decrypt data after getting from the backend
+c <- ed: Decrypt data after getting
 ```
 
 This strategy requires additional support for securely sharing keys between client devices.
