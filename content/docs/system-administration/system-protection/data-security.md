@@ -109,8 +109,10 @@ The actual, sensitive data is securely stored in a separate, protected **Vault**
 This process, **tokenization**, enables systems to reference the real data using its corresponding token,
 allowing for controlled access and operations on the original information without direct exposure.
 
-Consider a scenario where a proprietary `Payment Service` is being developed,
-which needs to securely store and handle credit card details:
+Consider the development of a proprietary `Payment Service` designed specifically to securely store and process sensitive credit card details.
+When another internal service, such as a `Subscription Service`, requires payment processing capabilities,
+it does not directly handle or access the credit card information.
+Instead, it delegates the task by forwarding the relevant transaction details to the specialized `Payment Service`.
 
 1.  The client initiates a subscription by interacting with the `Subscription Service`.
 2.  The `Subscription Service` then forwards the client to the `Payment Service`.
@@ -146,8 +148,8 @@ s -> p: 5. Charge with token TKN1234 {
 }
 ```
 
-In essence, **tokenization** obscures the credit card details by substituting them with a **token** that is meaningless on its own.
-This allows the `Subscription Service` to perform actions related to the card (e.g., process payments)
+This workflow centralizes the handling of sensitive data within the secure `Payment Service`, minimizing exposure elsewhere.
+The `Subscription Service` can perform actions related to the card (e.g., process payments)
 without ever possessing or accessing the actual card number.
 
 If a stolen **token** is used in an unauthorized attempt to initiate a charge,

@@ -21,17 +21,21 @@ This agent is then used to send data directly to the monitoring service.
 Because each piece of data is transferred immediately, this model is considered **reliable**.
 
 ```d2
+direction: right
+s {
+  class: none
+  s1: Service 1 {
+      class: server
+  }
+  s2: Service 2 {
+      class: server
+  }
+}
 m: Monitoring Service {
     class: monitor
 }
-s1: Service 1 {
-    class: server
-}
-s2: Service 2 {
-    class: server
-}
-s1 -> m: Push data
-s2 -> m: Push data
+s.s1 -> m: Push data
+s.s2 -> m: Push data
 ```
 
 2. **Pull Model**: In this model,
@@ -39,19 +43,23 @@ services are required to expose an interface that reports their current state.
 The monitoring service **periodically** retrieves data from this interface.
 
 ```d2
+direction: right
+s {
+  class: none
+  s1: Service 1 {
+      class: server
+  }
+  s2: Service 2 {
+      class: server
+  }
+}
 m: Monitoring Service {
-    class: server
+    class: monitor
 }
-s1: Service 1 {
-    class: server
-}
-s2: Service 2 {
-    class: server
-}
-s1 -> m: Pull data {
+s.s1 -> m: Pull data {
   style.animated: true
 }
-s2 -> m: Pull data {
+s.s2 -> m: Pull data {
   style.animated: true
 }
 ```
@@ -64,8 +72,8 @@ but it helps to decouple the service from the monitor.
 
 A metric is a **quantitative measurement** that offers insights into a system's status. Examples include:
 
-- Hardware: CPU usage, memory consumption, disk space.
-- Network: network throughput, bandwidth usage.
+- **Hardware**: CPU usage, memory consumption, disk space.
+- **Network**: network throughput, bandwidth usage.
 
 Metrics are typically collected using the pull model because some metric loss is generally acceptable.
 The overall system state is derived from a series of metrics,
@@ -73,19 +81,23 @@ and a few dropped values may not significantly impact the comprehensive result.
 
 
 ```d2
+direction: right
+s {
+  class: none
+  s1: Service 1 {
+      class: server
+  }
+  s2: Service 2 {
+      class: server
+  }
+}
 m: Monitoring Service {
-    class: server
+    class: monitor
 }
-s1: Service 1 {
-    class: server
-}
-s2: Service 2 {
-    class: server
-}
-s1 -> m: Pull metrics {
+s.s1 -> m: Pull metrics {
   style.animated: true
 }
-s2 -> m: Pull metrics {
+s.s2 -> m: Pull metrics {
   style.animated: true
 }
 ```
@@ -103,23 +115,27 @@ They should be stored reliably for subsequent diagnosis and troubleshooting.
 Consequently, the push model is employed in this scenario; services must immediately send logs to the `Logging Service`.
 
 ```d2
-l: Logging Service {
-  class: monitor
+direction: right
+s {
+  class: none
+  s1: Service 1 {
+      class: server
+  }
+  s2: Service 2 {
+      class: server
+  }
 }
-s1: Service 1 {
-  class: server
+m: Logging Service {
+    class: monitor
 }
-s2: Service 2 {
-  class: server
-}
-s1 -> l: Push Log
-s2 -> l: Push Log
+s.s1 -> m: Push logs
+s.s2 -> m: Push logs
 ```
 
 ### Distributed Tracing
 
 **Distributed Tracing** is a technique used to monitor requests across multiple services in a distributed system.
-In essence, it provides insights into how a request **flows** through the various services.
+In essence, it provides insights into how a request flows through the various services.
 
 Key terminologies include:
 
@@ -138,7 +154,19 @@ grid-columns: 1
 t: {
   class: none
   t: Tracing Service {
-    class: server
+    c: |||yaml
+    trace id: 123
+    spans:
+      - number: 1
+        executor: Service 1
+        execution time: 0.1s
+      - number: 2
+        executor: Service 2
+        execution time: 2s
+      - number: 3
+        executor: Service 3
+        execution time: 0.2s
+    |||
   }
 }
 s: Trace {
@@ -164,6 +192,7 @@ s: Trace {
     execution time: 0.2s
     |||
   }
+  s1 -> s2 -> s3
 }
 s.s1 -> t.t
 s.s2 -> t.t
@@ -194,6 +223,7 @@ If a server lacks resources such as CPU or RAM,
 more resources are allocated to it to maintain performance.
 
 ```d2
+direction: right
 server1: Server {
   class: server
   width: 100
@@ -201,17 +231,18 @@ server1: Server {
 }
 server2: Scaled Server {
   class: server
-  width: 300
-  height: 300
+  width: 200
+  height: 200
 }
-server1 -> server2
+server1 -> server2: Add 4 CPU cores
 ```
 
 This philosophy is known as **Vertical Scaling**,
 where the primary focus is on enhancing the hardware capabilities.
 When the system requires scaling,
 hardware components are treated as the units of increment,
-for example, by *increasing CPU cores* or *adding more memory*.
+for example, *adding 4 cores* or *decreasing 1GB memory*.
+
 
 ### Horizontal Scaling
 
@@ -223,7 +254,7 @@ In this paradigm, the container (or the application instance) becomes the unit o
 For instance, scaling might involve *running 5 additional containers* or *removing 3 existing containers*.
 If a container runs out of resources, a new one is created instead of vertically upgrading the existing one.
 This is known as **Horizontal Scaling**,
-which prioritizes focusing on **the application** rather than the underlying hardware. Hardware is effectively abstracted by being managed within containers.
+which prioritizes focusing on **application** rather than the underlying hardware.
 
 This means we need to specifically control the resources allocated to containers.
 For example, if we provision `1GB of memory` for a container,
@@ -231,8 +262,8 @@ running `5 containers` would mean provisioning a total of `5GB of memory`.
 This leads to a critical question: *how much resource does an individual container actually need?*
 
 - **Over-provisioned**: If a container is allocated excessively large resources,
-it may not fully utilize them, leading to wasted capacity.
-For example, `Container 1` might only consume 50% of its allocated resources, while `Container 2` is resource-constrained.
+it may not fully utilize them, leading to **wasted capacity**.
+For example, `Container 1` might only consume 30% of its allocated resources, while `Container 2` is resource-constrained.
 
 ```d2
 m: Server {
@@ -240,27 +271,33 @@ m: Server {
     grid-rows: 1
     a1: Container 1 {
         grid-gap: 0
-        grid-rows: 1
-        e: "Usage (50%)" {
+        grid-columns: 1
+        u1: "Usage (30%)" {
           width: 150
+          height: 60
           style.fill: ${colors.i1}
         }
-        e: "Unused resources" {
+        u2: "Unused" {
           width: 150
+          height: 140
           style.fill-pattern: lines
         }
     }
     a2: Container 2 {
         grid-gap: 0
+        grid-columns: 1
         e: "Usage (100%)" {
-          width: 100
+          width: 150
+          height: 200
           style.fill: ${colors.i1}
         }
     }
 }
 ```
 
-- **Under-provisioned**: Conversely, containers allocated too few resources will suffer from degraded performance.
+- **Under-provisioned**: Conversely,
+containers allocated insufficient resources will experience significantly diminished computational power
+and suffer from severely **degraded performance**.
 
 In an ideal scenario,
 containers should have just enough resources to meet their demand
@@ -281,10 +318,10 @@ For example, a chart might illustrate the relationship between average latency a
 
 ![](load-testing.png)
 
-This data helps ensure the application's performance targets can be met.
-Combined with the application's specific requirements (such as those defined in a [Service Level Agreement — SLA](https://en.wikipedia.org/wiki/Service-level_agreement)).
+Combined with the application's specific requirements (such as those defined in a [Service Level Agreement — SLA](https://en.wikipedia.org/wiki/Service-level_agreement)),
+this data helps ensure the application's performance targets can be met.
 For instance, *the application's average response time must not exceed 1 second*,
-a **safe operational range** for metrics like CPU usage can be relatively defined.
+a safe operational range for metrics like CPU usage can be relatively defined.
 
 ### Scaling Stategies
 
@@ -314,25 +351,25 @@ i: Instances {
     m1: Instance 1 {
         grid-gap: 0
         grid-columns: 1
-        e: "Unused (30%)" {
-            height: 100
-            style.fill-pattern: lines
-        }
         a: "Usage (70%)" {
             height: 300
             style.fill: ${colors.i1}
+        }
+        e: "Unused (30%)" {
+            height: 100
+            style.fill-pattern: lines
         }
     }
     m2: Instance 2 {
         grid-gap: 0
         grid-columns: 1
-        e: "Unused (40%)" {
-            height: 150
-            style.fill-pattern: lines
-        }
         a: "Usage (60%)" {
             height: 250
             style.fill: ${colors.i1}
+        }
+        e: "Unused (40%)" {
+            height: 150
+            style.fill-pattern: lines
         }
     }
 }
@@ -348,8 +385,14 @@ For example, the desired average CPU usage for containers might be set between `
 
 
 The specific threshold varies, typically falling between `60% - 80%`:
+
 - A stable application with predictable load might require a smaller buffer (extra capacity).
 - An unstable application that frequently deals with traffic bursts may need larger paddings to absorb sudden increases in demand.
+
+An effective scaling strategy, when graphed over time, often resembles a sawtooth pattern,
+characterized by sharp increases in resource allocation to meet rising demand, followed by decreases as demand subsides.
+
+![](scaling-result.png)
 
 **Aggregated Scaling** is an adaptive strategy,
 as the system scales in response to actual observed needs.

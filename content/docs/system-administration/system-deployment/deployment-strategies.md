@@ -10,8 +10,8 @@ with a particular focus on how to update an existing one.
 Imagine we are running a service with several instances:
 
 ```d2
-direction: right
 s1: Service (v0.1) {
+  grid-rows: 1
   i1: Instance 1 {
     class: server
   }
@@ -23,7 +23,7 @@ s1: Service (v0.1) {
 
 There are multiple deployment strategies, each suited to different use cases:
 
-## Recreate
+## 1. Recreate Deployment
 
 The concept is extremely straightforward:
 the old version of the service is completely shut down before the new version is deployed.
@@ -38,7 +38,11 @@ s1: Service (v0.1) {
         class: server
     }
 }
-s: Downtime without any instances
+s: Downtime without any instances {
+  i: {
+    class: none
+  }
+}
 s2: Service (v0.2) {
   i1: Instance 1 {
     class: server
@@ -61,7 +65,7 @@ During the deployment,
 users cannot access the system until the new version is fully set up.
 This is problematic for services requiring **high availability**.
 
-## Blue/Green
+## 2. Blue/Green Deployment
 
 **Blue/Green** deployment is similar to the **Recreate** strategy in that only one version is live at a time,
 but it significantly reduces downtime by **fully preparing** the new version before making it active.
@@ -70,21 +74,21 @@ This strategy involves managing two identical production environments,
 traditionally named **Blue** and **Green**.
 At any moment, only one environment is **active** and exposed to client traffic.
 
-Initially, let's say the Blue environment is active:
+Initially, let's say the **Blue** environment is active:
 
 ```d2
 s: Service {
     grid-rows: 1
-    s1: Blue Environment (Active) {
-        i1: Instance 1 (v0.1) {
-            class: server
-        }
-        i2: Instance 2 (v0.1) {
-            class: server
-        }
-    }
     s2: Green Environment (Inactive) {
-        style.fill: ${colors.i1}
+      style.fill: ${colors.i1}
+    }
+    s1: Blue Environment (Active) {
+      i1: Instance 1 (v0.1) {
+          class: server
+      }
+      i2: Instance 2 (v0.1) {
+          class: server
+      }
     }
 }
 c: Client {
@@ -99,20 +103,20 @@ it is deployed to the inactive environment (Green).
 ```d2
 s: Service {
     grid-rows: 1
-    s1: Blue Environment (Active) {
-        i1: Instance 1 (v0.1) {
-            class: server
-        }
-        i2: Instance 2 (v0.1) {
-            class: server
-        }
-    }
     s2: Green Environment (Inactive) {
         style.fill: ${colors.i1}
         i1: Instance 1 (v0.2) {
             class: server
         }
         i2: Instance 2 (v0.2) {
+            class: server
+        }
+    }
+    s1: Blue Environment (Active) {
+        i1: Instance 1 (v0.1) {
+            class: server
+        }
+        i2: Instance 2 (v0.1) {
             class: server
         }
     }
@@ -128,16 +132,12 @@ traffic is routed it.
 The Green environment becomes active, and the Blue environment becomes inactive.
 
 ```d2
+c: Client {
+    class: client
+}
 s: Service {
     grid-rows: 1
-    s1: Blue Environment (Inactive) {
-        i1: Instance 1 (v0.1) {
-            class: server
-        }
-        i2: Instance 2 (v0.1) {
-            class: server
-        }
-    }
+    horizontal-gap: 120
     s2: Green Environment (Active) {
         style.fill: ${colors.i1}
         i1: Instance 1 (v0.2) {
@@ -147,10 +147,15 @@ s: Service {
             class: server
         }
     }
+    s1: Blue Environment (Inactive) {
+        i1: Instance 1 (v0.1) {
+            class: server
+        }
+        i2: Instance 2 (v0.1) {
+            class: server
+        }
+    }
     s1 -> s2: Transition
-}
-c: Client {
-    class: client
 }
 c -> s.s2
 ```
@@ -163,14 +168,7 @@ minimizing downtime and impact.
 direction: right
 s: Service {
     grid-rows: 1
-    s1: Blue Environment (Active) {
-        i1: Instance 1 (v0.1) {
-            class: server
-        }
-        i2: Instance 2 (v0.1) {
-            class: server
-        }
-    }
+    horizontal-gap: 120
     s2: Green Environment (Inactive) {
         style.fill: ${colors.i1}
         i1: Instance 1 (v0.2) {
@@ -180,10 +178,18 @@ s: Service {
             class: server
         }
     }
-    s2 -> s1: Rollback
+    s1: Blue Environment (Active) {
+        i1: Instance 1 (v0.1) {
+            class: server
+        }
+        i2: Instance 2 (v0.1) {
+            class: server
+        }
+    }
+    s1 <- s2: Rollback
 }
 c: Client {
-    class: client
+  class: client
 }
 c -> s.s1
 ```
@@ -199,35 +205,38 @@ Since two full production environments need to be maintained concurrently,
 it can lead to double the infrastructure expenses.
 In practice, **Blue/Green** is generally recommended over **Recreate** if the associated costs are manageable.
 
-## Rolling Update
+## 3. Rolling Update
 
 Instead of shutting down everything simultaneously,
 a **Rolling Update** is a strategy that gradually **replaces** instances of the old version with instances of the new version.
 Old instances are taken down one by one (or in batches) and replaced with new version instances.
 
 ```d2
-grid-columns: 2
+grid-columns: 1
 s1: "Service (v0.1)" {
-    i1: "Instance 1 (v0.1)" {
-      class: server
-    }
-    i2: "Instance 2 (v0.1)" {
-      class: server
-    }
+  grid-rows: 1
+  i1: "Instance 1 (v0.1)" {
+    class: server
+  }
+  i2: "Instance 2 (v0.1)" {
+    class: server
+  }
 }
 s2: "Service (Rolling)" {
-    i1: "Instance 1 (v0.1)" {
-      class: generic-error
-    }
-    i1n: "Instance 1 (v0.2)" {
-      class: server
-    }
-    i2: "Instance 2 (v0.1)" {
-      class: server
-    }
-    i1 -> i1n
+  grid-rows: 1
+  i1: "Instance 1 (v0.1)" {
+    class: generic-error
+  }
+  i1n: "Instance 1 (v0.2)" {
+    class: server
+  }
+  i2: "Instance 2 (v0.1)" {
+    class: server
+  }
+  i1 -> i1n
 }
 s3: "Service (Rolling)" {
+  grid-rows: 1
   i1: "Instance 1 (v0.2)" {
     class: server
   }
@@ -240,6 +249,7 @@ s3: "Service (Rolling)" {
   i2 -> i2n
 }
 s4: "Service (v0.2)" {
+  grid-rows: 1
   i1: "Instance 1 (v0.2)" {
     class: server
   }
@@ -250,9 +260,8 @@ s4: "Service (v0.2)" {
 s1 -> s2 -> s3 -> s4
 ```
 
-Like **Blue/Green**,
-this strategy ensures a fluid transition between versions because it always retains some instances to serve traffic.
-However, **Rolling Update** is generally cheaper than Blue/Green because the total number of concurrently available instances is minimized.
+This strategy ensures a fluid transition between versions because it always retains some instances to serve traffic.
+However, **Rolling Update** is generally cheaper than **Blue/Green** because the total number of concurrently available instances is minimized.
 
 There are two primary problems with this approach:
 
@@ -266,48 +275,21 @@ some users might be routed to instances running the old version,
 while others are routed to instances running the new version.
 This can lead to inconsistent user experiences if there are breaking changes or significant differences between versions.
 
-## Canary
+## 4. Canary Deployment
 
-**Canary** deployment is somewhat like a combination of **Rolling Update** and **Blue/Green**, offering more fine-grained control over the deployment process.
+**Canary** deployment is a strategy offering more fine-grained control over the deployment process.
 
 The new version is initially deployed experimentally to a small subset of users,
 known as the **Canary Group**.
 
 For example,
-we route 10% of traffic to the canary group.
+we route 10% of traffic (canary group) to the new version.
 
 ```d2
 direction: right
 s {
-  s1: Service (v0.1) {
-    i1: "Instance 1 (v0.1)" {
-        class: server
-    }
-    i2: "Instance 2 (v0.1)" {
-        class: server
-    }
-  }
-  s2: Service (v0.2) {
-    i1: "Instance 2 (v0.2)" {
-        class: server
-    }
-  }
-}
-c: Client {
-    class: client
-}
-c -> s.s1: 90% traffic
-c -> s.s2: 10% traffic
-```
-
-The canary group is closely monitored for performance metrics, errors, and user feedback.
-If everything works well and the new version is stable,
-the canary group is gradually expanded,
-and an increasing percentage of traffic is routed to the new version.
-
-```d2
-direction: right
-s {
+  class: none
+  grid-rows: 1
   s1: Service (v0.1) {
     i1: "Instance 1 (v0.1)" {
         class: server
@@ -318,18 +300,63 @@ s {
   }
   s2: Service (v0.2) {
     i1: "Instance 1 (v0.2)" {
-      class: server
-    }
-    i2: "Instance 2 (v0.2)" {
-      class: server
+        class: server
     }
   }
 }
-c: Client {
-    class: client
+c {
+  class: none
+  grid-rows: 1
+  c: Client {
+      class: client
+  }
+  ca: Canary group {
+      class: client
+  }
 }
-c -> s.s1: 50% traffic
-c -> s.s2: 50% traffic
+c.c -> s.s1: 90% traffic
+c.ca -> s.s2: 10% traffic
+```
+
+The canary group is closely monitored for performance metrics, errors, and user feedback.
+If everything works well and the new version is stable,
+the canary group is gradually expanded,
+and an increasing percentage of traffic is routed to the new version.
+
+```d2
+direction: right
+s {
+  class: none
+  grid-rows: 1
+  s1: Service (v0.1) {
+    i1: "Instance 1 (v0.1)" {
+        class: server
+    }
+    i2: "Instance 2 (v0.1)" {
+        class: server
+    }
+  }
+  s2: Service (v0.2) {
+    i1: "Instance 1 (v0.2)" {
+        class: server
+    }
+    i2: "Instance 2 (v0.2)" {
+        class: server
+    }
+  }
+}
+c {
+  class: none
+  grid-rows: 1
+  c: Client {
+      class: client
+  }
+  ca: Canary group {
+      class: client
+  }
+}
+c.c -> s.s1: 50% traffic
+c.ca -> s.s2: 50% traffic
 ```
 
 This strategy is particularly valuable when releasing new features incrementally or when there's a higher risk associated with the new version.

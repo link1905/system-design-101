@@ -1,4 +1,4 @@
 ---
-title: Design Pattern
+title: Design Patterns
 weight: 40
 ---

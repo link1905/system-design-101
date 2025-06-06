@@ -3,7 +3,7 @@ title: Rate Limiting
 weight: 30
 ---
 
-Rate Limiting is an essential component in most systems.
+**Rate Limiting** is an essential component in every system.
 At its core, **Rate Limiting** ensures controlled access to a system by limiting the volume of
 traffic an external entity can send in a specific time period.
 Its primary purposes include:
@@ -16,7 +16,8 @@ This article dives into popular strategies employed for implementing rate limiti
 
 ## Leaky Bucket
 
-The **Leaky Bucket** works much like its name suggests: imagine a bucket with a hole at the bottom. Requests flow into the bucket and "leak" at a constant rate. Regardless of the intensity of incoming traffic, only a fixed volume is processed.
+The **Leaky Bucket** works much like its name suggests: imagine a bucket with a hole at the bottom.
+Requests flow into the bucket and **leak** at a constant rate. Regardless of the intensity of incoming traffic, only a fixed volume is processed.
 
 For example,
 incoming requests are queued,
@@ -88,7 +89,7 @@ Excess requests are either queued (thereby delayed) or discarded,
 rendering it an inherently straightforward and cost-effective strategy for implementation.
 
 However, its primary function is to smooth out traffic bursts.
-Consequently, discarding or delaying excessive traffic can significantly degrade the user experience.
+Consequently, discarding or delaying excessive traffic can significantly **degrade the user experience**.
 Therefore,
 it is not an ideal choice for applications that frequently encounter bursts of traffic,
 such as online gaming services.
@@ -96,8 +97,9 @@ such as online gaming services.
 ## Token Bucket
 
 The **Token Bucket** is similar but more flexible than the **Leaky Bucket**.
-Tokens represent the *permission* to process a request,
-and are added to the bucket at a steady rate.
+
+- Each token represents the permission to process a request.
+- Tokens are added to the bucket at a steady rate.
 
 Imagine we have a bucket of tokens.
 
@@ -138,6 +140,7 @@ r2 -> b.t2: Take
 If tokens are exhausted, requests are delayed or discarded:
 
 ```d2
+direction: right
 b: Bucket {
   "No token left"
 }
@@ -152,6 +155,12 @@ If the bucket reaches its capacity, any excess tokens are discarded.
 For example, 2 tokens are added every second.
 
 ```d2
+b0: Bucket (00:00) {
+  t1: Token 1 (Filled) {
+    class: none
+    height: 130
+  }
+}
 b1: Bucket (00:01) {
   t1: Token 1 (Filled) {
     class: token
@@ -177,12 +186,19 @@ b2: Bucket (00:02) {
 }
 ```
 
-This algorithm controls the average transmission rate over time using its filling rate, similar to the **Leaky Bucket** method. However, this approach allows tokens to accumulate (up to the bucket's capacity) to handle traffic bursts.
+This algorithm regulates the average data transmission rate over time by managing its **token filling rate**,
+a mechanism conceptually similar to the **Leaky Bucket** algorithm.
+
+A key distinction, however, is that this approach permits tokens to **accumulate** during periods of lower traffic (slack rounds),
+up to the predetermined capacity of the bucket.
+This accumulated reserve of tokens then enables the system to effectively absorb and manage sudden bursts of traffic by
+allowing temporary transmission rates higher than the average.
 
 A key challenge with this method is preparing the system to operate effectively during such bursts. Traffic bursts compel system services to consume additional resources, potentially leading to crashes. Furthermore, as bursts in one service can propagate to others, it is vital to ensure that all affected services are intolerant.
 
 ```d2
-b: "" {
+direction: right
+b: "Traffic bursts" {
   class: burst
 }
 s: System {
@@ -203,18 +219,19 @@ b -> s.s1
 
 ## Client-side Limiting
 
-Rate limiting can also be implemented on the client side.
+While rate limiting mechanisms can be implemented on the client side,
+such strategies are inherently **unreliable** and considered unsafe from a security perspective.
+This is because client-side controls are susceptible to manipulation or complete bypass by the end-user.
 
-However, client-side strategies are inherently **unsafe**,
-as clients can potentially interfere with or bypass them.
-Consequently, we should not rely on them exclusively.
+Consequently, client-side rate limiting should only be employed in a **supplementary capacity**,
+supporting more robust server-side enforcement, rather than serving as a primary security measure
 
 ### Exponential Backoff
 
 **Exponential Backoff** is a strategy that prevents clients from accessing the system too intensely.
 When a client encounters transient errors or rate-limiting responses from a server,
 it should pause before retrying.
-This pause duration is exponentially increased with each subsequent retry,
+This pause duration is **exponentially increased** with each subsequent retry,
 for example: `1s -> 2s -> 4s -> 8s`.
 
 ```d2
@@ -230,12 +247,12 @@ s -> c: Respond error {
   class: error-conn
 }
 c -> c: Wait for 1 second
-c -> s: Request
+c -> s: Retry
 s -> c: Respond error {
   class: error-conn
 }
 c -> c: Wait for 2 second
-c -> s: Request
+c -> s: Retry
 s -> c: Respond error {
   class: error-conn
 }
@@ -250,9 +267,7 @@ Linear backoff, in contrast, might inadvertently continue to contribute to the s
 
 ### Circuit Breaker
 
-The **Circuit Breaker** pattern helps prevent repeated,
-unnecessary attempts to access a service that is unavailable.
-It is particularly designed for handling **long-term** issues.
+The **Circuit Breaker** pattern is particularly designed for handling **long-term issues**.
 When it's determined that requests are likely to fail,
 the **Circuit Breaker** aborts them immediately,
 thereby conserving resources.
@@ -281,7 +296,7 @@ c -> t {
 2. **Open**: If the number of failures surpasses a **predefined threshold**,
 the circuit breaker transitions to the **Open** state.
 In this state, all requests are immediately cancelled.
-This prevents resource wastage on calls that are **highly likely to fail** and provides the target service with an opportunity to recover.
+This prevents resource wastage on calls that are likely to fail and provides the target service with an opportunity to recover.
 
 ```d2
 direction: right
@@ -291,14 +306,11 @@ c: Client {
   threshold: 3
   failures: 4
   |||
-  r: Request {
-    class: request
-  }
 }
 t: Target Service {
     class: server
 }
-c.r -> t: Fail {
+c -> t: Fail {
   class: error-conn
 }
 ```
@@ -307,14 +319,14 @@ c.r -> t: Fail {
 the circuit breaker transitions from the **Open** state to **Half-Open**.
 In this state, a limited number of trial requests are allowed to pass through to the target service:
 
-- If **any** of these trial requests fail,
+* If **any** of these trial requests fail,
 the breaker presumes the underlying fault persists and reverts to the **Open** state.
 
 ```d2
 direction: right
 c: Client {
   c: |||yaml
-  state: Half-open
+  state: Half-Open -> Open
   threshold: 3
   failures: 4
   |||
@@ -334,14 +346,14 @@ c.r2 -> t: Failed {
 }
 ```
 
-- If **all** trial requests succeed,
+* If **all** trial requests succeed,
 the circuit breaker transitions back to the **Closed** state, resuming normal operation.
 
 ```d2
 direction: right
 c: Client {
   c: |||yaml
-  state: Half-open -> Closed
+  state: Half-Open -> Closed
   threshold: 3
   failures: 4
   |||
@@ -361,4 +373,6 @@ c.r2 -> t: Successful
 
 The **Half-Open** state permits only a restricted volume of traffic, which helps prevent the target service from being **overwhelmed** and allows it additional time to recover.
 
-Combining **Exponential Backoff** and **Circuit Breaker** strategies is often effective. Retries (potentially with exponential backoff) may continue until the Circuit Breaker's failure threshold is reached, at which point the breaker activates to throttle requests immediately.
+Combining **Exponential Backoff** and **Circuit Breaker** strategies is often effective.
+Retries (with exponential backoff) may continue until the Circuit Breaker's failure threshold is reached,
+at which point the breaker activates to throttle requests immediately.

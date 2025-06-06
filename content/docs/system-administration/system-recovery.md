@@ -3,9 +3,9 @@ title: System Recovery
 weight: 40
 ---
 
-Distributed systems inevitably face various failures, such as node crashes or network partitions.
-It is crucial for a distributed system to be equipped with robust recovery mechanisms
-to ensure it can either continue operating or restart from a known, consistent state.
+Distributed systems inevitably face failures like node crashes or network partitions.
+Robust recovery mechanisms are therefore crucial,
+enabling the system to continue operating and recover effectively from such unexpected problems.
 
 ## Backward Recovery
 
@@ -13,31 +13,33 @@ Consider an example of transferring money from account `A` to account `B`.
 Unfortunately, the application crashes midway through the transaction:
 
 ```yaml
+START TRANSACTION:
 UPDATE 1: A = A - amount  # Executed
-SYSTEM DOWN: ...
+SYSTEM DOWN:
 UPDATE 2: B = B + amount  # Not executed
 ```
 
 When the application recovers, how do we correct this incomplete transaction?
-- **Backward Recovery**: We undo or roll back the first update (`A = A - amount`) to **abort** the transaction and restore the system to its state before the transaction began.
+- **Backward Recovery**: We undo the first update (`A = A - amount`) to **abort** the transaction and restore the system to its state before the transaction began.
 -  **Forward Recovery**: We attempt to execute the second step (`B = B + amount`) to **complete** the transaction.
 
 **Forward Recovery** can introduce significant management and development overhead,
 as each operation might require a unique recovery strategy.
+
 Consequently, **Backward Recovery** is more commonly applied due to its relative simplicity.
 A system can recover from many types of faults by reverting to a previously known stable state.
 
 ## Write-Ahead Logging (WAL)
 
-**Logging** is a fundamental strategy employed in many database solutions to ensure durability and enable recovery.
 The **Write-Ahead Logging (WAL)** approach mandates that **all** operations or changes
-intended for the data are first recorded in a sequential log file *before*
+intended for the data are first recorded in a sequential log file **before**
 the changes are applied to the actual data structures.
 
 Let's revisit the money transfer.
 Upon recovery, the system would examine the WAL and invalidate the first log entry.
 
 ```yaml
+START TRANSACTION:
 UPDATE 1:
   recored: account A
   action: SET balance = balance + 100
@@ -56,7 +58,7 @@ this approach provides a high degree of reliability. If the system crashes, the 
 
 However, WAL also introduces challenges:
 1. **Storage Overhead**: A high volume of operations can lead to a very large WAL file,
-as each operation typically generates at least one log line.
+as each operation typically generates at least one log entry.
 This can result in high storage consumption.
 2. **Recovery Time**: To retrive data from a WAL file,
 the system might need to replay a significant number of log entries,
@@ -83,6 +85,8 @@ h: Hard Disk {
 }
 c -> d: Update
 d -> h: Save
+h -> d: Successful
+d -> c: Successful
 ```
 
 This ensures maximum reliability and durability,
@@ -104,6 +108,7 @@ These changes are then written to the physical disk at **regular intervals** or 
 A captured state of the data flushed to disk is often referred to as a **checkpoint** or **snapshot**.
 
 ```d2
+direction: right
 d: Database {
   class: db
 }
@@ -114,6 +119,7 @@ h: Hard Disk {
   class: hd
 }
 d -> m: Update
+m -> d: Successful
 m -> h: Flush periodically {
   style.animated: true
 }
@@ -159,42 +165,34 @@ s: Database {
 c: Client {
   class: client
 }
-c -> s.m: 1. Update in memory
-s.m -> s.wal: 2. Log the operation
+c -> s.m: Update
+s.m -> s.wal: 1. Log the operation
+s.m -> s.m: 2. Update in memory
 ```
 
 
-As previously mentioned, the WAL file can grow exceptionally large and make recovery times long. Checkpoints are crucial here:
-- **Truncate the WAL**: Old log lines preceding the last successful checkpoint can be removed or archived, significantly reducing the WAL file's active size.
+As previously mentioned, the WAL file can grow exceptionally large and make recovery times long. Checkpoints are crucial to:
+- **Truncate the WAL**: Old log lines preceding the last successful checkpoint can be removed or archived,
+significantly reducing the WAL file's active size.
 - **Speed up Recovery**: In case of a crash, the system can restore its state from the latest checkpoint on disk and then only needs to replay WAL entries *after* that checkpoint to recover subsequent changes.
 
 For example, if a WAL has 5 log entries:
 
-```d2
-l: Log {
-  c: |||yaml
-  UPDATE 1
-  UPDATE 2
-  UPDATE 3
-  UPDATE 4
-  UPDATE 5
-  |||
-}
+```yaml
+UPDATE 1
+UPDATE 2
+UPDATE 3
+UPDATE 4
+UPDATE 5
 ```
 
 If a snapshot (checkpoint) is taken after `UPDATE 3` has been persistently stored in the main data files,
 the system only needs to retain WAL entries from `UPDATE 4` onwards for future crash recovery.
 
-```d2
-l: Log {
-  c: |||yaml
-  UPDATE 4
-  UPDATE 5
-  |||
-}
-"SNAPSHOT at UPDATE 3" {
-  class: file
-}
+```yaml
+SNAPSHOT AT UPDATE 3
+UPDATE 4
+UPDATE 5
 ```
 
 ## Data Reconciliation
@@ -206,8 +204,8 @@ such as a primary node and its replicas, or between different shards.
 
 ### Hash Tree
 
-Comparing every piece of data in large datasets item by item can be extremely inefficient.
-The **Hash Tree**, also known as a **Merkle Tree**,
+Comparing every piece of data in large datasets can be extremely inefficient.
+**Hash Tree**, also known as **Merkle Tree**,
 is a powerful data structure used to efficiently verify the consistency of data between different sources.
 
 In a Hash Tree:
@@ -236,6 +234,12 @@ l3 {
   r3: H(3)
   r4: H(4)
 }
+l3.r1 -> l2.r1
+l3.r2 -> l2.r1
+l3.r3 -> l2.r2
+l3.r4 -> l2.r2
+l2.r1 -> l1.r1
+l2.r2 -> l1.r1
 ```
 
 Due to the nature of cryptographic hash functions,
@@ -243,18 +247,16 @@ if even a single bit of data in any leaf node is different between two trees,
 their respective parent hashes will differ, and this difference will propagate all the way up to their root hashes.
 
 Suppose we need to compare the set `[1, 2, 3, 4]` with another set `[1, 2, 3]` (missing `4`).
-Starting from the root:
-1. `Root1` will be different from `Root2`.
-2. Compare children: `H(H(1)+H(2))` from Tree 1 might match `H(H(1)+H(2))` from Tree 2.
-3. However, `H(H(3)+H(4))` from Tree 1 will differ from `H(H(3))` from Tree 2.
 
 ```d2
 grid-columns: 2
-t1 {
+t1: Tree 1 {
   grid-columns: 1
   l1 {
     class: none
-    r1: H(H(H(1) + H(2)) + H(H(3) + H(4)))
+    r1: H(H(H(1) + H(2)) + H(H(3) + H(4))) {
+      style.fill: ${colors.e}
+    }
   }
   l2 {
     class: none
@@ -268,14 +270,24 @@ t1 {
     r1: H(1)
     r2: H(2)
     r3: H(3)
-    r4: H(4)
+    r4: H(4) {
+      style.fill: ${colors.e}
+    }
   }
+  l3.r1 -> l2.r1
+  l3.r2 -> l2.r1
+  l3.r3 -> l2.r2
+  l3.r4 -> l2.r2
+  l2.r1 -> l1.r1
+  l2.r2 -> l1.r1
 }
-t2 {
+t2: Tree 2 {
   grid-columns: 1
   l1 {
     class: none
-    r1: H(H(H(1) + H(2)) + H(H(3)))
+    r1: H(H(H(1) + H(2)) + H(H(3))) {
+      style.fill: ${colors.e}
+    }
   }
   l2 {
     class: none
@@ -290,6 +302,11 @@ t2 {
     r2: H(2)
     r3: H(3)
   }
+  l3.r1 -> l2.r1
+  l3.r2 -> l2.r1
+  l3.r3 -> l2.r2
+  l2.r1 -> l1.r1
+  l2.r2 -> l1.r1
 }
 ```
 

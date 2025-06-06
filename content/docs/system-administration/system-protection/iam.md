@@ -1,5 +1,5 @@
 ---
-title: Identity And Access Management (IAM)
+title: Identity And Access Management
 weight: 20
 ---
 
@@ -7,96 +7,103 @@ We will now explore **Identity and Access Management (IAM)**, a fundamental and 
 
 ## Identity
 
-Let's begin with the first component of an **IAM** system: **Identity**, also known as **Authentication**.
+### Temporary Credentials
+
+When a user seeks to access a system,
+they must first **authenticate** by providing valid credentials,
+such as passwords or secret keys.
+This verification process establishes the user's **Identity**.
+
+While it is technically feasible to store and reuse a user's permanent credentials locally on the frontend layer to avoid repetitive input,
+this approach introduces significant security vulnerabilities.
+If a user's device is compromised or stolen,
+these stored credentials could be directly exploited by an attacker, granting unauthorized access.
+
+To mitigate this risk, a more secure practice is to issue and utilize **short-lived temporary credentials**
+instead of persistently storing the user's primary secrets.
+These temporary credentials are valid only for a limited duration.
+Consequently, even if such a credential were intercepted or stolen,
+its potential for misuse would be strictly confined to its brief lifespan,
+significantly limiting the window of opportunity for an attacker.
 
 ### User Session
 
-The most straightforward method for implementing an identity system is through **User Sessions**.
+One of the most straightforward approaches to implementing an identity system is through the use of **User Sessions**.
 
-Upon successful user sign-in, the system generates a temporary session code and sends it back to the user.
-This code can then be attached to subsequent requests, allowing the user to access the system without repeatedly entering their credentials.
+Following successful user authentication (sign-in with username and password),
+the `Identity Service` generates a temporary session identifier (session code) and returns it to the client.
 
 ```d2
 shape: sequence_diagram
-
 c: Client {
   class: client
 }
 s: Identity Service {
   class: server
 }
-
+b: Business Service {
+  class: server
+}
 c -> s: Sign in with <username, password>
 s -> c: Respond with a session code
-c -> s: Request with the code
 ```
 
-A stateful service can store user sessions directly in its local memory.
-
-However, this approach presents challenges in a distributed environment.
-For instance, if a client logs in through `Instance 1`, `Instance 2` will not recognize the client or be able to validate the session,
-as it lacks any record of the session code.
+This session code is subsequently included in requests from the client to other parts of the system.
+By presenting this code,
+the user can interact with various services without needing to repeatedly re-authenticate with their primary credentials.
+Any service receiving a request accompanied by a session code must
+then validate its authenticity and validity by querying the central `Identity Service`.
 
 ```d2
-direction: right
-
-s: Identity Service {
-  s1: Instance 1 {
-    class: server
-  }
-  s2: Instance 2 {
-    class: server
-  }
-}
+shape: sequence_diagram
 c: Client {
   class: client
 }
-
-c -> s.s1: 1. Sign in
-s.s1 -> c: 2. Respond with session code
-c -> s.s2: 3. Fail to request with the code {
-  class: error-conn
+s: Identity Service {
+  class: server
 }
+b: Business Service {
+  class: server
+}
+
+c -> b: Request with the code
+b -> s: Verify the code
 ```
 
-To develop a stateless authentication system,
-sessions should be stored in a shared data store that all service instances can access.
+This design reveals a potential drawback:
+the `Identity Service` effectively acts as a {{< term spof >}}.
+Its availability and performance are critical, as all other services depend on it for session validation.
 
-With this setup, any server can validate a user's session code by querying the shared store.
+**User Sessions** are often well-suited for stateful services,
+particularly where session management is tightly coupled with business logic and handled locally within the service instance.
+
+A typical application of this can be found in certain gaming systems.
+Here, individual game service instances often manage and validate sessions locally.
+In such cases, a specific session code is typically valid only within the instance that issued or currently manages it,
+rather than being universally valid across all instances.
 
 ```d2
-direction: right
-
-s: Identity Service {
-  s1: Instance 1 {
-    class: server
+s: Game Service {
+  s1: Game Instance 1 {
+    s: Session Store {
+      class: cache
+    }
   }
-  s2: Instance 2 {
-    class: server
+  s2: Game Instance 2 {
+    s: Session Store {
+      class: cache
+    }
   }
-  ss: Session Store {
-    class: cache
-  }
-  s1 <-> ss
-  s2 <-> ss
 }
 ```
-
-Nevertheless, in distributed environments, this strategy can lead to performance and availability issues,
-as every session validation necessitates a query to the shared data store.
-
-**User Sessions** are well-suited for stateful services where session management occurs locally.
-A common example is in gaming systems,
-where users often connect to a specific sticky instance that is responsible for local session validation.
 
 ### JSON Web Token (JWT)
 
-**JSON Web Token (JWT)** is a widely used method for building authentication systems.
+**JSON Web Token (JWT)** is a widely used method for building identity systems.
 
 At its core, a **JWT** is an **immutable** credential that represents secure information about a user or entity.
-
 A typical JWT looks like this `eyJhbGc.eyJzdWIiO.cThIIoDv`,
-where the dots (`.`) separate three encoded sections: **header**, **payload**, and **signature**.
+where the dots separate three encoded sections: **header**, **payload**, and **signature**.
 
 Removing the dots, you get three distinct encoded parts:
 
@@ -130,14 +137,13 @@ starting from its original **JSON** representation:
 ```
 
 - **Header** specifies the cryptographic algorithm used to sign the token.
-- **Payload** contains the customizable data, such as `role`, `username`, or other user-related information.
+- **Payload** contains the **customizable data**, such as `role`, `username`, or other user-related information.
 - **Signature** is generated from the payload and a **secret key**, securing the token against tampering.
 
 #### Token Validation
 
-Based on [signature validation]({{< ref "data-security#signature-validation" >}}),
+Based on [Signature Validation]({{< ref "data-security#signature-validation" >}}),
 **JWTs** rely on a **secret key** (secured server-side) for generating the **signature**.
-
 Combined with the algorithm defined in the **header**, the signature is computed as:
 `signature = alg(payload, secret key)`
 
@@ -173,7 +179,7 @@ If an attacker modifies the role from `user` to `admin`, a valid signature canno
   },
   "payload": {
     "id": "user1",
-    "role": "admin"
+    "role": "admin" // changed
   },
   "signature": "M5MDIy" // INVALID: does not match modified payload, should be "UD511yc"
 }
@@ -182,11 +188,11 @@ If an attacker modifies the role from `user` to `admin`, a valid signature canno
 As long as the **secret key** remains protected and undisclosed,
 external entities cannot forge or tamper with tokens.
 
-This approach also addresses the availability aspect of **User Session**:
+This approach addresses the availability aspect of **User Session**:
 
 - By sharing the secret key with other services,
-tokens can be validated locally—no need to query a central authenticator.
-- For instance, the `Identity Service` can distribute the key to the `User Service`.
+tokens can be validated locally. There is no need to query a central authenticator.
+- For instance, the `Identity Service` can distribute the key to the `Business Service`.
 
 ```d2
 shape: sequence_diagram
@@ -196,7 +202,7 @@ c: Client {
 a: Identity Service {
     class: server
 }
-o: User Service {
+o: Business Service {
     class: server
 }
 
@@ -206,7 +212,7 @@ a -> o: Distributes the secret key {
 }
 c -> a: 1. Authenticate
 a -> c: 2. Respond a token
-c -> o: 3. Request
+c -> o: 3. Request with the token
 o -> o: 4. Use the distributed key to validate {
     style.bold: true
 }
@@ -214,10 +220,10 @@ o -> o: 4. Use the distributed key to validate {
 
 #### Asymmetric Signature
 
-Distributing the secret key to consumer services is risky because it allows them to independently generate malicious tokens.
-To maintain security, consumer services should **not** be permitted to create new tokens.
+Distributing the secret key to consumer services is risky because it allows them to independently generate tokens.
+To maintain security, other services should **not** be permitted to create new tokens.
 
-By leveraging [asymmetric encryption](Data-Protection.md#asymmetric-encryption),
+By leveraging [Asymmetric Encryption](Data-Protection.md#asymmetric-encryption),
 this risk is addressed by separating the key into two distinct parts:
 
 - **Signing (private) key**: Used solely for generating tokens.
@@ -236,11 +242,11 @@ c: Client {
 a: Identity Service {
     class: server
 }
-o: User Service {
+o: Business Service {
     class: server
 }
 k: Key Management Service {
-    class: kms
+    class: pub-key
 }
 
 k -> o: Distribute the authentication key {
@@ -256,38 +262,34 @@ a -> a: 2. Use the signing key to generate a new token {
     style.bold: true
 }
 a -> c: 3. Respond with the token
-c -> o: 4. Request
+c -> o: 4. Request with the token
 o -> o: 5. Use the authentication key to validate {
     style.bold: true
 }
 ```
 
-This approach aligns with the [zero trust security model](https://en.wikipedia.org/wiki/Zero_trust_security_model), ensuring least privileged access and robust security across all services.
-
 #### Token Expiry
 
 Since we do not store **JWTs**, there is no mechanism to **invalidate** issued tokens directly.
 To limit potential damage if a token is compromised,
-**access tokens** are designed to be **short-lived**—typically lasting only 5 to 10 minutes.
+access tokens are designed to be **short-lived**, typically lasting only 5 to 10 minutes.
 
 Token lifespan is managed through special fields in the token payload,
 and authentication processes must check these timestamps during verification:
 
 ```json
 {
-  "header": ...,
   "payload": {
     // Issued At: Time the token was created
     "iat": "2025-01-01 13:00",
     // Expiration: Time the token becomes invalid
     "exp": "2025-01-01 13:05"
-  },
-  "signature": ...
+  }
 }
 ```
 
 Short token lifespans, however, can create a poor user experience by requiring frequent logins.
-To address this, the **refresh token** mechanism is used.
+To address this, the **Refresh Token** mechanism is used.
 
 {{< callout type="info" >}}
 Some critical systems (such as banking) opt to require users to re-authenticate each time,
@@ -296,10 +298,9 @@ forgoing refresh tokens entirely to maximize security.
 
 #### Refresh Token
 
-After a user signs in,
-a **long-lived** is generated and stored securely within the system,
-for example, **Facebook** uses a lifespan of 60 days.
-The refresh token enables users to obtain new access tokens without having to re-authenticate each time their token expires.
+Following a successful user sign-in, the system generates a **long-lived refresh token**.
+This token, potentially valid for an extended duration such as a month, is securely stored by the authentication system.
+Concurrently, the user's client application (e.g., web browser or mobile app) is responsible for securely storing this refresh token locally.
 
 ```d2
 shape: sequence_diagram
@@ -318,13 +319,30 @@ a -> store: Generate and save refresh token {
     style.bold: true
 }
 c <- a: Respond access token + refresh token
+c -> c: Save refresh token locally
+```
+
+The primary purpose of the refresh token is to enable users to acquire new access tokens without requiring them to re-authenticate
+each time their current access token expires.
+
+```d2
+shape: sequence_diagram
+c: Client {
+    class: client
+}
+a: Identity Service {
+    class: server
+}
+store: Refresh Token Store {
+    class: cache
+}
 c -> a: Re-authenticate with the refresh token {
     style.bold: true
 }
-a <- store: Check the refresh token {
-    style.bold: true
+a -> store: Check the refresh token
+c <- a: Respond new access token {
+  style.bold: true
 }
-c <- a: Respond new access token
 ```
 
 The advantages of **Refresh Tokens** include:
@@ -338,13 +356,10 @@ In other words, the availability of business services is unaffected by operation
 
 ```d2
 direction: right
-
 c: Client {
   class: client
 }
-
 s: {
-  grid-rows: 2
   class: none
   s: Business Service {
     class: server
@@ -353,19 +368,16 @@ s: {
     class: server
   }
 }
-
-c -> s: Request with access token
-c -> a: Issue/refresh access token
+c -> s.s: Request with access token
+c -> s.a: Issue/refresh access token
 ```
 
 
 ### Federated identity
 
 Identity is a fundamental requirement that often functions similarly across various systems.
-
 Instead of developing an identity mechanism from scratch,
 systems can utilize a trusted identity solution.
-
 This approach, known as the **Federated Identity Pattern**,
 involves relying on an independent service to handle user identity.
 
@@ -389,8 +401,8 @@ c: Client {
     class: client
 }
 
-c -> s: "1. Send email and password"
-s -> i: "2. Authenticate on behalf of the user"
+c -> s: "Send email and password"
+s -> i: "Authenticate"
 ```
 
 This workflow is inherently insecure
@@ -410,11 +422,11 @@ c: Client {
     class: client
 }
 
-c -> s: "1. Send email and password"
-s -> s: "2. Steal the credential" {
+c -> s: "Send email and password"
+s -> s: "Steal the credential" {
   class: error-conn
 }
-s -> i: "3. Attempt to authenticate on behalf of the user"
+s -> i: "Authenticate"
 ```
 
 #### ID Token
@@ -434,8 +446,8 @@ is issued and sent back to the user's browser or client application
 
 ```d2
 shape: sequence_diagram
-u: User {
-  class: user
+u: Client {
+  class: client
 }
 cb: System {
   class: server
@@ -445,7 +457,7 @@ g: Google {
 }
 
 u -> cb: "1. Initiate Sign in with Google"
-cb -> u: "2. Redirect"
+cb -> g: "2. Redirect"
 u -> g: "3. Sign in"
 g -> u: "4. Issue ID Token"
 ```
@@ -457,8 +469,8 @@ such as `email`, `account id`, and other details.
 
 ```d2
 shape: sequence_diagram
-u: User {
-  class: user
+u: Client {
+  class: client
 }
 s: System {
   class: server
@@ -472,7 +484,9 @@ s -> u: "2. Redirect"
 u -> g: "3. Sign in"
 g -> u: "4. Issue ID Token"
 u -> s: "5. Send ID Token"
-s -> s: "6. Verify token and extract user information"
+s -> s: "6. Verify token and extract user information" {
+  style.bold: true
+}
 ```
 
 How does the system verify the token?
@@ -484,6 +498,7 @@ securely holds a **private signing key** used to generate new tokens.
 enabling it to verify the authenticity of tokens autonomously.
 
 ```d2
+direction: right
 g: "Identity Provider" {
   s: "Signing Key (Private)" {
     class: pri-key
@@ -501,7 +516,9 @@ g.s -> s.a: "Key Distribution"
 
 Once a user's identity is confirmed,
 the next critical step is to determine what actions they are permitted to perform and which resources they can access within the system.
-This process is known as **Authorization**. This section will explore fundamental concepts and methods for implementing **Authorization**.
+This process is known as **Authorization**.
+
+This section will explore fundamental concepts and methods for implementing **Authorization**.
 
 ### Access Policy
 
@@ -515,20 +532,18 @@ For example, we can create distinct policies:
 - Another policy allowing `John` to read `Business` documents.
 
 ```d2
+horizontal-gap: 300
 u1: "John" {
   class: client
 }
-u2: "Doe" {
-  class: client
-}
-p1: "Policy 1: Allow Write Technical Docs" {
-  |||yaml
+p1: "Policy 1" {
+  c: |||yaml
   target: Technical documents
   allow: write
   |||
 }
-p2: "Policy 2: Allow Read Business Docs" {
-  |||yaml
+p2: "Policy 2" {
+  c: |||yaml
   target: Business documents
   allow: read
   |||
@@ -541,7 +556,7 @@ p2 -> u1: "Assigned to"
 
 The **Principle of Least Privilege** is a fundamental and widely adopted cybersecurity concept.
 In essence,
-this principle dictates that users should only be granted the minimum level of access to perform their designated tasks,
+this principle dictates that users should only be granted the **minimum level of access** to perform their designated tasks,
 and no more.
 
 A key tenet of this principle is that **access is denied by default**;
@@ -557,6 +572,7 @@ allowing them to inherit a common set of permissions.
 For example, all users assigned the `Developer` role might be granted permission to read `Technical` documents.
 
 ```d2
+direction: right
 r: "Developer Role" {
   u1: "John" {
     class: client
@@ -565,8 +581,8 @@ r: "Developer Role" {
     class: client
   }
 }
-p1: "Permission 1: Allow Read Technical Docs" {
-  |||yaml
+p1: "Permission 1" {
+  c: |||yaml
   target: Technical documents
   action: read
   |||
@@ -574,12 +590,12 @@ p1: "Permission 1: Allow Read Technical Docs" {
 p1 -> r: "Assigned to"
 ```
 
-A crucial aspect related to the Principle of **Least Privilege**.
-If multiple policies apply, an explicit **denial policy** overrides any allow policies.
+A crucial aspect related to the **Principle of Least Privilege**.
+If multiple policies apply, an **explicit denial policy** overrides any allow policies.
 This ensures that specific restrictions can be enforced even if a user belongs to a role that generally grants broader access.
 
-For instance, while the `Developer` role (`r`) might be granted permission (`p1`) to read `Technical` documents,
-an explicit reject policy (`p2`) assigned specifically to user `John` (`r.u1`)
+For instance, while the `Developer` role might be granted permission to read `Technical` documents,
+an explicit reject policy (`p2`) assigned specifically to user `John`
 for those same documents will prevent him from performing that action.
 
 ```d2
@@ -591,14 +607,14 @@ r: "Developer Role" {
     class: client
   }
 }
-p1: "Permission 1: Allow Read Technical Docs (Role)" {
-  |||yaml
+p1: "Permission 1: Allow" {
+  c: |||yaml
   target: Technical documents
   action: read
   |||
 }
-p2: "Permission 2: Deny Read Technical Docs (John)" {
-  |||yaml
+p2: "Permission 2: Deny" {
+  c: |||yaml
   target: Technical documents
   action: reject
   |||
@@ -606,7 +622,6 @@ p2: "Permission 2: Deny Read Technical Docs (John)" {
 p1 -> r: "Assigned to Role"
 p2 -> r.u1: "Assigned to John (Overrides Role Permission)"
 ```
-
 
 #### Role Explosion
 
@@ -639,33 +654,35 @@ Thus, access policies become more dynamic by checking user attributes to make th
 r: "Developer Role" {
   u1: "John (Lead)" {
     c: |||yaml
+    name: John
     position: Lead
     |||
   }
   u2: "Doe (Intern)" {
     c: |||yaml
+    name: Doe
     position: Intern
     |||
   }
 }
-p1: "Policy 1: Full Access for Leads" {
-  |||yaml
+p1: "Policy 1: Full Access" {
+  c: |||yaml
   target: Technical documents
   require:
     position: Lead
   action: full
   |||
 }
-p2: "Policy 2: Read Access for Interns" {
-  |||yaml
+p2: "Policy 2: Read Access" {
+  c: |||yaml
   target: Technical documents
   require:
     position: Intern
   action: read
   |||
 }
-p3: "Policy 3: Write Access for Interns" {
-  |||yaml
+p3: "Policy 3: Write Access" {
+  c: |||yaml
   target: Technical documents
   require:
     position: Intern
@@ -686,21 +703,22 @@ However, there are scenarios where regular users might need to control access to
 Another authorization approach is **Resource-Based Authorization**.
 In this model, permissions are attached directly to the resources themselves. The policies on the resource then specify which identities (users or roles) are granted or denied access.
 
-For example, a specific `Technical document` could have a policy allowing the `Developer` role to `Read` it, and another policy granting user `Admin01` full control.
+For example, a specific `Technical document` could have a policy allowing the `Developer` role to read it,
+and another policy granting user `Admin01` full control.
 
 ```d2
-r: "Technical Documents (Resource)" {
+r: "Technical Document (Resource)" {
   class: file
 }
-p1: "Permission 1: Developers can Read" {
+p1: "Permission 1" {
   c: |||yaml
   target:
     type: role
     id: Developer
-  action: Read
+  action: read
   |||
 }
-p2: "Permission 2: Admin01 has Full Access" {
+p2: "Permission 2" {
   c: |||yaml
   target:
     type: user
@@ -722,6 +740,7 @@ For instance, imagine an application being developed that allows a user to uploa
 In this situation, **Google Drive** must authorize the application to perform actions on the user's behalf.
 
 ```d2
+direction: right
 u: User {
   class: client
 }
@@ -737,22 +756,22 @@ s -> g: Access the file
 
 Similar to the principles discussed in the [Identity Provider](#identity-provider) section,
 it's crucial that the resource service (in this case, **Google Drive**)
-**does not** permit the application to store the user's credentials,
+**does not** permit the application to access the user's credentials,
 such as passwords or comprehensive access tokens.
 These credentials fully represent the user and could be misused to perform **any action** as that user.
 
-Instead, a more secure approach involves creating distinct credentials specifically for the application.
+Instead, a more secure approach involves creating **distinct credentials** specifically for the application.
 These credentials are limited to the permissions explicitly granted by the user.
 
-#### OAuth2.0
+### OAuth2.0
 
 **OAuth2.0** is an authorization framework that allows third-party applications
 to access user resources hosted on a service.
 
-##### Basic Flow
+#### Basic Flow
 
 The process typically begins when the application redirects the user to the resource service, such as **Google Drive**.
-Here, the user signs in and grants specific permissions to the application.
+Here, the user signs in and **grants specific permissions** to the application.
 Following this, the resource service issues an **Access Token** back to the user, which is limited to the granted permissions.
 
 ```d2
@@ -767,7 +786,7 @@ g: GoogleDrive {
   class: google
 }
 u -> s: Request
-s -> u: Redirect to GoogleDrive
+s -> g: Redirect to GoogleDrive
 u -> g: Sign in and consent permissions
 g -> u: Respond a limited access token {
   style.bold: true
@@ -791,7 +810,9 @@ u -> s: Request
 s -> u: Redirect to GoogleDrive
 u -> g: Sign in and consent permissions
 g -> u: Respond an access token
-u -> s: Send the token
+u -> s: Send the token {
+  style.bold: true
+}
 s -> g: Access resources with the token
 ```
 
@@ -806,7 +827,7 @@ shape: sequence_diagram
 h: Hacker {
   class: hacker
 }
-u: User (Frontend) {
+u: Client (Frontend) {
   class: client
 }
 s: Application (Backend) {
@@ -822,10 +843,17 @@ h -> u: Steal the token here {
 u -> s: Send the token
 ```
 
-##### Authorization Code Grant
+If a user's device is compromised and the comprehensive token is stolen,
+it might seem minor that the limited access token is abused.
 
-To mitigate the aforementioned security risk, the OAuth 2.0 framework introduces the concept of **authorization code grant**.
-Instead of the resource service directly sending an access token to the user's browser, it sends back a temporary **Authorization Code**.
+However, this is fundamentally an issue of **responsibility**.
+Our system issued the token, and therefore, we are accountable for any actions performed using it.
+Thus, its protection is paramount.
+
+#### Authorization Code Grant
+
+To mitigate the aforementioned security risk, the OAuth 2.0 framework introduces the concept of authorization code grant.
+Instead of directly sending an access token to the user's browser, the resource service sends back a temporary **Authorization Code**.
 
 ```d2
 shape: sequence_diagram
@@ -839,7 +867,7 @@ g: GoogleDrive {
   class: google
 }
 u -> s: Request
-s -> u: Redirect to GoogleDrive
+s -> g: Redirect to GoogleDrive
 u -> g: Sign in and consent permissions
 g -> u: Respond an authorization code {
   style.bold: true
@@ -864,23 +892,27 @@ g: GoogleDrive {
   class: google
 }
 u -> s: Request
-s -> u: Redirect to GoogleDrive
+s -> g: Redirect to GoogleDrive
 u -> g: Sign in and consent permissions
-g -> u: Responds an authorization code
+g -> u: Respond an authorization code {
+  style.bold: true
+}
 u -> s: Send the code
 s -> g: Exchange an access token with the code {
   style.bold: true
 }
 ```
 
-With this flow, attackers who might intercept the communication between the user and the application would only obtain the short-lived authorization code,
+With this flow,
+attackers who might intercept the communication between the user and the application would only obtain the **short-lived authorization code**,
 not the actual access token.
+
 However, this alone does not entirely solve the problem.
 If attackers obtains the authorization code,
 they could potentially still use it to exchange an access token themselves.
 Therefore, this exchange mechanism is most effective when the entity exchanging the code is a **trusted target**.
 
-##### Trusted Target
+#### Trusted Target
 
 To ensure that only the legitimate application can exchange the authorization code for an access token,
 the application must first register itself with the resource service.
@@ -937,7 +969,7 @@ g: GoogleDrive {
   class: google
 }
 u -> s: Request
-s -> u: "Redirect to /auth?client_id=123"
+s -> g: "Redirect to /auth?client_id=123"
 u -> g: Sign in and consent permissions
 g -> u: Respond an exchange code
 u -> s: Send the code
@@ -947,4 +979,6 @@ s -> g: Exchange an access token with (authorization code + client ID + client s
 g -> s: Respond an access token
 ```
 
-This enhanced process ensures that only the registered application, possessing the correct Client ID and Client Secret, can successfully exchange the authorization code for an access token. Consequently, even if an authorization code is intercepted, it cannot be exploited by an unauthorized party.
+This enhanced process ensures that only the registered application,
+possessing the correct **Client ID** and **Client Secret**, can successfully exchange the authorization code for an access token.
+Consequently, even if an authorization code is intercepted, it cannot be exploited by an unauthorized party.

@@ -160,4 +160,36 @@ d2Import: >
         shape: image
         icon: ${icons-path}/monitor.svg
       }
+      hacker {
+        shape: image
+        icon: ${icons-path}/hacker.svg
+      }
+      ni {
+        shape: image
+        icon: ${icons-path}/ni.svg
+      }
+      folder {
+        shape: image
+        icon: ${icons-path}/folder.svg
+      }
+      container {
+        shape: image
+        icon: ${icons-path}/container.svg
+      }
+      group {
+        shape: image
+        icon: ${icons-path}/group.svg
+      }
+      code {
+        shape: image
+        icon: ${icons-path}/code.svg
+      }
+      domain-expert {
+        shape: image
+        icon: ${icons-path}/domain-expert.svg
+      }
+      dev {
+        shape: image
+        icon: ${icons-path}/dev.svg
+      }
     }

@@ -10,13 +10,10 @@ This section will cover some fundamental aspects of system deployment.
 Suppose we aim to deploy a system on a server.
 Let's examine the most common options for achieving this:
 
-## Bare-metal Deployment
+### Bare-metal Deployment
 
 This is the most fundamental deployment method,
 where system components run as native processes directly on the server's **Operating System (OS)**.
-This model typically yields the **maximum performance** because
-processes can access hardware resources with minimal overhead,
-as there are no virtualization layers.
 
 ```d2
 m: Server {
@@ -31,31 +28,36 @@ m: Server {
       class: process
     }
   }
-  h: Hardward {
-    class: hd
-  }
-  o: OS {
+  o: "" {
     class: os
   }
-  p.p1 -> h
-  p.p2 -> h
-  h -> r
+  h: Hardware {
+    class: hd
+  }
+  p.p1 -> o
+  p.p2 -> o
+  o -> h
 }
 ```
 
-However, in this model, all processes share the same host OS.
+This model typically yields the **maximum performance** because
+processes can access hardware resources with minimal overhead,
+as there are no virtualization layers.
+
+However, all processes share the same host OS.
 This shared environment can be vulnerable to exploitation.
 
 For instance, if an attacked process has incorrectly configured permissions for its executor,
-an attacker could potentially abuse the OS to compromise other processes or even the entire server.
+it could potentially abuse the OS to compromise other processes or even the entire server.
 
-## Virtual Machine
+### Virtual Machine
 
 **Virtual Machines (VMs)** are employed to create a more strictly isolated environment.
 A virtual machine emulates a physical computer but runs on a software layer called a **Hypervisor**,
 rather than directly on physical hardware.
+
 Although VMs rely on the host's OS (via the hypervisor),
-they each possess their own independent OS and dedicated resources,
+they each possess their own independent OS and dedicated resources (files, users, processes, etc),
 ensuring they are **completely isolated** from one another.
 
 ```d2
@@ -65,30 +67,36 @@ m: Server {
     class: none
     grid-rows: 1
     v1: Virtual Machine 1 {
+      grid-rows: 1
+      horizontal-gap: 100
       r: Resources {
         class: hd
       }
       o: OS {
         class: os
       }
+      o -> r: Manage
     }
     v2: Virtual Machine 2 {
-      r: Resources {
-        class: hd
-      }
+      grid-rows: 1
+      horizontal-gap: 100
       o: OS {
         class: os
       }
+      r: Resources {
+        class: hd
+      }
+      o -> r: Manage
     }
   }
   h: Hypervisor {
     class: process
   }
-  o: OS {
+  o: Host OS {
     class: os
   }
-  p1.v1 -> h
-  p2.v2 -> h
+  p.v1.o -> h
+  p.v2.o -> h
   h -> o
 }
 ```
@@ -105,14 +113,26 @@ m: Server {
     class: none
     grid-rows: 1
     v1: Virtual Machine 1 {
+      grid-rows: 1
+      horizontal-gap: 100
       p1: Process 1 {
         class: process
       }
+      o: "" {
+        class: os
+      }
+      p1 -> o
     }
     v2: Virtual Machine 2 {
+      grid-rows: 1
+      horizontal-gap: 100
+      o: "" {
+        class: os
+      }
       p2: Process 2 {
         class: process
       }
+      p2 -> o
     }
   }
   h: Hypervisor {
@@ -121,8 +141,8 @@ m: Server {
   o: OS {
     class: os
   }
-  p1.v1 -> h
-  p2.v2 -> h
+  p.v1.o -> h
+  p.v2.o -> h
   h -> o
 }
 ```
@@ -131,15 +151,11 @@ m: Server {
 However, virtual machines are not optimal in terms of resource efficiency.
 Each VM runs its own **full operating system**, which consumes considerable CPU, memory, and storage resources.
 Moreover, booting a virtual machine involves numerous setup steps and can take several minutes to complete.
-This can prolong the initialization time for system components, potentially affecting [availability]({{< ref "service-cluster#availability" >}}).
+This can prolong the initialization time for system components, potentially affecting [the system availability]({{< ref "service-cluster#availability" >}}).
 
 In the next topic, we will explore a more lightweight option known as **Containerization**.
 
-### Multi-tenant
-
-{{< callout type="info" >}}
-While not directly central to this topic, it's useful to explain the term **Multi-tenancy**, which is commonly used in cloud computing platforms.
-{{< /callout >}}
+#### Multi-tenant
 
 In practice, organizations often rely on cloud providers for their system infrastructure rather than building it themselves.
 When a customer rents an entire physical machine and has full control over it,
@@ -168,7 +184,7 @@ In this setup, cloud providers divide a single physical machine into multiple vi
 and each VM can be rented by a different customer.
 
 ```d2
-s: Server {
+s: Physical Server {
   v1: Virtual Machine 1 {
     class: os
   }
