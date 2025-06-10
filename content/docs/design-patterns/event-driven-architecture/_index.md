@@ -84,6 +84,7 @@ h1: UserCreated Handler {
 }
 h2: UserDeleted Handler {
     class: process
+}
 
 c -> h1
 d -> h2

@@ -337,7 +337,7 @@ However, it only applies to stateless processing with no external side effects.
 
 #### 2. Two-phase Commit
 
-To synchronize multiple systems, we can use [{{< term 2pc >}}]({{< ref "low-level-protocols#two-phase-commit-2pc" >}}):
+To synchronize multiple systems, we can use [{{< term 2pc >}}]({{< ref "blocking-protocols#two-phase-commit-2pc" >}}):
 
 ```d2
 shape: sequence_diagram
@@ -369,7 +369,7 @@ c -> q: COMMIT {
 ```
 
 However, {{< term 2pc >}} introduces the risk of infinite blocking and is not always supported.
-This is discussed further in [this topic]({{< ref "low-level-protocols#two-phase-commit-2pc" >}}).
+This is discussed further in [this topic]({{< ref "blocking-protocols#two-phase-commit-2pc" >}}).
 
 #### 3. Event Idempotency
 

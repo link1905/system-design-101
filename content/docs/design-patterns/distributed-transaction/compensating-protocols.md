@@ -232,7 +232,7 @@ o -> o: Invalidate the order (compensate) {
 ```
 
 The **Orchestration** requires a central coordinator and direct communication,
-degrading availability and causing the {{< spof >}} problem.
+degrading availability and causing the {{< term spof >}} problem.
 However, it conveniently wraps everything inside the coordinator,
 **Choreography** scatters transactions' logic in different services,
 making sourcecode become extremely tough to understand and maintain.
@@ -314,7 +314,7 @@ o."transaction-1234: Complete"
 
 #### Consume-process-produce Pipeline
 
-We've discussed this pattern in the [Event Streaming]({{< ref "event-streaming-platform#consume-process-produce-pipeline >}}).
+We've discussed this pattern in the [Event Streaming]({{< ref "event-streaming-platform#consume-process-produce-pipeline" >}}).
 The **Choreography Saga** helps to evade duplication **without** idempotency.
 **Consume-process-produce Pipeline** appears when a service doesn’t make changes to other datasets rather than the event stream.
 
@@ -483,15 +483,15 @@ s: "" {
    grid-rows: 1
    grid-gap: 0
    c: Compensable Actions {
-      style.fill: ${colors.b}
+      style.fill: ${colors.i1}
       width: 500
    }
    p: Pivot Actions {
-      style.fill: ${colors.c}
+      style.fill: ${colors.i2}
       width: 200
    }
    r: Retryable Actions {
-      style.fill: ${colors.e}
+      style.fill: ${colors.i3}
       width: 400
    }
 }
@@ -723,16 +723,17 @@ shape: sequence_diagram
 o: Order Service
 p: Payment Service
 c: CancelOrder Saga
-o -> o: "1. CreateOrder()" {
+o -> o: "1. CreateOrder()"
+o {
    "state = Pending"
 }
 o -> p: "2. ProcessPayment()" {
    class: error-conn
 }
-c -> o: Fails to set state of a pending order {
+c -> o: "Fails to set state = Cancelled of a pending order" {
    style.bold: true
 }
-o -> o: Set state {
+o -> o: "3. Set state = Completed" {
    class: error-conn
 }
 o {

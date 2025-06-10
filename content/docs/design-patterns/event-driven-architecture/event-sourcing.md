@@ -6,7 +6,7 @@ weight: 10
 
 {{< callout type="info" >}}
 You may review the concept of [Event Streaming Platform]({{< ref "event-streaming-platform" >}}) if necessary.
-{{< callout >}}
+{{< /callout >}}
 
 In this topic, we're going to see a common pattern used in **EDA** systems - **Event Sourcing**.
 This pattern helps to share data between teams based on a single source of truth.
@@ -262,15 +262,15 @@ services can browse through the produced events to display the balance at any po
 
 ```d2
 e: Event Source {
-    log: yaml|||
+    log: |||yaml
     Account A:
-      1-Deposit: 50 -> Balance = 50
-      2-Withdrawal: 20 -> Balance = 30 (50 - 30)
-      3-Withdrawal: 20 -> Balance = 10 (30 - 20)
+      1-Deposit: "50 -> Balance = 50"
+      2-Withdrawal: "20 -> Balance = 30 (50 - 30)"
+      3-Withdrawal: "20 -> Balance = 10 (30 - 20)"
     |||
 }
 s1: Account Service {
-    Balance = 10
+    "Balance = 10"
 }
 s1 <- e: Aggregate
 ```
@@ -376,21 +376,21 @@ helps to make sure the compatibility of existing events.
 ```d2
 direction: right
 
-v1: yaml|||
-AccountUpdated (v1):
+v1: |||yaml
+AccountUpdated - v1:
     userId: 1234
     name: John Doe
 |||
 
-v2: yaml|||
-AccountUpdated (v2):
+v2: |||yaml
+AccountUpdated - v2:
     userId: 1234
     name: John Doe
     address: 1234 Hai Ba Trung HCMC
 |||
 
-v3: yaml|||
-AccountUpdated (v3):
+v3: |||yaml
+AccountUpdated - v3:
     userId: 1234
     name: John Doe
     address: 1234 Hai Ba Trung HCMC
@@ -402,8 +402,8 @@ AccountUpdated (v3):
         number: 1234
 |||
 
-v1 -> v2: 'Add "address"'
-v2 -> v3: 'Add "addressDetailed"'
+v1 -> v2: "Add 'address'"
+v2 -> v3: "Add 'addressDetailed'"
 ```
 
 This approach works well with supplement changes completing event schemas.
@@ -441,14 +441,14 @@ p: Publisher {
    class: server
 }
 s: Event Source {
-    v1: yaml|||
+    v1: |||yaml
     Account Topic - v1:
         version: v1
         userId: 1234
         address: 1234 Hai Ba Trung HCMC
     |||
 
-    v2: yaml|||
+    v2: |||yaml
     Account Topic - v2:
         version: v2
         userId: 1234

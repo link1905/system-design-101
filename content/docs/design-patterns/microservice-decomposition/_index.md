@@ -153,7 +153,7 @@ They will restrict services from autonomous development as
 - Teams hesitate to modify shared parts due to the risk of unintended consequences.
 
 A misdesigned system can result in tightly coupled services,
-fading out the {{< ms >}} advantages.
+fading out the {{< term ms >}} advantages.
 
 {{< callout type="info" >}}
 We've discussed in depth in [the first topic]({{< ref "microservice#service-decoupling" >}}).
