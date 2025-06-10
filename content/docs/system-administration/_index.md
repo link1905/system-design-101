@@ -1,6 +1,8 @@
 ---
 title: System Administration
 weight: 30
+prev: data-persistence
+next: system-protection
 ---
 
 This section provides a comprehensive introduction to the practical components of system administration.

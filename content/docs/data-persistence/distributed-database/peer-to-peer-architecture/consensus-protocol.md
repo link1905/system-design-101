@@ -1,6 +1,7 @@
 ---
 title: Consensus Protocol
 weight: 20
+next: nosql-database
 ---
 
 We can observe that the **Gossip Protocol** essentially does not guarantee **Consistency**,
@@ -14,7 +15,7 @@ even in the presence of failures ({{< term fauTol >}}).
 
 Consider a cluster of nodes.
 When a new node attempts to join,
-in a **Consensus-based** system, it cannot simply ask a random node (e.g., `Node A`) for admission:
+in a **consensus-based** system, it cannot simply ask a random node (e.g., `Node A`) for admission:
 
 ```d2
 n: D (New node) {
@@ -29,7 +30,7 @@ c: Cluster {
     class: server
   }
   c: Node C {
-    class: generic-error
+    class: server
   }
 }
 n -> c.a: Join {
@@ -38,7 +39,7 @@ n -> c.a: Join {
 ```
 
 Instead, the cluster must **reach a collective decision** to approve the new node.
-This typically happens when a **majority of nodes** agree—for example,
+This typically happens when a **majority of nodes** agree, for example,
 if nodes `A` and `B` approve `D`'s entry, it succeeds even if node `C` is down.
 
 ```d2
@@ -122,8 +123,8 @@ np: Network partition {
 
 #### Loss Of Quorum
 
-What if the cluster splits into **two equal partitions** (e.g., one node each)?
-In that case, none of them can achieve majority—resulting in **total unavailability** for writes.
+What if the cluster splits into **equal partitions** (e.g., one node each)?
+In that case, none of them can achieve majority, resulting in **total unavailability** for writes.
 This situation is known as **Loss Of Quorum**.
 
 ```d2
@@ -155,9 +156,9 @@ c: Network partition {
 
 This is how we achieve **CP (Consistency over Availability)**:
 A **Raft** cluster ensures only one partition (the one with a majority) can operate at a time.
-This guarantees that at any moment, there is a single writer—ensuring consistency.
+This guarantees that at any moment, there is a single writer, ensuring consistency.
 
-## Raft Cluter
+## Raft Cluster
 
 Let’s explore how to build a distributed cluster using the Raft algorithm.
 
@@ -172,7 +173,7 @@ It remains leader as long as it is reachable.
 #### Heartbeat
 
 How does the cluster detect that a leader has failed?
-Each node uses a fixed **timeout** value. The leader must periodically send **heartbeats** to followers.
+Each node uses a **fixed timeout** value. The leader must periodically send **heartbeats** to followers.
 If a follower’s heartbeat expires, it assumes the leader is down.
 
 Once a node suspects the leader has failed, it transitions to a **Candidate** and initiates an election.
@@ -201,10 +202,10 @@ c: Cluster (Timeout = 3 seconds, Current time = 00:04) {
 }
 ```
 
-
 ### Election Process
 
-In the **Raft** election process, nodes vote for a candidate based on its term number—a logical counter representing election rounds.
+In the **Raft** election process, nodes vote for a candidate based on its term number,
+a logical counter representing election rounds.
 
 - For example, a node with `Term = 3` has participated in three election rounds.
 - Nodes will only vote for candidates with higher terms, which ensures the system can always make progress.
@@ -368,7 +369,7 @@ c: 'Current time = 00:04, Timeout = 3s' {
 
 #### Step 3: Leader Confirmation
 
-A majority vote is required, so `Node B` becomes the new **Leader**.
+A majority vote is confirmed, so `Node B` becomes the new **Leader**.
 After becoming leader, it sends regular heartbeat messages to all nodes to show it is alive.
 
 ```d2
@@ -400,10 +401,10 @@ c: 'Current time = 00:04, Timeout = 3s' {
 
 {{% /steps %}}
 
-The term number is a reliable logical counter:
+Why is term number a reliable logical counter?
 
 - Nodes increment their term after each timeout, so a node with a lower term must have participated in fewer election cycles than one with a higher term.
-- If a node adopts a higher term from another node, it implies it has fallen behind and is updating its view of the election history.
+- If a node adopts a higher term from another node, that implies the node has fallen behind the higher node.
 
 ### Split Vote
 

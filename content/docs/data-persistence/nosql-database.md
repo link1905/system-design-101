@@ -1,13 +1,14 @@
 ---
 title: NoSQL Database
 weight: 30
+prev: distributed-database
 ---
 
 {{< term sql >}} has long been the primary choice for data storage.
-Its general-purpose design makes it suitable for many use cases—but not all.
+Its general-purpose design makes it suitable for many use cases, but not all.
 To address the rapid growth of data and its diverse requirements,
 many alternative systems have been developed that outperform {{< term sql >}} in specific scenarios.
-These are collectively referred to as {{< term nosql >}} (**Not Only SQL**).
+These are collectively referred to as {{< term nosql >}} (Not Only SQL).
 
 {{< term sql >}} relies on the unified [Relational Model](https://www.geeksforgeeks.org/relational-model-in-dbms/),
 while {{< term nosql >}} encompasses various types of databases with different data models
@@ -17,7 +18,7 @@ tailored to specific purposes.
 
 Despite having diverse data models, {{< term nosql >}} databases often share several common characteristics.
 
-### 1. Schemaless
+### Schemaless
 
 {{< term nosql >}} databases are typically **schemaless**,
 meaning they don’t require predefined data schemas. This flexibility is possible because:
@@ -26,7 +27,7 @@ meaning they don’t require predefined data schemas. This flexibility is possib
 - Others infer schema dynamically from the data as it's inserted, rather than requiring it upfront.
 
 This makes {{< term nosql >}} especially useful for
-handling flexible or irregularly structured data—something that {{< term sql >}} struggles with.
+handling flexible or irregularly structured data, something that {{< term sql >}} struggles with.
 
 For example, consider customer records with varying attributes.
 
@@ -51,10 +52,11 @@ gpa: 3.5
 |||
 ```
 
-### 2. Horizontal Scalability
+### Horizontal Scalability
 
 NoSQL databases are designed for **horizontal scalability**.
-They avoid complex relationships and instead rely on [sharding]({{< ref "peer-to-peer-architecture#shard-replication" >}}) to distribute data across multiple servers.
+They avoid complex relationships and instead rely on [sharding]({{< ref "peer-to-peer-architecture#shard-replication" >}}) to
+distribute data across multiple servers.
 
 For example, user records can be split across different servers:
 
@@ -90,14 +92,14 @@ s3 <-> s1
 
 **NoSQL** databases generally do not support relational features such as **foreign keys** or **joins**.
 
-This design choice stems from their distributed architecture—data is often spread across multiple servers.
+This design choice stems from their distributed architecture, data is often spread across multiple servers.
 Attempting to join records stored on different nodes can lead to **performance bottlenecks** and **reduced availability**.
 
-When using NoSQL, we need to **shift our data modeling mindset** from normalization to **denormalization**—
+When using NoSQL, we need to shift our data modeling mindset from normalization to **denormalization**,
 the goal is to create **self-contained records** that are fully queryable from a single server.
 We'll explore this concept further in the [Document Store](#document-store) section.
 
-### 3. Eventual Consistency
+### Eventual Consistency
 
 Many {{< term nosql >}} databases prefer
 [**Eventual Consistency**]({{< ref "distributed-database#eventual-consistency-level" >}}),
@@ -109,7 +111,7 @@ They often maintain multiple replicas that converge over time.
 {{< term nosql >}} databases are designed for high availability and fault tolerance but generally do not fully support ACID transactions.
 
 In particular, maintaining the **Isolation** property across multiple nodes is prohibitively expensive.
-Ensuring strict transactional behavior would require constant coordination and message exchange over the network—
+Ensuring strict transactional behavior would require constant coordination and message exchange over the network,
 leading to a complex, tightly coupled system that contradicts **NoSQL**'s design goals.
 
 As a result, **NoSQL** is generally not well-suited for applications that demand
@@ -146,7 +148,7 @@ k -> s: "Respond '<html>This is page 0</html>'"
 ### Use Cases {#use-cases-kv}
 
 **Key-value stores** are ideal when data naturally fits the key-value model.
-However, they are unsuitable for complex queries like aggregations.
+Absolutely, they shouldn't be used for non-key queries like aggregations.
 
 Internally based on **Hash Table** and memory, they perform extremely fast key-based lookups.
 That makes them perfect for use cases like [distributed caching]({{< ref "caching-patterns" >}}).
@@ -158,7 +160,7 @@ s1: Server 1 {
 s2: Server 2 {
   class: server
 }
-c: Distribued Cache {
+c: Distributed Cache {
   class: cache
 }
 s1 <-> c
@@ -167,10 +169,31 @@ s2 <-> c
 
 ## Document Store
 
-A **Document Store** organizes data around *documents*,
-each one representing a single record—typically in [JSON](https://www.json.org/json-en.html) format.
-These documents are grouped into **collections**, making management and retrieval simpler.
+A **Document Store** organizes data around **documents**,
+each one representing a single record, typically in [JSON](https://www.json.org/json-en.html) format.
 
+```d2
+s1: Student Document 1 {
+  c: |||json
+  {
+    "id": "student_a",
+    "name": "Student A"
+  }
+  |||
+}
+s2: Student Document 2 {
+  c: |||json
+  {
+    "id": "student_b",
+    "name": "Student B",
+    "class_id": "class_a",
+    "gpa": 8
+  }
+  |||
+}
+```
+
+Similar documents are grouped into **collections**, making management and retrieval simpler.
 For example, `student_collection` and `room_collection`:
 
 ```d2
@@ -209,38 +232,49 @@ However, there are some key differences:
   This schema flexibility means structural changes to one document do not impact the rest of the collection.
 
 - There's no native concept of relationship.
-  Instead, references are made using plain values—e.g., `student_b` refers to `class_a` by storing its `id` as a string.
+  Instead, references are made using plain values, e.g., `student_b` refers to `class_a` by storing its id as a plain string.
 
 ### Data Denormalization {id="doc_denormalize"}
 
-**Document Stores** are typically distributed—documents within the same collection may reside on different nodes.
+**Document Stores** are typically distributed, documents within the same collection may reside on different nodes.
 In such an environment, joining records would require querying multiple servers,
 which can severely impact performance and availability.
 
-To address this, **Document Stores** favor denormalization:
-embedding related data directly into documents to make them **self-contained**.
-
-For example, suppose we want to track student participation in various classes.
-In a relational model,
-this would typically be normalized into two separate collections: `student` and `participation`.
-To retrieve a student's participations, we would **join** these collections based on a shared key:
+For example, imagine we want to track student registrations across multiple classes.
+In a relational model, this data is usually normalized into two separate tables: student and registration.
+To obtain a student’s class registrations, we would join these tables using a shared key.
+However, executing such joins often requires scanning multiple servers to gather all relevant records,
+making complex queries resource-intensive and costly.
 
 ```d2
 direction: right
-student: {
-    shape: sql_table
-    id: stu123
-    name: Mike
+s1: Server 1 {
+  s: student {
+      shape: sql_table
+      id: stu123
+      name: Mike
+  }
 }
-participation: {
-    shape: sql_table
-    student_id: stu123
-    class_id: class123
+s2: Server 2 {
+  r: registration {
+      shape: sql_table
+      student_id: stu123
+      class_id: class123
+  }
 }
-participation.student_id -> student.id
+
+s3: Server 3 {
+  r: registration {
+      shape: sql_table
+      student_id: stu123
+      class_id: class123
+  }
+}
+s2.r.student_id -> s1.s.id
+s3.r.student_id -> s1.s.id
 ```
 
-In a **Document Store**, however, we often embed related data to keep records self-contained.
+In a **Document Store**, however, we often embed related data to keep records **self-contained**.
 Instead of splitting into two collections, we can include a list of class IDs directly within the `student` document:
 
 ```d2
@@ -252,37 +286,36 @@ student: {
 }
 ```
 
-This design makes reads more efficient in distributed environments.
+This design makes reads more efficient in distributed environments by ensuring that read requests are directed to a **single server**.
 However, a single value may appear repeatedly across multiple documents,
-meaning that updates must be applied to each occurrence individually—
+meaning that updates must be applied to each occurrence individually,
 an operation that can be both costly and prone to errors.
 
 ### Value-Based Search
 
-Under the hood, many **Document Stores** use storage structures similar to those in SQL databases,
-such as **heaps** and **B-trees**.
-This enables indexing not just on document IDs, but also on arbitrary fields.
+Under the hood, many **Document Stores** use storage structures similar to those in **SQL**,
+such as **Heap** and **B-tree**.
+This enables indexing not just on document ids, but also on arbitrary fields.
 
 For example, consider the following document.
 We can perform fast queries on any indexed field, such as `name` or `gpa`.
 
-```d2
-student: {
-    shape: sql_table
-    id: stu123
-    name: Mike
-    gpa: 8.4
+```json
+{
+  "id": "stu123",
+  "name": "Mike",
+  "gpa": 8.4
 }
 ```
 
-However, there's no magic involved—when querying by a non-key field,
-the system still needs to interact with multiple servers internally, because it does not know in advance where these records are stored.
+Actually, there's no magic involved;
+When querying by a non-key field,
+the system needs to scan multiple servers internally, because it does not know in advance where these records are stored.
 
 ### Use Cases {id="use-cases_doc"}
 
 In a way, a **Document Store** feels like a more flexible,
-schema-relaxed version of {{< term sql >}}—a natural fit in the {{< term nosql >}} world.
-
+schema-relaxed version of {{< term sql >}}.
 **Document Stores** are particularly effective when:
 
 - Records have complex and variable structures, such as product catalogs with diverse attributes.
@@ -305,7 +338,7 @@ student3, John, 2.5
 This format is ideal for scenarios where most or all columns of a row are frequently accessed together.
 
 However, it's inefficient for analytical queries that require only a subset of columns.
-For example, calculating the average `GPA` involves reading entire rows into memory,
+For example, calculating the `average GPA` involves reading entire rows into memory,
 even though we only need the third column.
 This results in excessive I/O and wasted memory due to unnecessary data loading.
 
@@ -325,18 +358,18 @@ Steve, Mike, John
 ```
 
 Each column is stored as a contiguous block of values.
-So, when calculating the average `GPA`, the database only reads the third block—
+So, when calculating the `average GPA`, the database only reads the third block,
 skipping irrelevant data and reducing I/O overhead and memory usage.
 
 ### Use Cases {id="cs-use-cases"}
 
 **Column-Oriented Stores** are well-suited for **analytical workloads**,
-particularly those in the **OLAP**
-([Online Analytical Processing](https://en.wikipedia.org/wiki/Online_analytical_processing)) domain.
-These workloads typically involve reading a few columns across a large number of rows—perfect for columnar optimization.
+particularly those in the [Online Analytical Processing (OLAP)](https://en.wikipedia.org/wiki/Online_analytical_processing) domain.
+These workloads typically involve reading a few columns across a large number of rows,
+perfect for columnar optimization.
 
-However, this design is not ideal for **OLTP** ([Online Transaction Processing](https://en.wikipedia.org/wiki/Online_transaction_processing)) use cases, where full row access is frequent.
-
+However, this design is not ideal for [Online Transaction Processing (OLTP)](https://en.wikipedia.org/wiki/Online_transaction_processing) use cases,
+where full row access is frequent.
 For example, updating a single record in a table with 100 columns might require
 100 separate I/O operations, since each column is stored in a different location.
 
@@ -347,19 +380,21 @@ Due to this overhead, column stores generally:
 
 ## Column-Family Store
 
-A **Column-Family (CF)** store organizes data by grouping related columns together. Each data row is represented as a set of columns—called a **column family**—rather than adhering to a fixed table-wide schema.
+A **Column-Family (CF)** store organizes data by grouping related columns together.
+Each data row is represented as a set of columns, called a **column family**.
 
 Let’s clarify the concept with a comparison.
 
 In {{< term sql >}}, data is stored row-by-row according to a strict schema.
-To access the `GPA` of a student, we need to refer to the value at the third column within the row:
+To access the `GPA` of a student, we need to refer to the value at the **third column** within the row:
 
 ```md
 student1, Steve, 3.5, England
 student2, NULL, 3, Vietnam
 ```
 
-In contrast, a **Column-Family Store** treats each row as a flexible map of key-value pairs. Fields (column names) are explicitly stored with each row:
+In contrast, a **Column-Family Store** treats each row as a flexible map of key-value pairs.
+Column names are explicitly stored with each row:
 
 ```yaml
 row-1:
@@ -377,7 +412,7 @@ row-2:
 
 ### Benefits of Column Families
 
-- **No NULLs**: We store only what's needed—no placeholders or empty values.
+- **No NULLs**: There is no need to store **NULL** values.
 - **Schema Flexibility**: Adding or removing columns affects only the relevant rows, not the whole table.
 
 ### Log-Structured Merge Trees (LSM)
@@ -419,10 +454,9 @@ c -> s.m: 1. Update in memory
 s.m -> s.wal: 2. Log the operation
 ```
 
-
 #### Storage Layer
 
-In the storage layer, **LSM** structures data into multiple **levels**:
+In the storage layer, *LSM** structures data into multiple **levels**:
 
 - Each level consists of several immutable **Sorted String Tables (SSTables)**.
 - An **SSTable** stores sorted key-value pairs, allowing [fast binary search](https://en.wikipedia.org/wiki/Binary_search) for efficient lookups.
@@ -465,7 +499,7 @@ s: Store {
 
 In the background,
 **periodic compaction** is performed, pushing data down to deeper levels.
-This design enables extremely fast writes—
+This design enables extremely fast writes,
 updates are first written to the memory layer, then flushed and reorganized asynchronously in the storage layer.
 
 Let’s walk through an example to understand how this process works in practice:
@@ -582,7 +616,7 @@ s: Store {
           "c=50"
           "d=70"
         }
-        m: "Merge SSTable" {
+        m: "Merged SSTable" {
           "a=110"
           "b=2000"
           "c=50"
@@ -615,7 +649,7 @@ s: Store {
 
 {{% /steps %}}
 
-##### Why do we need levelling?
+**Why do we need levelling?**
 
 Each level holds increasingly larger and older data sets.
 By prioritizing searches in shallower levels, **LSM** achieves cache-like behavior,
@@ -660,8 +694,8 @@ However, they’re not ideal for:
 ## Search Engine
 
 We now arrive at the final type of data store in this discussion: the **Search Engine**.
-
-As its name implies, a **Search Engine** is purpose-built to support search operations—especially **text-based searches**—at scale and with speed.
+As its name implies, a **Search Engine** is purpose-built to support search operations,
+especially **text-based searches**.
 
 ### Inverted Index
 
@@ -690,7 +724,6 @@ This reversal is especially powerful for text search, as it allows us to quickly
 ### Full-Text Search
 
 In a conventional database, search operations are performed against raw fields as inserted.
-This approach is inefficient for rich search capabilities.
 
 Take the example of an inverted index of books:
 
@@ -702,11 +735,11 @@ fromTitleToIds:
 
 To search books by title,
 we'd need to scan through all the title indices with a basic matching tools
-like SQL's **LIKE**—which is inefficient.
+like SQL's **LIKE**, which is inefficient.
 
 #### Full-Text Store
 
-To enable fine-grained search, search engines **tokenize** text fields into individual **terms**,
+To enable fine-grained search, search engines tokenize text fields into individual **terms**,
 indexing each one separately.
 These terms and their mappings form the **Full-text Store**, a type of inverted index.
 
@@ -759,8 +792,8 @@ no scanning required.
 
 ### Text Analysis
 
-Text must be **analyzed** before it becomes searchable.
-The analyzer splits and processes text into consistent, searchable terms.
+**Search Engine** has a component called **Analyzer**
+splitting and processing text into consistent, searchable terms.
 
 #### Insertion Analysis
 
@@ -779,7 +812,8 @@ t: Terms {
 a: Analyzer {
   class: process
 }
-o -> a -> t
+o -> a: Insert
+a -> t
 ```
 
 `Little Prince` becomes `[little, prince]`, ready for indexing.
@@ -789,7 +823,7 @@ o -> a -> t
 The same analyzer is applied to search queries to ensure consistency.
 
 For example, if a user searches for `litTLe`, which may not exactly match the version stored in the index,
-the analyzer processes both the query and the stored data in the same way, producing a consistent value.
+the analyzer needs to process both the query and the stored data in the same way, producing a consistent value.
 
 ```d2
 direction: right
@@ -798,14 +832,13 @@ t: "little"
 a: Analyzer {
   class: process
 }
-o -> a -> t
+o -> a: Search
+a -> t
 ```
 
 **Search Engine** can also use advanced analyzers to handle synonyms, stemming, or multiple languages, further enriching the search experience.
 
 ### Use Cases {id="use-case-se"}
-
-#### Search Engine as a Complementary Store
 
 Search engines are typically **not** used as the primary database. Reasons include:
 
@@ -817,7 +850,7 @@ optimized for querying, layered on top of primary databases like {{< term sql >}
 
 ```d2
 direction: right
-main: "Main Database" {
+main: "Primary Database" {
   class: db
 }
 s: "Search Engine" {
@@ -833,7 +866,7 @@ enabling full-text search without compromising the performance or integrity of t
 
 ## Other NoSQL Databases
 
-Beyond the stores we’ve covered, there are still many other types of **NoSQL databases**—
+Beyond the stores we’ve covered, there are still many other types of **NoSQL databases**,
 such as **Graph**, **Time Series**, and more.
 
 While we won’t explore all of them here, here’s a useful framework you can use when learning a new type of database:

@@ -60,7 +60,7 @@ params:
       dark: images/logo-dark.svg
       # width: 40
       # height: 20
-      link: /docs
+      link: /docs/introduction
     width: wide
 
   page:
@@ -99,7 +99,7 @@ params:
       display: hover
 
   comments:
-    enable: false
+    enable: true
     type: giscus
 
     # https://giscus.app/

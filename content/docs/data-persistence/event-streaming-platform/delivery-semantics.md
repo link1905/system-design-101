@@ -1,6 +1,8 @@
 ---
 title: Delivery Semantics
 weight: 10
+prev: event-streaming-platform
+next: system-administration
 ---
 
 Numerous challenges arise when committing changes to both {{< term esp >}}
@@ -22,7 +24,7 @@ e: Partition {
   class: mq
 }
 c <- e: Pull an event
-c -> d: Make changes
+c -> d: Make and commit changes
 c -> c: Crash and cannot commit offset {
   class: error-conn
 }
@@ -36,7 +38,7 @@ c <- e: Pull and process the event again {
 ```
 
 **Delivery semantics** define the guarantees provided for event delivery during production and consumption.
-There are three main types, each offering different trade-offs between latency, durability, and reliability.
+There are three main types, each offering different trade-offs between latency, durability and reliability.
 
 ## At-most-once Delivery
 
@@ -83,7 +85,7 @@ p -> q: Produce an event
 q -> p: Respond but the producer cannot receive {
   class: error-conn
 }
-p -> q: Continue without retry {
+p -> p: Continue without retry {
   style.bold: true
 }
 ```
@@ -102,8 +104,7 @@ c: Consumer {
 q: Partition {
     class: mq
 }
-c -> q: Consume
-q -> c: Return an event
+c <- q: Consume an event
 c -> c: Handle the event
 c -> c: Crash and fail to commit offset {
   class: error-conn
@@ -112,12 +113,13 @@ c -- q {
   style.stroke-dash: 3
 }
 c -> c: Recover
-c -> q: Consume the event again {
+c <- q: Consume the event again {
   class: error-conn
 }
 ```
 
-Thus, events must be committed **before** they are processed.
+Therefore, events must be committed **before** they are processed.
+As a result, if the consumer fails to process an event, it will not attempt to consume that event again.
 
 ```d2
 shape: sequence_diagram
@@ -127,8 +129,7 @@ c: Consumer {
 q: Partition {
     class: mq
 }
-c -> q: Consume
-q -> c: Return an event
+c <- q: Consume an event
 c -> q: Commit offset immediately {
     style.bold: true
 }
@@ -145,7 +146,7 @@ This model guarantees that every event is delivered **at least once**, possibly 
 ### Producer {id="prod_alo"}
 
 The **producer** uses **ACK=1 or ALL** and enables retries on failure to ensure event persistence.
-However, enabling retries can lead to duplicate events.
+Clearly, enabling retries can lead to duplicate events.
 
 ```d2
 shape: sequence_diagram
@@ -159,6 +160,7 @@ p -> q: Produce an event
 q -> p: Respond but the producer cannot receive {
     class: error-conn
 }
+p -> p: Timeout
 p --> q: Retry to produce the event (duplicated) {
   style.bold: true
 }
@@ -176,7 +178,7 @@ c: Consumer {
 e: Partition {
     class: mq
 }
-c <- e: Pull an event
+c <- e: Consume an event
 c -> c: Process the event
 c -> e: Commit offset
 ```
@@ -191,7 +193,7 @@ c: Consumer {
 e: Partition {
     class: mq
 }
-c <- e: Pull an event
+c <- e: Consume an event
 c -> c: Process the event
 c -> c: Crash and cannot commit offset {
     class: error-conn
@@ -200,7 +202,7 @@ c -- e {
   style.stroke-dash: 3
 }
 c -> c: Recover
-c <- e: Pull the event again {
+c <- e: Consume the event again {
     style.bold: true
 }
 ```
@@ -265,6 +267,7 @@ sp {
 sp -> p: Fail to receive the acknowledgement {
   class: error-conn
 }
+p -> p: Timeout
 p -> sp: Retry to produce the event (seq = 1)
 sp -> p: Ignore (producer seq = 2 > event seq = 1) {
   style.bold: true
@@ -279,7 +282,7 @@ p {
 {{< term esp >}} cannot tell whether a consumer has processed an event or not.
 To achieve exactly-once semantics, we must introduce one of the following approaches:
 
-#### 1. Consume–Process–Produce Pipeline
+#### Consume–Process–Produce Pipeline
 
 If the event is simply transformed into another event (with no external side effects), {{< term esp >}} can manage this flow.
 
@@ -333,11 +336,11 @@ c -> q: 5. Commit the transaction {
 ```
 
 This guarantees the transformation process won't produce duplicates.
-However, it only applies to stateless processing with no external side effects.
+However, it only applies to stateless processing with **no external side effects**.
 
-#### 2. Two-phase Commit
+#### Two-phase Commit
 
-To synchronize multiple systems, we can use [{{< term 2pc >}}]({{< ref "low-level-protocols#two-phase-commit-2pc" >}}):
+To synchronize multiple systems, we can use [{{< term 2pc >}}]({{< ref "blocking-protocols#two-phase-commit-2pc" >}}):
 
 ```d2
 shape: sequence_diagram
@@ -369,9 +372,9 @@ c -> q: COMMIT {
 ```
 
 However, {{< term 2pc >}} introduces the risk of infinite blocking and is not always supported.
-This is discussed further in [this topic]({{< ref "low-level-protocols#two-phase-commit-2pc" >}}).
+This is discussed further in [this topic]({{< ref "blocking-protocols#two-phase-commit-2pc" >}}).
 
-#### 3. Event Idempotency
+#### Event Idempotency
 
 This approach requires each event to carry a **unique identifier**.
 Consumers then check for this ID before processing.
@@ -380,16 +383,16 @@ For example, a consumer verifies whether an event has already been processed bef
 
 ```d2
 shape: sequence_diagram
+d: External Store {
+    class: db
+}
 c: Consumer {
     class: client
 }
 q: Event Streaming {
     class: mq
 }
-d: External Store {
-    class: db
-}
-q -> c: Pull "event-1"
+q -> c: Consume "event-1"
 c -> d: Handle and save "event-1" {
     style.bold: true
 }
@@ -399,20 +402,19 @@ c -- c: The consumer crashes, offset not committed {
 c -> c: Recover {
     style.bold: true
 }
-q -> c: Pull "event-1" again
+q -> c: Consume "event-1" again
 c -> d: Check and find "event-1" already stored
 c -> q: Commit the event {
     style.bold: true
 }
 ```
 
-This approach is often preferred over {{< term 2pc >}} due to its simplicity and better fault tolerance.
-It is commonly used in combination with the [Saga]({{< ref "compensating-protocols" >}})
+This approach is usually preferred over {{< term 2pc >}} due to its simplicity and better fault tolerance.
+It is commonly used in combination with the [Saga]({{< ref "compensation-protocols#saga" >}})
 pattern to manage long-running, distributed operations.
 
-However, this method does not provide **atomicity** across the system,
+However, this method does not provide strong consistency across the system,
 there can be consistency drift between the streaming platform and the external data store.
 We’ll explore this limitation in more detail in the [Distributed Transaction]({{< ref "distributed-transaction" >}}) topic.
 
-Ultimately, **exactly-once** delivery is difficult to guarantee when external systems are involved.
-It requires additional mechanisms and is best suited for **mission-critical systems** where both data loss and duplication are unacceptable (e.g., banking platforms).
+Ultimately, **exactly-once** delivery requires additional mechanisms and is best suited for **mission-critical systems** where both data loss and duplication are unacceptable (e.g., banking platforms).

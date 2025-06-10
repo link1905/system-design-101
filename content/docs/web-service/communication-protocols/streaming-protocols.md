@@ -1,9 +1,13 @@
 ---
 title: Streaming Protocols
 weight: 20
+prev: communication-protocols
+next: load-balancer
 ---
-We've highlighted the most popular protocols in the [previous topic](../).
-While those are versatile and suitable for various use cases, they aren't particularly optimized for streaming media data — large, continuous streams like video or audio. Given the increasing importance of media streaming today, let’s take a brief look at some protocols better suited for this purpose.
+
+We've highlighted the most popular protocols in the [previous topic]({{< ref "communication-protocols" >}}).
+While those are versatile and suitable for various use cases, they aren't particularly optimized for streaming media data like video or audio.
+Given the increasing importance of media streaming today, let’s take a brief look at some protocols better suited for this purpose.
 
 ## WebRTC
 
@@ -83,7 +87,7 @@ s -> c1: "1.2.3.4:80" {
 ```
 
 Why not rely solely on the router’s address?
-Because the nearest router might not be a public-facing one — sometimes it only serves a local network.
+Because the nearest router might not be a public-facing one, sometimes it only serves a local network.
 
 By using a **STUN** server,
 clients can discover their public addresses and attempt to establish direct connections.
@@ -95,11 +99,11 @@ shape: sequence_diagram
 c1: "Client 1"{
     class: client
 }
-c2: "Client 2"{
-    class: client
-}
 s: "STUN Server" {
     class: server
+}
+c2: "Client 2"{
+    class: client
 }
 c1 <- s: "Address = 1.2.3.4:80"
 c2 <- s: "Address = 4.5.6.7:90"
@@ -141,13 +145,12 @@ c1 -> c2: "Reject because 4.5.6.7:90 is strange" {
 }
 ```
 
-A **TURN** (Traversal Using Relays around NAT) server helps in these cases by acting as a relay server between clients.
+A **TURN** (Traversal Using Relays around NAT) server helps in these cases by acting as a **relay server** between clients.
 
-For example, `Client 2` connects to a **TURN** server,
-becoming a recognized destination, and then `Client 1` can send messages through the server.
+For example, `Client 1` and `Client 2` can both connect to a **TURN** (Traversal Using Relays around NAT) server.
+This establishes the TURN server as a recognized intermediary, allowing them to indirectly exchange messages by relaying them through it.
 
 ```d2
-
 shape: sequence_diagram
 c1: "Client 1"{
     class: client
@@ -158,9 +161,9 @@ s: "TURN Server" {
 c2: "Client 2"{
     class: client
 }
+c1 -> s: Connect
 c2 -> s: Connect
-c1 -> s: "Send message"
-s -> c2: Forward messages fluently as this is a familiar address
+c1 <-> c2
 ```
 
 ### Interactive Connectivity Establishment (ICE)
@@ -168,7 +171,7 @@ s -> c2: Forward messages fluently as this is a familiar address
 **Interactive Connectivity Establishment (ICE)**
 is responsible for identifying **potential pathways** for peer-to-peer connections.
 
-Both clients (let’s call them `A` and `B`) gather possible ways to connect. These are called **ICE candidates** and usually include:
+Both clients (let’s call them `A` and `B`) gather possible ways to let the other connect. These are called **ICE candidates** and usually include:
 
 1. The local address
 
@@ -190,7 +193,8 @@ ICE B:
 
 ### Signaling
 
-Finally, they will exchange their **ICE candidates** through **signaling** — a separate mechanism not handled by {{< term webrtc >}} itself.
+Finally, they will exchange their **ICE candidates** through **signaling**,
+which is a separate mechanism not handled by {{< term webrtc >}} itself.
 
 - This could be a lightweight {{< term ws >}} server.
 
@@ -227,16 +231,15 @@ That said, it’s best suited for one-to-one scenarios. In complex applications,
 
 ## HTTP Live Streaming (HLS)
 
-{{< term hls >}} (HTTP Live Streaming) is a media streaming protocol developed by `Apple`
+{{< term hls >}} is a media streaming protocol developed by **Apple**
 that delivers video and audio content effectively.
 Unlike protocols such as {{< term ws >}}, which depend on a central,
-continuous live server, {{< term hls >}} offers a resilient, distributed system.
+continuous live server, {{< term hls >}} offers a resilient and distributed system.
 
 It works through **segmentation**, splitting audio or video into small, independent segments (files), usually a few seconds long.
 
-- These segments are stored independently (typically an [Object Store]({{< ref "media-storage#object-storage" >}})),
-potentially different servers.
-- A **Master Record** (e.g., a {{< term sql >}} row) manages and indexes these segments.
+- These segments are stored independently, potentially different servers.
+- **Master Record** (e.g., a {{< term sql >}} row) manages and indexes these segments.
 
 ```d2
 grid-rows: 2
@@ -276,5 +279,6 @@ m.s3 -> s.s2.s3
 
 To play a video, the user first **fetches the master record**.
 When seeking a specific moment, only the necessary segments are downloaded.
+
 For example, to watch the `11th` second, only `Segment_2.mp4` would be retrieved.
 In fact, to maintain a smooth experience, several sequential segments are usually preloaded in advance.

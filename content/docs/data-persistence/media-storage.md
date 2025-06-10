@@ -1,9 +1,10 @@
 ---
 title: Media Storage
 weight: 40
+next: event-streaming-platform
 ---
 
-Media data (videos, images, documents, etc.) consists of unstructured binary content.
+Media data (videos, images, etc.) consists of unstructured binary content.
 Storing such data in a traditional database is not ideal.
 Instead, it should be read and stored directly via a standard file system interface.
 
@@ -71,13 +72,15 @@ p -> r2 {
 }
 ```
 
-However, this setup resembles the [Master-Slave model]({{< ref "master-slave-architecture" >}}), where the primary server becomes a single point of failure, reducing overall service availability.
+However, this setup resembles the [Master-Slave model]({{< ref "master-slave-architecture" >}}), where the primary server becomes a single point of failure, reducing overall service availability and write performance.
 
 ## Object Storage
 
 Although a relatively new technology, **Object Storage** has been rapidly gaining popularity.
 
-The key advantage of Object Storage lies in its **distributed architecture**. Files, now referred to as **objects**, are independent and autonomously distributed across multiple servers. This results in a highly available and fault-tolerant system.
+The key advantage of Object Storage lies in its **distributed architecture**.
+Files, now referred to as **objects**, are independent and autonomously distributed across multiple servers.
+This results in a highly available and fault-tolerant system.
 
 Let’s explore how Object Storage is implemented in practice.
 
@@ -86,8 +89,25 @@ Let’s explore how Object Storage is implemented in practice.
 As discussed in the [Peer-to-peer architecture]({{< ref "peer-to-peer-architecture" >}}),
 we aim to distribute objects across multiple servers.
 This allows concurrent writes and improves scalability.
-Additionally, each server maintains replicas to increase fault tolerance.
 
+```d2
+direction: right
+grid-rows: 1
+s1: Server 1 {
+  grid-rows: 2
+  f1: "img.png" {
+    class: file
+  }
+}
+s2: Server 2 {
+  grid-rows: 2
+  f1: "doc.md" {
+    class: file
+  }
+}
+```
+
+Additionally, each server maintains replicas to increase fault tolerance.
 For example, two servers continuously replicate data to one another.
 
 ```d2
@@ -122,29 +142,29 @@ s2.f1 -> s1.f2 {
 #### Object Naming
 
 This distributed model complicates how we interact with objects.
-Traditionally, we access files using a hierarchical path structure like `Team/Docs/doc.md`.
+Traditionally, we access files using a hierarchical path structure like `/Team/Docs/doc.md`.
 Without a centralized file system, there’s no inherent relationship between objects (e.g., directories or siblings).
 
 To simulate the familiar file system structure, **Object Storage** systems often include the **full path** in the object’s key, for example:
 
 ```d2
 s1: Server 1 {
-  "Users/Image/img.png": {
+  "/Users/Image/img.png": {
     class: file
   }
-  "Team/Docs/doc.md": {
+  "/Team/Docs/doc.md": {
     class: file
   }
 }
 s2: Server 2 {
-  "Team/Docs/README.md": {
+  "/Team/Docs/README.md": {
     class: file
   }
 }
 ```
 
 This is merely a naming convention.
-Operations like _listing files in a folder_ still require scanning across multiple servers.
+Operations like *listing files in a folder* still require scanning across multiple servers.
 
 ### Chunking
 
@@ -165,12 +185,10 @@ s2: Server 2 {
 }
 ```
 
-To address this, we can divide objects into fixed-size units called **chunks**.
-Chunking not only balances resource usage but also allows parallel read/write operations across servers.
-
 #### Object Chunking
 
-The most straightforward chunking strategy is to divide objects into equal-sized parts.
+To address this, we can divide objects into fixed-size units called **chunks**.
+Chunking not only balances resource usage but also allows parallel read/write operations across servers.
 
 For instance, if the configured chunk size is `100MB`,
 a `200MB` object will be split into two chunks, which can be stored on different servers:
@@ -222,7 +240,7 @@ f -> o.s4
 ```
 
 - On the other hand, using large chunk sizes reduces the number of chunks
-  but can create resource imbalances—small objects may be underutilized or ignored.
+  but can create resource imbalances, small objects may be underutilized or ignored.
   For example, objects smaller than the chunk size are inefficiently stored on the same server.
 
 ```d2
@@ -300,7 +318,7 @@ f.f3 -> o.s2
 ```
 
 In practice, chunks are filled by appending object data until the chunk reaches capacity.
-This method is common in modern **Object Storage** systems and will be used in the following sections.
+This method is common in modern **Object Storage** solutions and will be used in the following sections.
 
 ### Erasure Coding
 
@@ -326,12 +344,11 @@ This basic replication results in **2x storage overhead**.
 
 [**Erasure Coding (EC)**](https://en.wikipedia.org/wiki/Erasure_code) offers a more storage-efficient alternative.
 
-For example, with 2 data chunks, we can mathematically generate 1 parity block using an encoding function. Conceptually, think of it as:
+For example, with 2 data chunks, we can mathematically generate 1 parity block. Conceptually, think of it as:
 `parity = chunk_1 + chunk_2`
 
 {{< callout type="info">}}
-Here, the parity block is created by combining the two data chunks using a specific encoding operation (often XOR or addition),
-enabling data recovery if one chunk is lost.
+Here, the parity block is created by combining the two data chunks using a specific encoding operation (often XOR or addition).
 {{< /callout >}}
 
 ```d2
@@ -409,23 +426,24 @@ d.s2.c1 -> r.s4.c2
 
 **Erasure Coding** typically uses a parity-to-data ratio of **1:2**,
 reducing storage overhead by roughly half compared to full replication.
-However, **Erasure Coding** introduces additional write latency and increases the consumption of computing resources,
+However, **Erasure Coding** introduces additional write latency,
 primarily due to the extra encoding and decoding operations required.
 
 ### Metadata Server
 
-Let's move to the final aspect of this section.
+Let's move to the final aspect.
 In the [Distributed Database]({{< ref "distributed-database" >}}) topic,
-we routed a record to its owning server using a unique key.
+we routed a record to its owning server using a **unique key**.
+
 However, in **Object Storage**, the situation is more complex.
 Object keys (or paths) are no longer central, as objects are bundled into system-managed chunks.
 
-To manage an **Object Storage** cluster effectively,
-we must introduce a dedicated **Metadata Server** in addition to the actual storage servers.
+To manage an Object Storage cluster effectively,
+we need to introduce a dedicated **Metadata Server** in addition to the actual storage servers.
 This server is responsible for tracking where each object resides based on its key.
+
 It can be implemented as a simple **Key-value store**, mapping keys to metadata like:
 `key -> [(server, chunk, position within chunk, size within chunk)]`.
-
 For example, a file is mapped on the **Metadata Server** to its actual storage locations.
 
 ```d2
@@ -470,9 +488,9 @@ Object Storage {
 ## CDN (Content Delivery Network)
 
 {{< term cdn >}} plays a crucial role in delivering media content efficiently.
-In essence, a {{< term cdn >}} is composed of two main components:
+In essence, a {{< term cdn >}} is composed of two main components: **Caching Layer** and **Backbone Network**.
 
-### 1. Caching Layer
+### Caching Layer
 
 A {{< term cdn >}} functions as a [read-through caching layer]({{< ref "caching-patterns#cache-aside-cache" >}})
 positioned in front of data sources.
@@ -503,7 +521,7 @@ cdn -> c: 6. Respond the cached data immediately {
 }
 ```
 
-### 2. Backbone Network
+### Backbone Network
 
 Typically, data is transferred over the public internet.
 However, long distances between endpoints result in many network hops and increased latency.
@@ -537,7 +555,7 @@ cdn.s1 -> cdn.s2: Forward {
 
 {{< callout type="info" >}}
 Major CDN providers like **AWS** and **Cloudflare** operate their own backbone networks.
-Some large tech companies (e.g., Facebook, Netflix) even build
+Some large tech companies (e.g., **Facebook**, **Netflix*even build
 proprietary networks to optimize performance and reduce costs.
 {{< /callout >}}
 
@@ -581,8 +599,8 @@ c -> o: Query a nearby replica
 ### Edge Computing
 
 **Edge Computing** is a distributed computing model that builds upon the CDN's **Backbone Network**.
-The key idea is to **preprocess** data at the closest possible server (the **Edge Server**)
-before sending it to the main server (the **Origin Server**).
+The key idea is to **preprocess** data at the closest possible server (**Edge Server**)
+before sending it to the main server (**Origin Server**).
 
 This preprocessing can include operations like compression, filtering, or aggregation.
 

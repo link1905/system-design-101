@@ -1,9 +1,10 @@
 ---
 title: Gossip Protocol
 weight: 10
+prev: peer-to-peer-architecture
 ---
 
-We'll explore the first approach to maintaining a {{< term p2p >}} cluster—{{< term gosProto >}}.
+We'll explore the first approach to maintaining a peer-to-peer cluster - {{< term gosProto >}}.
 
 ## Eager Reliable Broadcast Protocol
 
@@ -67,7 +68,7 @@ c: Cluster {
 ```
 
 This protocol follows an **eager delivery** model, where messages are immediately sent to all peers upon generation.
-While effective, this approach becomes inefficient as the number of peers grows—
+While effective, this approach becomes inefficient as the number of peers grows,
 it consumes substantial bandwidth and system resources due to redundant message exchanges.
 
 To address these inefficiencies, the {{< term gosProto >}} was introduced,
@@ -352,10 +353,10 @@ cl: Cluster {
 
 ### Forwarding
 
-With [consistent hashing](../../../#consistent-hashing) and shared metadata, any node can act as an interface:
+With [consistent hashing]({{< ref "peer-to-peer-architecture#consistent-hashing" >}}) and shared metadata, any node can act as an interface:
 
 - Serving read requests directly or forwarding them to respective replicas.
-- Routing write requests to the appropriate node.
+- Routing write requests to the owner node.
 
 ```d2
 grid-rows: 2
@@ -382,7 +383,7 @@ c.n1 -> c.n2: "3. Forward"
 Periodically, each node selects random peers and shares its current state (e.g., heartbeat),
 progressively spreading updates throughout the cluster.
 
-For example, at time `3`, `A` gossips its state. `B` receives it and forwards it to `C`.
+For example, at time `3`, `A` gossips its state. `B` receives it and transmits to `C`.
 
 ```d2
 grid-rows: 2
@@ -421,7 +422,7 @@ c: "Cluster (00:03)" {
     |||
   }
 }
-c3: "Cluster (A gossips)" {
+c3: "Cluster (A gossips at 00:03)" {
   grid-rows: 1
   horizontal-gap: 100
   a: A {
@@ -463,11 +464,11 @@ c3: "Cluster (A gossips)" {
 }
 ```
 
-Later, `B` also gossips its state to others.
+Later, `B` also gossips its state to random nodes.
 
 ```d2
 grid-rows: 2
-c4: "Cluster (B gossips)" {
+c4: "Cluster (B gossips at 00:03)" {
   grid-rows: 1
   horizontal-gap: 100
   a: A {
@@ -523,7 +524,7 @@ c: "Cluster (HeartbeatLifetime = 3, Time = 5)" {
       State: UP
       Heartbeat: 3
     C:
-      State: UP
+      State: DOWN
       Heartbeat: 1 (Expired)
     |||
   }
@@ -533,7 +534,7 @@ c: "Cluster (HeartbeatLifetime = 3, Time = 5)" {
       State: UP
       Heartbeat: 3
     C:
-      State: UP
+      State: DOWN
       Heartbeat: 1 (Expired)
     |||
   }
@@ -548,7 +549,7 @@ c: "Cluster (HeartbeatLifetime = 3, Time = 5)" {
 ### Temporary Promotion
 
 When a node is deemed unreachable, the detector stops forwarding data to it and switches to a replica.
-Once the original node recovers, it synchronizes with the replica to restore consistency.
+Once the original node recovers, it synchronizes with the replica to restore data.
 
 ```d2
 grid-columns: 2
@@ -591,7 +592,7 @@ r: Recovery {
 
 This architecture emphasizes **Availability over Consistency (AP)**.
 During network partitions, replicas can be promoted to serve writes temporarily.
-However, once partitions heal, conflict resolution becomes necessary.
+However, once partitions heal, **conflict resolution** becomes necessary.
 
 Two effective approaches to conflict resolution are:
 
@@ -632,7 +633,6 @@ This strategy relies on **clock synchronization**. If clocks are skewed, incorre
 
 A more robust alternative, **Vector Clocks**, avoids dependency on synchronized clocks.
 Instead, each record tracks a version vector in the format `[(Server, Version)]`.
-This allows servers to detect conflicting updates.
 
 For example, a record initially receives its version number from its owner shard.
 Other servers then replicate the record from the owner, preserving this version for consistency.
@@ -724,7 +724,7 @@ c: Cluster {
 cs.c1 -> c.p1: "SET Name = John Doe" {
   style.bold: true
 }
-cs.c2 -> c.p3: "SET Name = Wick" {
+cs.c2 -> c.p3: "SET Name = John Wick" {
   style.bold: true
 }
 ```
@@ -732,7 +732,7 @@ cs.c2 -> c.p3: "SET Name = Wick" {
 A conflict is identified when vectors cannot be merged deterministically:
 
 - `[(Peer 1, 4)]` is a clear successor of `[(Peer 1, 3)]`.
-- But `[(Peer 1, 4)]` and `[(Peer 1, 3), (Peer 3, 1)]` are concurrent and conflict.
+- But `[(Peer 1, 4)]` and `[(Peer 1, 3), (Peer 3, 1)]` clearly conflict.
 
 The system maintains both versions:
 

@@ -7,19 +7,19 @@ We will now explore **Identity and Access Management (IAM)**, a fundamental and 
 
 ## Identity
 
-### Temporary Credentials
-
 When a user seeks to access a system,
 they must first **authenticate** by providing valid credentials,
 such as passwords or secret keys.
-This verification process establishes the user's **Identity**.
+This verification process establishes the user's **identity**.
+
+### Temporary Credentials
 
 While it is technically feasible to store and reuse a user's permanent credentials locally on the frontend layer to avoid repetitive input,
 this approach introduces significant security vulnerabilities.
 If a user's device is compromised or stolen,
 these stored credentials could be directly exploited by an attacker, granting unauthorized access.
 
-To mitigate this risk, a more secure practice is to issue and utilize **short-lived temporary credentials**
+To mitigate this risk, a more secure practice is to issue and utilize **short-lived credentials**
 instead of persistently storing the user's primary secrets.
 These temporary credentials are valid only for a limited duration.
 Consequently, even if such a credential were intercepted or stolen,
@@ -28,10 +28,10 @@ significantly limiting the window of opportunity for an attacker.
 
 ### User Session
 
-One of the most straightforward approaches to implementing an identity system is through the use of **User Sessions**.
+One of the most straightforward approaches to implementing temporary credentials is through the use of **User Sessions**.
 
 Following successful user authentication (sign-in with username and password),
-the `Identity Service` generates a temporary session identifier (session code) and returns it to the client.
+the `Identity Service` generates a temporary session code and returns it to the client.
 
 ```d2
 shape: sequence_diagram
@@ -39,9 +39,6 @@ c: Client {
   class: client
 }
 s: Identity Service {
-  class: server
-}
-b: Business Service {
   class: server
 }
 c -> s: Sign in with <username, password>
@@ -59,18 +56,17 @@ shape: sequence_diagram
 c: Client {
   class: client
 }
-s: Identity Service {
-  class: server
-}
 b: Business Service {
   class: server
 }
-
+s: Identity Service {
+  class: server
+}
 c -> b: Request with the code
 b -> s: Verify the code
 ```
 
-This design reveals a potential drawback:
+This design reveals a big drawback:
 the `Identity Service` effectively acts as a {{< term spof >}}.
 Its availability and performance are critical, as all other services depend on it for session validation.
 
@@ -78,8 +74,7 @@ Its availability and performance are critical, as all other services depend on i
 particularly where session management is tightly coupled with business logic and handled locally within the service instance.
 
 A typical application of this can be found in certain gaming systems.
-Here, individual game service instances often manage and validate sessions locally.
-In such cases, a specific session code is typically valid only within the instance that issued or currently manages it,
+A specific session code is typically valid only within the instance that issued or currently manages it,
 rather than being universally valid across all instances.
 
 ```d2
@@ -101,11 +96,11 @@ s: Game Service {
 
 **JSON Web Token (JWT)** is a widely used method for building identity systems.
 
-At its core, a **JWT** is an **immutable** credential that represents secure information about a user or entity.
+At its core, a **JWT** is an **immutable** credential that represents secure information about a user.
 A typical JWT looks like this `eyJhbGc.eyJzdWIiO.cThIIoDv`,
 where the dots separate three encoded sections: **header**, **payload**, and **signature**.
 
-Removing the dots, you get three distinct encoded parts:
+Removing the dots, we get three distinct encoded parts:
 
 ```json
 {
@@ -223,7 +218,7 @@ o -> o: 4. Use the distributed key to validate {
 Distributing the secret key to consumer services is risky because it allows them to independently generate tokens.
 To maintain security, other services should **not** be permitted to create new tokens.
 
-By leveraging [Asymmetric Encryption](Data-Protection.md#asymmetric-encryption),
+By leveraging [Asymmetric Encryption]({{< ref "data-security#asymmetric-encryption" >}}),
 this risk is addressed by separating the key into two distinct parts:
 
 - **Signing (private) key**: Used solely for generating tokens.
@@ -299,8 +294,8 @@ forgoing refresh tokens entirely to maximize security.
 #### Refresh Token
 
 Following a successful user sign-in, the system generates a **long-lived refresh token**.
-This token, potentially valid for an extended duration such as a month, is securely stored by the authentication system.
-Concurrently, the user's client application (e.g., web browser or mobile app) is responsible for securely storing this refresh token locally.
+This token, potentially valid for an extended duration such as a month, is securely stored by the identity system.
+Concurrently, the user's client application (e.g., web browser or mobile app) also store this refresh token locally.
 
 ```d2
 shape: sequence_diagram
@@ -319,7 +314,9 @@ a -> store: Generate and save refresh token {
     style.bold: true
 }
 c <- a: Respond access token + refresh token
-c -> c: Save refresh token locally
+c -> c: Save refresh token locally {
+    style.bold: true
+}
 ```
 
 The primary purpose of the refresh token is to enable users to acquire new access tokens without requiring them to re-authenticate
@@ -350,34 +347,11 @@ The advantages of **Refresh Tokens** include:
 - Eliminates the need for users to repeatedly enter their password, improving usability.
 - Allows for **revocation**: removing a refresh token from the store immediately invalidates it.
 
-It’s important to note this does **not** reintroduce the availability problem of **User Session**.
-The shared storage is used **only** for validating refresh tokens during re-authentication (not for business actions).
-In other words, the availability of business services is unaffected by operations involving refresh token validation.
-
-```d2
-direction: right
-c: Client {
-  class: client
-}
-s: {
-  class: none
-  s: Business Service {
-    class: server
-  }
-  a: Identity Service {
-    class: server
-  }
-}
-c -> s.s: Request with access token
-c -> s.a: Issue/refresh access token
-```
-
-
 ### Federated identity
 
-Identity is a fundamental requirement that often functions similarly across various systems.
+**Identity** is a fundamental requirement that often functions similarly across various systems.
 Instead of developing an identity mechanism from scratch,
-systems can utilize a trusted identity solution.
+systems can utilize a trusted identity service.
 This approach, known as the **Federated Identity Pattern**,
 involves relying on an independent service to handle user identity.
 
@@ -387,7 +361,7 @@ Consider a scenario where a system intends to use an **Identity Provider (IdP)**
 like **Google**, as its login method.
 
 A naive implementation might involve the system acting as an intermediary,
-forwarding user credentials directly to the identity provider.
+forwarding user credentials (email, password) directly to the identity provider.
 
 ```d2
 direction: right
@@ -438,10 +412,10 @@ Let's examine this process in detail.
 
 - When a user chooses to sign in to our system using a third-party platform, such as **Google**.
 
-- The system redirects the user to the identity provider (e.g., **Google**) to sign in.
+- The system redirects the user to the identity provider to sign in.
 
 - Upon successful authentication by the provider, an **ID Token**,
-typically in the [JSON Web Token (JWT)](#json-web-token-jwt) format,
+in the [JSON Web Token (JWT)](#json-web-token-jwt) format,
 is issued and sent back to the user's browser or client application
 
 ```d2
@@ -492,8 +466,7 @@ s -> s: "6. Verify token and extract user information" {
 How does the system verify the token?
 This verification relies on [Asymmetric Encryption](#asymmetric-signature) principles:
 
-- The **identity provider** (e.g., Google)
-securely holds a **private signing key** used to generate new tokens.
+- The **identity provider** securely holds a **private signing key** used to generate new tokens.
 - The provider also distributes a corresponding **public authentication key** to the system,
 enabling it to verify the authenticity of tokens autonomously.
 
@@ -559,8 +532,8 @@ In essence,
 this principle dictates that users should only be granted the **minimum level of access** to perform their designated tasks,
 and no more.
 
-A key tenet of this principle is that **access is denied by default**;
-a user's action is only permitted if explicitly approved by at least one applicable policy.
+A key tenet of this principle is that **access is denied by default**:
+A user's action is only permitted if explicitly approved by at least one applicable policy.
 
 ### Role
 
@@ -629,6 +602,7 @@ While roles simplify permission management,
 relying solely on them can lead to a common issue known as **role explosion**.
 
 Consider a scenario with `Technical` documents shared among `Developers`:
+
 - `Lead Developers` require full access to them.
 - Regular `Developers` can read and write them.
 - `Intern Developers` should only be able to read them.
@@ -750,7 +724,7 @@ s: Application {
 g: GoogleDrive {
   class: google
 }
-u -> s: Request to upload a file from Drive
+u -> s: Upload a file from Drive
 s -> g: Access the file
 ```
 
@@ -763,12 +737,12 @@ These credentials fully represent the user and could be misused to perform **any
 Instead, a more secure approach involves creating **distinct credentials** specifically for the application.
 These credentials are limited to the permissions explicitly granted by the user.
 
-### OAuth2.0
+#### OAuth2.0
 
 **OAuth2.0** is an authorization framework that allows third-party applications
 to access user resources hosted on a service.
 
-#### Basic Flow
+##### Basic Flow
 
 The process typically begins when the application redirects the user to the resource service, such as **Google Drive**.
 Here, the user signs in and **grants specific permissions** to the application.
@@ -807,20 +781,22 @@ g: GoogleDrive {
   class: google
 }
 u -> s: Request
-s -> u: Redirect to GoogleDrive
+s -> g: Redirect to GoogleDrive
 u -> g: Sign in and consent permissions
 g -> u: Respond an access token
 u -> s: Send the token {
   style.bold: true
 }
-s -> g: Access resources with the token
+s -> g: Access resources with the token {
+  style.bold: true
+}
 ```
 
 This outlines the fundamental flow of **OAuth 2.0**.
 However, a potential security concern arises in this simplified model.
 If the access token is sent directly to the frontend (e.g., the user's browser or device),
 but the backend system is the actual entity that needs to access the resource,
-the token becomes vulnerable. It should ideally be obtained and managed securely by the backend system to prevent exploitation.
+the token becomes vulnerable.
 
 ```d2
 shape: sequence_diagram
@@ -845,15 +821,14 @@ u -> s: Send the token
 
 If a user's device is compromised and the comprehensive token is stolen,
 it might seem minor that the limited access token is abused.
-
 However, this is fundamentally an issue of **responsibility**.
 Our system issued the token, and therefore, we are accountable for any actions performed using it.
 Thus, its protection is paramount.
 
-#### Authorization Code Grant
+##### Authorization Code Grant
 
-To mitigate the aforementioned security risk, the OAuth 2.0 framework introduces the concept of authorization code grant.
-Instead of directly sending an access token to the user's browser, the resource service sends back a temporary **Authorization Code**.
+To mitigate the aforementioned security risk, the **OAuth 2.0** framework introduces the concept of authorization code grant.
+Instead of directly sending an access token to the user's browser, the resource service sends back a temporary **authorization code**.
 
 ```d2
 shape: sequence_diagram
@@ -878,7 +853,6 @@ The user then transmits this authorization code to the application (its backend 
 To gain access to the resources,
 the application's backend must first use this code to exchange it for an actual
 **Access Token** directly with the resource service.
-This exchange happens server-to-server, away from the less secure frontend environment.
 
 ```d2
 shape: sequence_diagram
@@ -897,7 +871,7 @@ u -> g: Sign in and consent permissions
 g -> u: Respond an authorization code {
   style.bold: true
 }
-u -> s: Send the code
+u -> s: Send the authorization code
 s -> g: Exchange an access token with the code {
   style.bold: true
 }
@@ -912,14 +886,14 @@ If attackers obtains the authorization code,
 they could potentially still use it to exchange an access token themselves.
 Therefore, this exchange mechanism is most effective when the entity exchanging the code is a **trusted target**.
 
-#### Trusted Target
+##### Trusted Target
 
 To ensure that only the legitimate application can exchange the authorization code for an access token,
 the application must first register itself with the resource service.
 This registration typically involves:
 
 - Assigning a unique **Client ID** to the application.
-- Providing the application with a **Client Secret**, which acts as a password for the application itself, used during the token exchange phase.
+- Providing the application with a **Client Secret**, which acts as a password for the application itself.
 
 ```d2
 g: GoogleDrive {
@@ -948,9 +922,26 @@ a1 -> g: Register
 a2 -> g: Register
 ```
 
-When redirecting the user to the resource service for authorization,
+When redirecting a user to the resource service for authorization,
 the application must include its **Client ID** in the redirection request (e.g., `/auth?client_id=123`).
 This ensures that the resource service issues an authorization code specifically for that application.
+
+```d2
+shape: sequence_diagram
+u: User {
+  class: client
+}
+s: Application 1 {
+  class: server
+}
+g: GoogleDrive {
+  class: google
+}
+u -> s: Request
+s -> g: "Redirect to /auth?client_id=123" {
+  style.bold: true
+}
+```
 
 During the access token exchange,
 the application authenticates itself to the resource service using its **Client ID** and **Client Secret**,
@@ -969,11 +960,13 @@ g: GoogleDrive {
   class: google
 }
 u -> s: Request
-s -> g: "Redirect to /auth?client_id=123"
+s -> g: "Redirect to /auth?client_id=123" {
+  style.bold: true
+}
 u -> g: Sign in and consent permissions
 g -> u: Respond an exchange code
-u -> s: Send the code
-s -> g: Exchange an access token with (authorization code + client ID + client secret) {
+u -> s: Send the authorization code
+s -> g: Exchange an access token with (code + Client ID + Client Secret) {
   style.bold: true
 }
 g -> s: Respond an access token

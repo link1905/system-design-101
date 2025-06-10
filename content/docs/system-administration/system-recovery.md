@@ -1,6 +1,8 @@
 ---
 title: System Recovery
 weight: 40
+prev: system-monitoring
+next: design-patterns
 ---
 
 Distributed systems inevitably face failures like node crashes or network partitions.
@@ -20,8 +22,9 @@ UPDATE 2: B = B + amount  # Not executed
 ```
 
 When the application recovers, how do we correct this incomplete transaction?
+
 - **Backward Recovery**: We undo the first update (`A = A - amount`) to **abort** the transaction and restore the system to its state before the transaction began.
--  **Forward Recovery**: We attempt to execute the second step (`B = B + amount`) to **complete** the transaction.
+- **Forward Recovery**: We attempt to execute the second step (`B = B + amount`) to **complete** the transaction.
 
 **Forward Recovery** can introduce significant management and development overhead,
 as each operation might require a unique recovery strategy.
@@ -31,9 +34,8 @@ A system can recover from many types of faults by reverting to a previously know
 
 ## Write-Ahead Logging (WAL)
 
-The **Write-Ahead Logging (WAL)** approach mandates that **all** operations or changes
-intended for the data are first recorded in a sequential log file **before**
-the changes are applied to the actual data structures.
+The **Write-Ahead Logging (WAL)** approach mandates that **all** changes first recorded in a sequential log file **before**
+they are applied to the actual data structures.
 
 Let's revisit the money transfer.
 Upon recovery, the system would examine the WAL and invalidate the first log entry.
@@ -41,26 +43,24 @@ Upon recovery, the system would examine the WAL and invalidate the first log ent
 ```yaml
 START TRANSACTION:
 UPDATE 1:
-  recored: account A
+  record: account A
   action: SET balance = balance + 100
 SYSTEM DOWN:
-UPDATE 2 (not executed):
-  record: account B
-  action: SET balance = balance - 100
 ```
 
-
 There are two notable benefits of WAL:
-1. **Reliability**:
-Since all updates are logged before they are actually performed on the main data,
-this approach provides a high degree of reliability. If the system crashes, the WAL contains a record of what was intended.
+
+1. **Reliability**: Since all updates are logged before they are actually performed on the main data,
+this approach provides a high degree of reliability. If the system crashes, the WAL contains records of what were intended.
 2. **Point-in-Time Recovery (PITR)**: Based on the log file, the system can replay operations to reconstruct the state of the data up to any specific point in time covered by the logs.
 
 However, WAL also introduces challenges:
+
 1. **Storage Overhead**: A high volume of operations can lead to a very large WAL file,
 as each operation typically generates at least one log entry.
 This can result in high storage consumption.
-2. **Recovery Time**: To retrive data from a WAL file,
+
+2. **Recovery Time**: To retrieve data from a WAL file,
 the system might need to replay a significant number of log entries,
 which can be time-consuming.
 
@@ -73,7 +73,7 @@ a common practice is that when the system receives any change,
 it writes that change to the physical disk (persistent storage) immediately before confirming the operation to the client.
 
 ```d2
-direction: right
+shape: sequence_diagram
 c: Client {
   class: client
 }
@@ -91,7 +91,6 @@ d -> c: Successful
 
 This ensures maximum reliability and durability,
 as the data on disk is always up-to-date with acknowledged changes.
-If the system crashes, no acknowledged data is lost.
 
 However, hard disks are significantly slower than memory.
 Writing to disk for every operation can be complex and slow,
@@ -104,11 +103,11 @@ This can lead to degraded performance, as write operations will take longer to c
 In this model, changes are first written to a fast in-memory buffer,
 and the operation is confirmed to the client quickly.
 These changes are then written to the physical disk at **regular intervals** or based on certain triggers
-(e.g., after one minute, after a certain number of operations, when the buffer is full).
-A captured state of the data flushed to disk is often referred to as a **checkpoint** or **snapshot**.
+(e.g., after a certain number of operations, when the buffer is full).
+A captured state of the data flushed to disk is often referred to as a **checkpoint** (or **snapshot**).
 
 ```d2
-direction: right
+shape: sequence_diagram
 d: Database {
   class: db
 }
@@ -120,7 +119,7 @@ h: Hard Disk {
 }
 d -> m: Update
 m -> d: Successful
-m -> h: Flush periodically {
+m -> h: Flush snapshot {
   style.animated: true
 }
 ```
@@ -132,6 +131,7 @@ while the actual persistence to disk happens asynchronously in the background.
 However, the primary drawback is the increased risk of data loss.
 If the system fails after an update has been written to memory but before it has been flushed to disk (i.e., before the next checkpoint),
 that data will be lost.
+
 This model is beneficial for use cases where some data loss is acceptable in exchange for higher performance,
 such as in certain types of caching systems.
 
@@ -140,11 +140,13 @@ such as in certain types of caching systems.
 Writing changes to complex structured data files on disk can be computationally expensive.
 The WAL file, being an **append-only sequential** file, is simple and lightweight to write to,
 making logging new entries very fast.
+
 Many modern databases effectively combine **Write-Ahead Logging** with **Checkpointing** to get the benefits of both reliability and performance.
 Changes are:
-1.  First, written as a log entry to the **WAL file** (ensuring durability of intent).
-2.  Then, applied to an **in-memory version** of the data (allowing fast reads and writes).
-3.  Periodically, the in-memory data is **flushed to the main data files on disk** (this is the checkpoint).
+
+1. First, written as a log entry to the **WAL file** (ensuring durability of intent).
+2. Then, applied to an **in-memory version** of the data (allowing fast reads and writes).
+3. Periodically, the in-memory data is **flushed to the main data files on disk** (checkpoint).
 
 ```d2
 direction: right
@@ -170,11 +172,9 @@ s.m -> s.wal: 1. Log the operation
 s.m -> s.m: 2. Update in memory
 ```
 
-
-As previously mentioned, the WAL file can grow exceptionally large and make recovery times long. Checkpoints are crucial to:
-- **Truncate the WAL**: Old log lines preceding the last successful checkpoint can be removed or archived,
-significantly reducing the WAL file's active size.
-- **Speed up Recovery**: In case of a crash, the system can restore its state from the latest checkpoint on disk and then only needs to replay WAL entries *after* that checkpoint to recover subsequent changes.
+As previously mentioned, the WAL file can grow exceptionally large and make recovery times long.
+Checkpoints are crucial to truncate the WAL:
+Old log lines preceding the last successful checkpoint can be removed or **archived**, significantly reducing the WAL file's active size.
 
 For example, if a WAL has 5 log entries:
 
@@ -197,7 +197,8 @@ UPDATE 5
 
 ## Data Reconciliation
 
-Data reconciliation is the process of comparing two or more datasets to identify and resolve any discrepancies between them.
+**Data Reconciliation** is the process of comparing two or more datasets to identify and resolve any discrepancies between them.
+
 This process is frequently used in distributed database systems,
 particularly for ensuring data consistency between nodes,
 such as a primary node and its replicas, or between different shards.
@@ -209,6 +210,7 @@ Comparing every piece of data in large datasets can be extremely inefficient.
 is a powerful data structure used to efficiently verify the consistency of data between different sources.
 
 In a Hash Tree:
+
 - Each leaf node typically represents a hash of an individual data block or record.
 - Each non-leaf (parent) node is a hash of the concatenated hashes of its child nodes.
 - This continues up to a single root hash, which represents the hash of the entire dataset.

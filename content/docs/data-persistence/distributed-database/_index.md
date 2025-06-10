@@ -1,6 +1,8 @@
 ---
 title: Distributed Database
 weight: 20
+prev: sql-database
+next: master-slave-architecture
 ---
 
 As discussed in the [{{< term hs >}}]({{< ref "microservice#horizontal-scaling">}}) section,
@@ -59,8 +61,8 @@ Distributing data ensures it can be recovered in the event of failure.
 Once data is distributed across multiple servers,
 maintaining consistency becomes the primary challenge of {{< term dr >}}.
 
-This consistency largely depends on how data replication is handled — specifically,
-how a database server synchronizes with its replicas after a client (web service or user) performs an update.
+This consistency largely depends on how data replication is handled.
+Specifically, how a database server synchronizes with its replicas after a client (web service or user) performs an update.
 
 ```d2
 direction: right
@@ -155,7 +157,7 @@ r: Replica {
 }
 c -> w: 1. Update data
 w -> c: 2. Respond to client
-w -> r: 3. Replicate data {
+w -> r: Replicate data {
     style.animated: true
 }
 ```
@@ -168,8 +170,8 @@ before the client receives the response.
 This approach offers better availability since the primary can continue serving requests even if a replica fails.
 It also reduces write latency. However, it introduces important challenges:
 
-- **Weak Consistency**: Updates may not immediately appear on all replicas, leading to temporary inconsistencies.
-- **Potential Data Loss**: If the primary fails before finishing replication and its data is lost, any unreplicated changes are permanently lost.
+- **Temporary Inconsistency**: Updates may not immediately appear on all replicas, leading to temporary inconsistencies.
+- **Potential Data Loss**: If the primary fails before finishing replication and its data is lost, incomplete clones are permanently lost.
 
 ```d2
 shape: sequence_diagram
@@ -184,7 +186,7 @@ r: Replica {
 }
 client -> w: 1. Update data
 w -> client: 2. Respond to client immediately
-w -> w: 3. Crash before replicating (data loss) {
+w -> w: 3. Crash before replicating {
     class: error-conn
 }
 ```
@@ -226,11 +228,11 @@ r3: Replica 3 {
 client -> w: 1. Update data
 w -> r1: 2. Replicate synchronously
 w -> client: 3. Respond to client
-w -> r2: 4. Replicate asynchronously {
+w -> r2: Replicate asynchronously {
     style.animated: true
     style.bold: true
 }
-w -> r3: 4. Replicate asynchronously {
+w -> r3: Replicate asynchronously {
     style.animated: true
     style.bold: true
 }
@@ -281,8 +283,8 @@ For example, in a cluster with 2 replicas, we define:
 - `RQ` is 1.
 
 Now, imagine a read request initially reaches an inconsistent replica, such as `Replica 2`.
-To ensure data accuracy, the read operation leverages the remaining **Read Quorum** by querying
-at least one consistent server — either `Replica 1` or the `Primary` — before returning a response to the client.
+To ensure data accuracy, the read operation leverages the read quorum by querying
+at least one consistent server, either `Replica 1` or the `Primary`, before returning a response to the client.
 
 ```d2
 shape: sequence_diagram
@@ -296,7 +298,7 @@ r2: Replica 2 {
 w: Primary {
     class: db
 }
-r1: Replica 1 (Consistent) {
+r1: Replica 1 (Up-to-date) {
     class: db
 }
 client -> r2: 1. Read data
@@ -318,7 +320,31 @@ For example, we configure a cluster of 2 replicas as:
 Now, imagine a client performs an update on the primary server.
 The server synchronously replicates the update to `Replica 1` before sending a response to the client,
 while it replicates to `Replica 2` asynchronously.
-If the client then reads data from `Replica 2` before the asynchronous replication is complete, it may retrieve outdated data.
+
+```d2
+shape: sequence_diagram
+c: Client {
+    class: client
+}
+p: Primary {
+    class: db
+}
+r1: Replica 1 {
+    class: db
+}
+r2: Replica 2 {
+    class: db
+}
+c -> p: 1. Update data
+p -> r1: 2. Replicate synchronously
+p -> c: 3. Respond
+p -> r2: 4. Replicate asynchronously {
+    style.animated: true
+    style.bold: true
+}
+```
+
+If the client then reads data from `Replica 2` before the asynchronous replication is completed, it will retrieve outdated data.
 
 ```d2
 shape: sequence_diagram
@@ -350,7 +376,7 @@ p -> r2: 4. Complete replicating {
 ```
 
 Although **Strong Consistency** is safer and easier to reason about,
-it comes at the cost of reduced availability and increased latency.
+it comes at the cost of **reduced availability** and increased latency.
 As the number of servers in the system grows,
 coordinating updates and ensuring consistent reads becomes increasingly complex and time-consuming.
 

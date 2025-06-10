@@ -9,11 +9,11 @@ To maintain data deduplication,
 {{< term sql >}} normalizes data across multiple tables
 and then joins them in queries afterward.
 While this helps maintain data integrity, it often makes queries less efficient,
-since they must interact with multiple tables —
-which might reside in different files, or even on different servers.
+since they must interact with multiple tables,
+which might reside in different files (or even on different servers).
 
 In this topic, we’ll cover common techniques to improve query performance.
-At its core, the guiding principle is simple: **minimize `I/O operations` as much as possible**.
+At its core, the guiding principle is simple: **minimize I/O operations as much as possible**.
 
 ## I/O Operation
 
@@ -41,7 +41,7 @@ A common caching strategy is **LRU (Least Recently Used)**, which works like thi
 In runtime, how an index is utilized depends heavily on the query context.
 There are typically three common query patterns:
 
-### 1. Index Scan
+### Index Scan
 
 This is the standard way to use an index.
 It involves at least **two I/O operations** per record retrieval:
@@ -158,10 +158,10 @@ query -> d.i.i2
 ```
 
 However, note that adding extra columns makes the index larger, increasing the storage cost.
-It also complicates updates — any change to an included column requires updating the index entry as well,
+It also complicates updates, any change to an included column requires updating the index entry as well,
 making optimizations like [HOT updates]({{< ref "physical-layer#hot-update" >}}) unfeasible.
 
-### 2. Table Scan
+### Table Scan
 
 A **Table Scan** bypasses indexes entirely and reads the **entire set of table pages** sequentially.
 
@@ -211,7 +211,7 @@ query -> h.p1: 1. Read first page
 query -> h.p2: 2. Read second page
 ```
 
-### 3. Bitmap Scan
+### Bitmap Scan
 
 A **Bitmap Scan** offers a hybrid strategy, useful when:
 
@@ -439,7 +439,7 @@ Instead, a component called **Query Planner** estimates and selects the most eff
 - **Bitmap Index Scan**: Combines multiple indexes or handles queries that return a large number of rows.
 
 But how does a database estimate the number of rows a query will process when the criteria are unpredictable?
-Behind the scenes, it relies on various techniques — most notably, histogram distributions.
+Behind the scenes, it relies on various techniques, such as histogram distributions.
 Periodically, the database randomly samples records and collects statistical metrics
 such as **Most Common Values (MVC)** and **histogram buckets**..
 
@@ -460,7 +460,7 @@ If a query filters `Grade = 7`, the database instantly predicts a frequency of `
 #### Histogram Bucket
 
 But what about queries involving values outside the common ones, or range-based conditions?
-That’s where histogram buckets come in —
+That’s where histogram buckets come in,
 they capture data distribution by dividing values into buckets containing roughly equal numbers of rows.
 The buckets might differ in range, but each holds a similar number of records.
 
@@ -492,8 +492,7 @@ it provides the database with enough insight to make reasonably informed decisio
 
 ## Partition
 
-Partitioning involves splitting a table into smaller, more manageable pieces —
-called **partitions** — based on a specific column.
+Partitioning involves splitting a table into smaller, more manageable pieces, called **partitions**.
 
 For example, a `User` table could be split into `UserActive` and `UserInactive` based on the `Active` status.
 
@@ -520,11 +519,11 @@ This strategy is especially effective when the partitioning column frequently ap
 However, when it’s not commonly queried, partitioning can degrade performance because:
 
 - Table scans now require accessing multiple partitions (increasing I/O).
-- Updates that modify the partitioning column involve moving records between tables — typically slower than simple in-place updates
+- Updates that modify the partitioning column involve moving records between tables, typically slower than simple in-place updates
 
 ## Denormalization
 
-The final strategy is **Denormalization** —
+The final strategy is **Denormalization**,
 manually restructuring tables by adding aggregated columns to avoid repetitive joins or calculations.
 
 For example, given `Student` and `SubjectParticipation` tables,

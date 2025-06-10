@@ -1,6 +1,7 @@
 ---
 title: Service Cluster
 weight: 20
+next: communication-protocols
 params:
   math: true
 ---
@@ -37,9 +38,12 @@ sv-no: Service {
    Instance 1 {
       class: process
    }
+   Instance 2 {
+      class: process
+   }
   }
   m2: Machine 2 {
-   Instance 2 {
+   Instance 3 {
       class: process
    }
   }
@@ -56,11 +60,11 @@ Two key metrics are used to assess this: {{< term health >}} and {{< term av >}}
 
 ### Healthy
 
-{{< term health >}} refers to an **instance**'s ability to perform its intended tasks.
+{{< term health >}} refers to an instance's ability to perform its intended tasks.
 The instance must determine its health state in one of two options:
 
-- **Heathy** (or **Up**): it's willing to accept and handle requests from users.
-- **Unhealthy** (or **Down**): The instance has encountered a problem (e.g., a disconnect from the database, hardware failure...)
+- **Heathy** (**Up**): it's willing to accept and handle requests from users.
+- **Unhealthy** (**Down**): The instance has encountered a problem (e.g., a disconnect from the database, hardware failure...)
   and is no longer serving requests.
 
 #### Health Interface
@@ -69,7 +73,6 @@ Typically, an instance exposes a health interface, reporting its status:
 
 - Consumers (end-users or other services) can perform {{< term hc >}} to confirm they are
   interacting with a healthy instance.
-- The system can also use this interface to isolate unhealthy instances.
 
 ```d2
 shape: sequence_diagram
@@ -86,9 +89,11 @@ service -> client: 2. Unhealthy {
 client -> service: 3. Cancel the request because the instance is unhealthy
 ```
 
+- The system can also use this interface to **isolate** unhealthy instances.
+
 #### Heartbeat Mechanism
 
-A common technique to isolate unhealthy instances is the {{< term hb >}} mechanism.
+A common technique to isolate unhealthy instances is the heartbeat mechanism.
 In essence, a health checker ([Load Balancer]({{< ref "load-balancer" >}}) or
 [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)) **periodically** accesses the health interfaces
 of instances to filter out the faulty ones.
@@ -105,7 +110,7 @@ s: System {
   s2: Instance 2 (Unhealthy) {
     class: generic-error
   }
-  c: Health Checker (DNS, Load balancer...) {
+  c: Health Checker {
     class: checker
   }
   c -> s1: Check health {
@@ -119,20 +124,34 @@ s: System {
 client: Consumer {
   class: client
 }
-client -> s.c: Only access Instance 1 {
-    class: bold-text
-}
+client -> s.c: Only access Instance 1
 ```
 
 ### Service Availability
 
 {{< term av >}} is a critical metric that indicates the accessibility of a service from the **user perspective**.
-A service might be healthy from a technical point of view yet unable to serve clients if it depends on another service that is currently down.
 
 For example, a service depends on another service that is currently down.
 From the technical perspective, the target is the source of problem,
 the service itself is still operational and healthy;
 However, users don't care; they just request and see that the service is unavailable.
+
+```d2
+direction: right
+u: User {
+  class: client
+}
+s: Service {
+  class: server
+}
+t: Target Service {
+  class: generic-error
+}
+u -> s: Unavailable
+s -> t {
+  class: error-conn
+}
+```
 
 This metric is essential for outlining [Service Level Agreement (SLA)](https://en.wikipedia.org/wiki/Service-level_agreement).
 Typically, it's calculated in two ways
@@ -189,13 +208,13 @@ In the operational environment,
   Let's focus on this critical one!
 
 For instance,
-the `Payment Service` cannot complete its task without successfully communicating with the `Account Service`.
+the `Subscription Service` cannot complete its task without successfully communicating with the `Account Service`.
 Therefore, if the `Account Service` is unavailable,
-the `Payment Service` will also be affected.
+the `Subscription Service` will also be affected.
 
 ```d2
 direction: right
-a: Payment Service (Unavailable) {
+a: Subscription Service (Unavailable) {
    class: server
 }
 b: Account Service (Unavailable) {
@@ -265,30 +284,32 @@ We've discussed the role of {{< term msg >}} to decouple a {{< term ms >}} syste
 Helpfully, {{< term msg >}} also means in the runtime environment.
 
 For example,
-the `Payment Service` becomes unavailable too as
+the `Subscription Service` becomes unavailable too as
 it's afraid that the `Account Service` will miss its requests.
 
 ```d2
 direction: right
-a: Payment Service {
+a: Subscription Service {
    class: server
 }
 b: Account Service {
    class: generic-error
 }
-a -> b
+a -> b {
+  class: error-conn
+}
 ```
 
-By introducing {{< term msg >}},
-the `Payment Service` can simply fire messages and continue working confidently.
-Its availability is not based on the `Account Service` any longer.
+By introducing {{< term msg >}}, the `Subscription Service` can simply publish messages and continue its workflow without waiting for a response.
+The `Account Service` can then process these messages whenever it is available, ensuring its availability no longer directly impacts the `Subscription Service`.
+This approach decouples the services, promoting greater resilience and flexibility in the system.
 
 ```d2
 direction: right
-m: Message Channel {
+m: Message Broker {
    class: mq
 }
-a: Payment Service {
+a: Subscription Service {
    class: server
 }
 b: Account Service {
@@ -325,11 +346,11 @@ c -> d
 ```
 
 With {{< term msg >}},
-it becomes $SA = SA (self) \times MessageChannel$
+it becomes $SA = SA (self) \times MessageBroker$
 
 ```d2
 direction: down
-m: Message Channel {
+m: Message Broker {
    class: mq
 }
 a: Service A {
@@ -350,14 +371,11 @@ c <-> m
 d <-> m
 ```
 
-Actually, we've **shifted** the complex interdependency to the channel.
+Actually, we've **shifted** the complex interdependency to the broker.
 Now, the system looks more manageable as the dependencies only end with one connection,
 not a harmfully long chain.
-Probably, the message channel becomes a dangerous {{< term spof >}},
+Probably, the message broker becomes a dangerous {{< term spof >}},
 requiring it to be highly available and fault-tolerant.
-
-{{< term ha >}} is a cornerstone of well-designed systems.
-It ensures that components stay cohesive internally while remaining independent of one another.
 
 ## Cluster Types
 
@@ -414,9 +432,10 @@ Stateful services are often paired with **real-time features**,
 which require maintaining client connections to push messages from the service side.
 A common example of this is a chat application that holds client connections
 (typically using [WebSocket]({{< ref "communication-protocols#websocket" >}})) for real-time messaging.
+
 Consider a cluster of two instances,
 if `Client A` connects to `Instance 1` and `Client B` connects to `Instance 2`,
-they **cannot** chat with each other because different instances handle their connections.
+they cannot chat with each other because different instances handle their own **socket connections**.
 
 ```d2
 direction: right
@@ -446,17 +465,14 @@ Stateful services are more challenging to scale and generally **recommended avoi
 Simply increasing the number of instances is insufficient,
 additional strategies are required to manage and **share state** across instances.
 
-Nevertheless, if a stateful service is necessary,
-several techniques can be employed to facilitate effective communication between instances.
-
-#### Centralized Communication
+#### Centralized Cluster
 
 The first approach is building a **shared store** between instances.
 
-In the chat example, we introduce a shared store managing the current server of each user,
-called `Presence Store`.
-When a user connects to the system,
-the respective instance saves a **presence record** in the store.
+In the chat example, we introduce a shared component known as the `Presence Store`, which manages the mapping of users to their current server instances.
+Whenever a user connects to the system, their server instance creates or updates a **presence record** in this store.
+Service instances can effectively determine the location of any user,
+enabling them to forward messages directly to the appropriate instance.
 
 ```d2
 grid-columns: 3
@@ -464,11 +480,12 @@ horizontal-gap: 300
 c: Clients {
   grid-columns: 1
   vertical-gap: 150
+  class: none
   c1: Client 1 (C1) {
-    class: [client; bold-text]
+    class: client
   }
   c2: Client 2 (C2) {
-    class: [client; bold-text]
+    class: client
   }
 }
 
@@ -476,37 +493,30 @@ s: Cluster {
   grid-columns: 1
   vertical-gap: 150
   s1: Instance 1 (I1) {
-    class: [bold-text; server]
+    class: server
   }
   s2: Instance 2 (I2) {
-    class: [bold-text; server]
+    class: server
   }
-
-  s1 -> s2: 3. Directly forward to I2 {
-    class: bold-text
+  s1 <-> s2: Forward {
+    style.animated: true
   }
 }
 p: Presence Store {
-    class: none
-    t: |||yaml
-    Client 1: Instance 1
-    Client 2: Instance 2
-    ||| {
-      class: bold-text
-    }
-    s: "Presence Store" {
-        class: [cache; bold-text]
-    }
+  class: none
+  grid-columns: 1
+  t: |||yaml
+  Client 1: Instance 1
+  Client 2: Instance 2
+  |||
+  s: "Presence Store" {
+      class: cache
   }
-c.c1 -> s.s1: 1. Send a message to C2 {
-    class: bold-text
 }
-s.s2 -> c.c2: 4. Forward the message to C2 {
-    class: bold-text
-}
-s.s1 <- p.t: 2. Get the server of C2 = I2 {
-    class: bold-text
-}
+c.c1 -> s.s1
+c.c2 -> s.s2
+s.s1 <-> p.s
+s.s2 <-> p.s
 ```
 
 The simplicity of this approach makes it the preferred solution in many solutions.
@@ -515,7 +525,7 @@ However, this way **limits availability**.
 When processing a message, the instance must rely on the connection store,
 adversely impacting its availability.
 
-#### Decentralized Communication
+#### Decentralized Cluster
 
 To maximize availability, the system can eliminate the connection store and **deterministically map** users to instances.
 
@@ -594,10 +604,12 @@ m.m2 -> s.s2: '2 % 2 = 0' {
 }
 {{< /d2 >}}
 
-However, this model is more complex than it appears — it’s extremely challenging to develop and maintain.
+However, this model is more complex than it appears.
+It’s extremely challenging to develop and maintain:
 
 - How do we track cluster information consistently across instances without relying on a central store?
 - How can we adapt to a dynamic number of instances as they scale up or down?
 - How do we ensure the cluster stays operational when some instances fail?
 
-These questions highlight the inherent complexity of decentralized communication. We’ll explore these challenges in greater depth in the **Distributed Database** topic, where a database cluster is treated as a stateful service.
+These questions highlight the inherent complexity of decentralized communication.
+We’ll explore these challenges in greater depth in the [Distributed Database]({{< ref "distributed-database" >}}) topic, where a database cluster is treated as a stateful service.

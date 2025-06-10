@@ -1,6 +1,7 @@
 ---
 title: Physical Layer
 weight: 10
+prev: sql-database
 ---
 
 The way data is organized at the physical layer drives the entire database workflow.
@@ -8,7 +9,7 @@ The way data is organized at the physical layer drives the entire database workf
 ## Page
 
 A **page** is a fixed-size container
-(typically a few kilobytes — e.g., {{< term postgres >}} defaults to 8kB)
+(typically a few kilobytes, e.g., {{< term postgres >}} defaults to 8kB)
 holding multiple data entries, which can be either rows or index records.
 
 A page generally consists of three parts: **Header**,
@@ -33,8 +34,7 @@ Page {
 The actual data resides in the **Tuples** section as **sequentially packed records**.
 
 We call them *tuples* rather than *records* because tuples are **immutable**.
-To update a tuple, the database creates a **new version** — essentially an overriding tuple.
-
+To update a tuple, the database creates a new version, essentially an overriding tuple.
 
 For example, the third tuple is an updated version of the first one.
 
@@ -63,7 +63,7 @@ There are two main reasons for the immutability:
 
 1. A new tuple might be larger or smaller than the existing one
    (for example, a resizable **VARCHAR** field).
-   If we tried to update it in place, subsequent tuples would need to shift to accommodate size changes —
+   If we tried to update it in place, subsequent tuples would need to shift to accommodate size changes,
    much like deleting an element from an array, which can be costly.
 
 ```d2
@@ -240,7 +240,8 @@ i -> h.p2.t.t2
 External elements, such as other tables, reference data tuples using a **Tuple ID (TID)**.
 A TID is a composite identifier consisting of: **(page number, LPA index)**.
 
-**Fixed-size pages** make random access efficient — for example,
+**Fixed-size pages** make random access efficient,
+for example,
 to retrieve the tuple at: `TID (page = 2, index = 1)`;
 The database can jump straight to it via: `Heap.Pages[2].LPA[1] -> Tuple`.
 
@@ -319,7 +320,7 @@ There are two effective ways to access a tuple in a heap:
 
 ## Index
 
-Messy heaps aren’t ideal for fast tuple lookups — this is where the **Index** comes to the rescue.
+Messy heaps aren’t ideal for fast tuple lookups, this is where the **Index** comes to the rescue.
 In short, an index is an auxiliary data structure built alongside a table to enable efficient data retrieval.
 
 Unlike tables, indexes are organized using specific data structures tailored for quick lookups.
@@ -406,13 +407,13 @@ e1.e4 -> e5
 
 In {{< term sql >}}, an **index page** corresponds to a B-Tree node.
 Each page can point either to **child index pages** or to actual table records via their **TIDs**.
-A lookup operation traverses this structure — starting from the root page,
+A lookup operation traverses this structure, starting from the root page,
 it moves down through child pages until it locates the desired tuplee.
 
 ```d2
 
 i: Index {
-    grid-gap: 100
+    vertical-gap: 100
     grid-rows: 2
     r: Page 1 (Root) {
         grid-gap: 0
@@ -478,7 +479,7 @@ i.p3.t1 -> h.p3.t1
 
 Notably, using indexes introduces a trade-off between read and write performance.
 To maintain a B-Tree’s **self-balancing** structure, operations such as inserts, deletes, or updates may trigger node splits or merges.
-This overhead ensures efficient reads but comes at the cost of slower writes—especially in tables with multiple indexes,
+This overhead ensures efficient reads but comes at the cost of slower writes, especially in tables with multiple indexes,
 where every change must be reflected across all relevant index structures.
 
 ### HOT Update
@@ -495,10 +496,10 @@ An update can be treated as a **HOT (Heap-Only Tuple)** and does not require ind
 
 When multiple versions of a tuple reside on the same page, they are **chained together**.
 Each tuple carries **metadata**, such as its transaction state and a pointer to the next version.
-This chain ensures queries can resolve to the correct visible version of a tuplee.
+This chain ensures queries can resolve to the correct visible version of a tuple.
 
 For example, deleted tuples may include a pointer to the next valid tuple,
-allowing the system to traverse and retrieve the most up-to-date version
+allowing the system to traverse and retrieve the most up-to-date version.
 
 ```d2
 i: Index {
@@ -625,5 +626,5 @@ and that indexes exist **outside the table data**. These are known as **Secondar
 
 However, in some database engines (like [MySQL InnoDB](https://dev.mysql.com/doc/refman/8.4/en/innodb-storage-engine.html)),
 tables are physically organized based on their primary key, also called **Clustered Index**.
-Queries using the primary key access the table directly —
+Queries using the primary key access the table directly,
 no secondary index needed for these lookups.

@@ -1,6 +1,8 @@
 ---
 title: Communication Protocols
 weight: 30
+prev: service-cluster
+next: streaming-protocols
 ---
 
 The communication protocol fundamentally shapes the way a service is built.
@@ -25,15 +27,7 @@ c: Client {
 s: Service {
     class: server
 }
-c <-> s: 1. Establish TCP connection {
-  style.bold: true
-}
-c -> s: Request
-c <- s: Response
-c <-> s: Close the connection {
-  style.bold: true
-}
-c <-> s: 2. Establish TCP connection {
+c <-> s: Establish TCP connection {
   style.bold: true
 }
 c -> s: Request
@@ -108,8 +102,6 @@ s: Service {
 c -> s: Is anything new?
 c <- s: No
 c -> s: Is anything new?
-c <- s: No
-c -> s: Is anything new?
 c <- s: Yes, abc123 has sent you a message
 ```
 
@@ -162,6 +154,7 @@ Since requests originate from the client side, {{< term lpoll >}} is well-suited
 
 {{< term lpoll >}} is best implemented as a **stateless** service.
 Connections are short-lived; clients can conveniently switch to any server to crawl data from a shared store.
+
 For example, the instances of a stateless service share and poll the same store.
 
 ```d2
@@ -270,24 +263,30 @@ The answer is no!
 The communication protocol doesn't represent this property,
 {{< term sf >}} or {{< term sl >}} is actually based on **how we implement** the service.
 Get back to the chat example in the [previous topic]({{< ref "service-cluster#stateful-service" >}}),
-we've mentioned it as a stateful service due to keeping users on different servers.
+we've mentioned it as a stateful service due to keeping user connections on different servers.
+
 ```d2
 direction: right
+grid-rows: 1
 c: Clients {
-    ca: Client A {
-      class: client
-    }
-    cb: Client B {
-      class: client
-    }
+  class: none
+  grid-columns: 1
+  ca: Client A {
+    class: client
+  }
+  cb: Client B {
+    class: client
+  }
 }
 system: System {
+    grid-columns: 1
     s1: Instance 1 {
       class: server
     }
     s2: Instance 2 {
       class: server
     }
+    s1 <-> s2
 }
 c.ca <-> system.s1: Connecting
 c.cb <-> system.s2: Connecting
@@ -334,7 +333,7 @@ c2 <- s.i2
 
 In fact, people tend to use {{< term ws >}} for **real-time notification**,
 when messages are delivered immediately after their creation.
-An indirect paradigm (e.g., messaging, shared store) is impossible for
+An indirect paradigm (e.g., polling) is impossible for
 the task as it creates brief delays;
 a direct and stateful model is mandatory.
 
@@ -356,7 +355,6 @@ s: SSE Service {
 c <-> s: Establish a connection
 s --> c: Send message
 s --> c: Send message
-s --> c: Send message
 ```
 
 Behind the scenes, {{< term sse >}} is built on top of the {{< term http  >}} protocol.
@@ -367,8 +365,8 @@ Additionally, a unidirectional connection incurs **less overhead** than a full-d
 {{< term sse >}} is recommended if the application only needs to send data from the server side,
 e.g., live scores, news websites.
 
-Similar to {{< term ws >}}, {{< term sse >}} also introduces the same problems about low availability
-and resource balancing.
+Similar to {{< term ws >}} (maintaining long-lived connections),
+{{< term sse >}} also introduces the same problems about coupling and resource balancing.
 
 ## Google Remote Procedure Call (gRPC)
 
@@ -379,7 +377,7 @@ communication over **Remote Procedure Call (RPC)** and {{< term http2 >}} protoc
 ### Remote Procedure Call (RPC)
 
 Normally, to call an {{< term http >}} endpoint,
-an application must handle various details — such as the URI, headers, and parameters — to construct a proper **request string**.
+an application must handle various details, such as the URI, headers, and parameters to construct a proper **request string**.
 While this approach offers flexibility, it can also be complex and prone to errors.
 
 ```http
@@ -392,7 +390,7 @@ This contract is usually built as a shared library,
 making the interaction convenient, like working with local functions.
 
 For example, the `Chat Service` exposes a `Chat` function;
-This exposure is wrapped as a native shared library.
+This exposure is wrapped as a shared library for consumers.
 
 ```proto
 // Exchange schema
@@ -460,18 +458,14 @@ http2: "HTTP/2" {
   s: Server {
     class: server
   }
-  c -- s: 1. Loads page request {
-    style.stroke-dash: 3
-    style.bold: true
+  "1. Loads requests" {
+    c --> s: Stream 1: Request index.html
+    c --> s: Stream 2: Request dog.png
   }
-  c --> s: Stream 1: Requests index.html
-  c --> s: Stream 2: Requests dog.png
-  c -- s: 2. Response {
-    style.stroke-dash: 3
-    style.bold: true
+  "2. Response" {
+    c <-- s: Stream 1: Respond index.html
+    c <-- s: Stream 2: Respond dog.png
   }
-  c <-- s: Stream 1: Responds index.html
-  c <-- s: Stream 2: Responds dog.png
 }
 ```
 
@@ -496,8 +490,9 @@ Its concept is similar to a function pointer in programming.
 
 The client side registers callbacks (usually a {{< term url >}}) with the server,
 later invoked to notify responses.
-For example, if a client registers an address,
-whenever the server needs to notify the client,
+
+For example, a client registers with an address.
+Whenever the server needs to notify the client,
 it will request to `site.com/callback`.
 
 ```d2
@@ -533,11 +528,9 @@ without the need for long-lived connections or polling mechanisms.
 
 Miserably, this is impractical for serving end users,
 as they typically don't have a **public address** for the callback purpose.
-
 Furthermore, in this model,
 the server side becomes the originator, and its availability is negatively impacted.
 
 In practice, this protocol is often used to support external services, like **Stripe Payments**,
 where the system interacts with numerous uncontrolled clients.
 In such cases, solutions like a live {{< term ws >}} server or {{< term lpoll >}} would consume significant resources.
-For internal workloads, however, {{< term lpoll >}} is typically preferred, as it helps maintain a more available and resilient system.

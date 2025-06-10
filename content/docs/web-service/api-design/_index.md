@@ -1,12 +1,14 @@
 ---
 title: API Design
 weight: 50
+prev: load-balancer
+next: api-pagination
 ---
-
 
 ## API (Application Programming Interface)
 
-{{< term api >}} stands for Application Programming Interface — a shared contract between processes that defines how they communicate over a network.
+{{< term api >}} stands for **Application Programming Interface**,
+which is a shared contract between processes that defines how they communicate over a network.
 
 For example, consider two processes: `Client` and `Server`.
 
@@ -58,18 +60,14 @@ in the following sections.
 
 A {{< term rest >}} service is made up of resources, which represent the data and services it exposes.
 
-**Resources** aren’t always literal — they can represent database records, files, pages, or other internal data structures.
-For example::
+**Resources** represent database records, files, pages, or other internal data structures.
+For example:
 
 - The `user` resource comes from the `user` SQL table.
 - The `images` resource comes from local files.
 
 ```d2
-direction: up
-s: REST service {
-   u: "/user"
-   i: "/images"
-}
+direction: right
 f: Local files {
    class: file
 }
@@ -77,6 +75,10 @@ d: user_table {
    shape: sql_table
    id: string
    name: string
+}
+s: REST service {
+   u: "/user"
+   i: "/images"
 }
 d <-> s.u
 f <-> s.i
@@ -141,7 +143,8 @@ s2 <- u
 
 ## 2. Uniform Interface
 
-The second principle is **Uniform Interface** — {{< term rest >}} services should offer a consistent, standardized way for clients to interact with resources.
+The second principle is **Uniform Interface**.
+{{< term rest >}} services should offer a consistent, standardized way for clients to interact with resources.
 
 ### Resource Identifier
 
@@ -180,7 +183,9 @@ Actions should be expressed via request methods, not resource URIs.
 - **PUT**: Completely update a resource (the client sends the entire updated resource).
 - **PATCH**: Partially update a resource (the client sends only the fields that need updating).
 
-> You may follow [this link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) to learn more about HTTP methods
+{{< callout type="info" >}}
+You may follow [this link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) to learn more about HTTP methods.
+{{< /callout >}}
 
 Some methods, such as **POST**, **PUT**, and **PATCH**,
 require a payload (or body) to execute.
@@ -196,7 +201,7 @@ POST /users HTTP/1.1
 }
 ```
 
-##### Partial Update
+#### Partial Update
 
 In practice,
 allowing clients to send a completely updated version of a resource by **PUT**
@@ -208,31 +213,31 @@ Two effective approaches for handling this are:
 1. [HTTP PATCH](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PATCH):
    Using **PATCH**, clients can update only the included fields. This is both efficient and simple:
 
-```http
-PATCH /users/1234 HTTP/1.1
+    ```http
+    PATCH /users/1234 HTTP/1.1
 
-{
-    "name": "My wonderful name"
-}
-```
+    {
+        "name": "My wonderful name"
+    }
+    ```
 
 2. **Sub resource**: For more complex logic, e.g.,
-   when a user can only change their name after a specific time period.
+   *a user can only change their name after a specific time period*.
    It’s better to separate the field as a new resource,
    this allows for finer control and more specific validation:
 
-```http
-PUT /users/1234/name HTTP/1.1
+    ```http
+    PUT /users/1234/name HTTP/1.1
 
-"My wonderful name"
-```
+    "My wonderful name"
+    ```
 
 #### Request Idempotency
 
 Before wrapping this section, let's discuss a critical characteristic of requests - **Idempotency**.
 
 1. **Idempotent**: A request is idempotent if perform it multiple times
-   leaves the system unchanged after the first request.
+   leaves the system unchanged after the first request, including:
     - **Read**: Does not manipulate resources, only retrieves data.
     - **Delete** and **Update**: Once a resource is deleted or updated, the following requests result in nothing.
       For example, a resource remains unchanged with the second update.
@@ -243,30 +248,27 @@ direction: right
 c: Client {
     class: client
 }
-u: User Resource
+u: "/users/1234"
 u {
     f1: |||yaml
-    User:
-        Name: Johnny
+    Name: John
     |||
 }
-c -> u: Update (Name = Doe)
+c -> u: Update Name = Doe
 u {
     f2: |||yaml
-    User:
-        Name: Doe
+    Name: Doe
     |||
 }
-c -> u: Update (Name = Doe)
+c -> u: Update Name = Doe
 u {
     f3: |||yaml
-    User:
-        Name: Doe
+    Name: Doe
     |||
 }
 ```
 
-2. **Non-idempotent** requests result in different system states when they're made multiple times
+2. **Non-idempotent** requests result in different system states when they're made multiple times.
     - **Create**: Repeatedly creating a resource generates new and distinct data records.
 
 ```d2
@@ -275,22 +277,14 @@ direction: right
 c: Client {
     class: client
 }
-u: User Resource
+u: "/users"
 c -> u: Create
 u {
-    f1: |||yaml
-    User:
-        Name: Johnny
-        CreatedAt: 00:00
-    |||
+    "Name: Johnny, CreatedAt: 00:00"
 }
 c -> u: Create
 u {
-    f3: |||yaml
-    User:
-        Name: Johnny
-        CreatedAt: 00:02
-    |||
+    "Name: Johnny, CreatedAt: 00:02"
 }
 ```
 
@@ -307,17 +301,23 @@ shape: sequence_diagram
 c: Client {
     class: client
 }
-p: Payment Service {
-    class: client
-}
+p: Payment Service
 c -> p: 1. Initiate a transaction
-p -> c: 2. Respond with an idempotency key {
+p {
+    "Tran123: New"
+}
+p -> c: "Tran123" {
     style.bold: true
 }
-c -> p: 2. Complete the transaction
+c -> p: "2. Process 'Tran123'"
+p {
+    "Tran123: Processing"
+}
 p -> p: Processing...
-c -> p: 3. Complete the transaction again (duplication)
-c <- p: 4. Failed because the transaction is being processed {
+c -> p: 3. Process the transaction again (duplication) {
+    style.bold: true
+}
+c <- p: Failed because the transaction is being processed {
     class: error-conn
 }
 ```
@@ -329,13 +329,17 @@ By carefully understanding and designing for idempotency, we can build robust AP
 
 ## 3. Self-descriptive Message
 
-**Self-descriptive Message** is a key principle in {{< term REST >}}, ensuring that messages (both requests and responses) contain enough information to interpret and use their content,
-e.g., **JSON**, **HTML page** or **PNG image**.
+**Self-descriptive Message** is a key principle in {{< term rest >}},
+ensuring that all messages (both requests and responses) contain enough information to interpret and use their content.
 
-For example, a **JSON** message representing a user might look like this:
+For example, a message representing a user might look like this.
+The plain-text indicator guides how to read the **JSON** payload.
 
 ```
+// Indicator
 TYPE: JSON
+
+// Payload
 {
     "id": 1234,
     "name": "John Doe"
@@ -367,24 +371,14 @@ jc -> p: "Accept: application/json" {
 }
 p -> jc: "Content-Type: application/json"
 jc {
-   json: |||json
-   {
-       "id": 1234,
-       "name": "John Doe"
-   }
-   |||
+   '{ "id": 1234 }'
 }
 xc -> p: "Accept: text/xml" {
    style.bold: true
 }
 p -> xc: "Content-Type: text/xml"
 xc {
-   xml: |||xml
-   <user>
-       <id>1234</id>
-       <name>John Doe</name>
-   </user>
-   |||
+   "<user><id>1234</id></user>"
 }
 ```
 
@@ -410,30 +404,14 @@ jc -> p: "Accept: application/vnd.user.simple+json" {
 }
 p -> jc
 jc {
-   json: |||json
-   {
-       "id": 1234,
-       "name": "John Doe"
-   }
-   |||
+   '{ "name": "John Doe" }'
 }
 fc -> p: "Accept: application/vnd.user.full+json" {
    style.bold: true
 }
 p -> fc
 fc {
-    json {
-        content: |||json
-        {
-            "id": 1234,
-            "name": "John Doe",
-            "order": {
-                "orderCount": 86,
-                "recentOrders": [ ]
-            }
-        }
-        |||
-    }
+    '{ "name": "John Doe", "order": { "orderCount": 86, "recentOrders": [ ] } }'
 }
 ```
 
@@ -458,10 +436,10 @@ resources based on the **hypermedia links** included in responses.
 For example, a user's orders might only contain the total number of orders with a link.
 The user can then follow the link to retrieve the actual orders.
 
-**Example: GET /users/1234**
+**GET /users/1234**:
+
 ```json
 {
-  "id": 1234,
   "name": "John Doe",
   "order": {
     "orderCount": 86,
@@ -478,7 +456,8 @@ The user can then follow the link to retrieve the actual orders.
 Accessing orders at `/users/1/orders`, each order contains additional information to further navigate the client to
 get the detailed information.
 
-**Example: GET /user/1234/orders**
+**GET /user/1234/orders**:
+
 ```json
 [
   {
@@ -486,13 +465,11 @@ get the detailed information.
     "totalPrice": 120,
     "links": [
       {
-        "rel": "self",
         "link": "/orders/1",
         "method": "GET",
         "description": "Get the order itself"
       },
       {
-        "rel": "cancel",
         "link": "/orders/1/cancellation",
         "method": "POST",
         "description": "Cancel the order"
@@ -514,8 +491,9 @@ Many systems choose to **hardcode** links on the client side to simplify develop
 
 Personally, I’ve rarely implemented {{< term hate >}}, except for certain convenient scenarios like pagination or linking to a detailed version of a resource.
 
-For example, suppose we have a server providing order data at `/users/{userId}/orders`.
-If one day, the resource is moved to `/orders/{userId}`, a client relying on response-provided links would remain unaffected — this is where {{< term hate >}} can help prevent disruptions.
+For example, suppose we have a service providing `order` resource at `/users/{userId}/orders`.
+If one day, the resource is moved to `/orders/{userId}`, a client relying on response-provided links would remain unaffected,
+this is where {{< term hate >}} can help prevent disruptions.
 
 However, this approach raises some concerns:
 
@@ -525,10 +503,10 @@ However, this approach raises some concerns:
   If a client needs to reach a sub-resource, how would it determine its parent?
   It would be inefficient to traverse multiple layers and handle several responses just to reach a single resource.
 
-Ultimately, I still rely on having a **documented, up-to-date description of the active APIs**.
+Ultimately, I still rely on having a documented, up-to-date description of the active APIs.
 For this reason, I’ve rarely witnessed the practical benefits of {{< term hate >}} and often choose to ignore it.
 
-That said, I do see where {{< term hate >}} makes sense — for example, in **Server-side Rendering (SSR)** scenarios, where the server fully controls and returns complete views (like {{< term html >}} pages).
+{{< term hate >}} may make sense in **Server-side Rendering (SSR)** scenarios, where the server fully controls and returns complete views (like {{< term html >}} pages).
 But this tightly couples the server and client, which can become problematic when the backend needs to serve different types of clients.
 
 ## API Versioning

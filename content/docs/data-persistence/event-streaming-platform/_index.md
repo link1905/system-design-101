@@ -1,6 +1,8 @@
 ---
 title: Event Streaming Platform
 weight: 50
+next: delivery-semantics
+prev: media-storage
 ---
 
 ## Messaging
@@ -15,7 +17,7 @@ grid-gap: 100
 s1: Service 1 {
     class: server
 }
-m: Message Channel {
+m: Message Broker {
     class: mq
 }
 s2: Service 2 {
@@ -25,11 +27,9 @@ s1 <-> m
 s2 <-> m
 ```
 
-However, we haven’t yet explored how to actually implement {{< term msg >}}.
+Let's look at two fundamental aspects of {{< term msg >}}: **Delivery** and **Retention**.
 
-In this section, let's look at two fundamental aspects of **{{< term msg >}}**:
-
-### 1. Message Delivery
+### Message Delivery
 
 There are two common strategies for delivering messages to consumers:
 
@@ -81,9 +81,9 @@ s: Service {
 e -- b -> s
 ```
 
-### 2. Message Durability
+### Message Retention
 
-Another critical aspect of {{< term msg >}} is **message durability**, which describes how messages are stored and retained over time.
+Another critical aspect is **message retention**, which describes how messages are stored and retained over time.
 
 #### Message Queuing
 
@@ -99,7 +99,7 @@ m1: {
   s: Service 1 {
     class: server
   }
-  m: Message Channel {
+  m: Message Queue {
     grid-rows: 1
     grid-gap: 0
     m1: Message 1 {
@@ -122,7 +122,7 @@ m2 {
   s: Service 2 {
     class: server
   }
-  m: Message Channel {
+  m: Message Queue {
     grid-rows: 1
     grid-gap: 0
     m2: Message 2 {
@@ -142,7 +142,7 @@ m3 {
   s: Service 1 {
     class: server
   }
-  m: Message Channel {
+  m: Message Queue {
     grid-rows: 1
     grid-gap: 0
     m3: Message 3 {
@@ -156,10 +156,11 @@ m3 {
 While this is efficient in terms of resource usage, it isn’t suitable for systems that require high reliability or audit trails.
 In those scenarios, messages are often considered valuable records of what occurred within the system.
 
-#### Message Persistence
+#### Message Durability
 
-To address this, more robust solutions persist messages durably on storage—ensuring they are retained even after being consumed.
-A key feature is that a single message can be consumed by multiple consumers.
+To address this, more robust solutions persist messages the physical storage,
+ensuring they are retained even after being consumed.
+A key feature is that a single message can be consumed many times by multiple consumers.
 
 ```d2
 grid-columns: 1
@@ -176,7 +177,7 @@ m1: {
       class: server
     }
   }
-  m: Message Channel {
+  m: Message Broker {
     grid-rows: 1
     grid-gap: 0
     m1: Message 1 {
@@ -202,7 +203,7 @@ m2 {
       class: server
     }
   }
-  m: Message Bus {
+  m: Message Broker {
     grid-rows: 1
     grid-gap: 0
     m1: Message 1 {
@@ -219,7 +220,7 @@ m2 {
 
 ## Event Streaming Platform
 
-An {{< term esp >}} is a distributed implementation of a {{< term msg >}},
+An {{< term esp >}} is a distributed implementation of {{< term msg >}},
 designed to offer high availability and fault tolerance.
 
 Before diving deeper, let’s first clarify the concept of an **Event**.
@@ -262,22 +263,24 @@ s -> m2
 s -> m3
 ```
 
-Many architectures prioritize **durable storage of events** and may even bypass persistent storage of commands entirely.
-This explains why the term **Event** is often preferred over **Message** or **Command**.
+{{% callout type="info" %}}
+Many architectures prioritize durable storage of events and may even bypass persistent storage of commands entirely.
+This explains why the term **Event** is often preferred over **Message**.
 We’ll delve deeper into this in the [Event-driven Architecture]({{< ref "event-driven-architecture" >}}) topic.
+{{% /callout %}}
 
 ### Streaming Platform
 
 Briefly,
 {{< term esp >}} is a messaging system that combines two key features:
 
-- **Streaming:** Messages are delivered and consumed immediately after they’re produced, enabling real-time processing.
-- **Persistence:** Messages are durably stored in the underlying storage layer, allowing for reliable delivery and replay.
+- **Streaming:** messages are delivered and consumed immediately after they’re produced, enabling near-realtime processing.
+- **Durability:** messages are durably stored in the underlying storage layer, allowing for replay.
 
 Let’s explore how to build an {{< term esp >}}.
 
 {{< callout type="info" >}}
-In the following section, we’ll focus on core concepts popularized by **Apache Kafka**—
+In the following section, we’ll focus on core concepts popularized by **Apache Kafka**,
 the industry’s most widely adopted solution today.
 {{< /callout >}}
 
@@ -300,8 +303,8 @@ b3: Broker 3 {
 b1 <-> b2 <-> b3 <-> b1
 ```
 
-For example, {{< term kk >}} prioritizes **consistency** over **availability**.
-One broker is elected as the **Controller** (or **Leader**) node using the [Raft algorithm]({{< ref "consensus-protocol" >}}).
+For example, {{< term kk >}} prioritizes consistency over availability.
+One broker is elected as the **Controller** node using the [Raft algorithm]({{< ref "consensus-protocol" >}}).
 
 ```d2
 b1: Broker 1 (Controller) {
@@ -328,46 +331,42 @@ For example, a topic named `AccountCreated` might contain events like the follow
 
 ```yaml
 AccountCreated:
-  - event1:
-      accountId: acc1
-      email: mylovelyemail@mail.com
-      at: 00:01
-  - event2:
-      accountId: acc2
-      email: nottoday@mail.com
-      at: 00:02
+- event1:
+    accountId: acc1
+    email: mylovelyemail@mail.com
+    at: 00:01
+- event2:
+    accountId: acc2
+    email: nottoday@mail.com
+    at: 00:02
 ```
 
-{{< callout type="info" >}}
-You can think of a topic as a table, where each row represents a single event of the same type.
-{{< /callout >}}
-
-### Data Structure
+### Append-only List
 
 At a fundamental level, an {{< term esp >}} supports two operations: **Produce** (write) and **Consume** (read).
-There are no update or delete operations.
 
 Events are stored as **append-only files** on brokers.
 Modifying an event in the middle of the log would require shifting all subsequent entries,
 which is inefficient and generally avoided.
+Thus, there are no update or delete operations.
 
 ```d2
 b: Broker {
     grid-rows: 1
-    f1: "AccountCreated.Events file" {
+    f1: "AccountCreated.events file" {
       e1: |||yaml
       event1:
-        accountId: acc1
+        accountId: acc01
         email: mylovelyemail@mail.com
         at: 00:01
       event2:
-        accountId: acc2
+        accountId: acc02
         email: nottoday@mail.com
         at: 00:02
       ...(space for new events)...
       |||
     }
-    f2: "BalanceChanged.Events file" {
+    f2: "BalanceChanged.events file" {
       e1: |||yaml
       event1:
         accountId: acc01
@@ -391,7 +390,7 @@ The storage and access load for each topic may vary significantly,
 potentially causing uneven load distribution across brokers.
 
 To address this, topics are split into smaller units called **partitions**, which are distributed across brokers.
-This concept is similar to [sharding]({{< ref "peer-to-peer-architecture#shard" >}}) in a {{< term p2p >}} cluster.
+This concept is similar to [Sharding]({{< ref "peer-to-peer-architecture#shard" >}}) in a {{< term p2p >}} cluster.
 
 ```d2
 classes: {
@@ -498,7 +497,7 @@ db.p3 -> peer.s3.p1
 
 ## Producing
 
-Producing simply means appending data to the primary partition and subsequently synchronizing it to the replicas.
+Producing simply means **appending events** to the primary partition and subsequently synchronizing it to the replicas.
 
 ```d2
 direction: right
@@ -521,7 +520,7 @@ Replicas periodically fetch and compare data from the primary partition.
 This ensures that any newly added or previously corrupted replicas can catch up with the latest data.
 
 **In-Sync Replicas (ISR)** are those replicas currently in sync with the primary partition.
-This is governed by a configurable time threshold. If a replica's last fetch exceeds the threshold, it is considered **out-of-sync**.
+This is governed by a configurable time **threshold**. If a replica's last fetch exceeds the threshold, it is considered **out-of-sync**.
 
 For example, with an ISR threshold of `2 seconds`,
 a replica that fetched data last at `00:02` while the primary is at `00:05` is **out-of-sync**.
@@ -540,13 +539,17 @@ c: "Replica 2 (LastFetch = 00:02)" {
 }
 ```
 
+### Acknowledgement (ACK) Levels
+
 Similar to [Quorum-based Consistency]({{< ref "distributed-database#quorum-based-consistency" >}}),
 a produce request includes an acknowledgement (**ACK**) setting.
-This determines how many brokers (including the primary) must successfully save the event before the producer receives a response.
+This determines how many in-sync replicas (including the primary partition) must successfully save the event before the producer receives a response.
 
 There are three **ACK** levels:
 
-- **ACK=0**: No replication is required. This allows for the lowest latency but risks data loss.
+- **ACK=0**: No persistence is required.
+The primary partition responds instantly upon receiving the data from the producer,
+resulting in the lowest possible latency. However, this approach comes with the risk of data loss.
 
 ```d2
 shape: sequence_diagram
@@ -561,7 +564,7 @@ p -> s: 2. Respond
 p -> p: 3. Save
 ```
 
-- **ACK=1**: Only the primary must save the data. If the primary fails before replication, data may be lost.
+- **ACK=1**: Only the primary partition must save the data. If the partition fails before successfully replicating, data may be lost.
 
 ```d2
 shape: sequence_diagram
@@ -582,7 +585,7 @@ p -> r: 4. Crash before replicating (data loss) {
 }
 ```
 
-- **ACK=ALL**: All **ISRs** must save the data. This ensures no data loss even if the primary fails.
+- **ACK=ALL**: All **ISRs** must save the data. This ensures no data loss even if the primary partition fails.
 
 ```d2
 shape: sequence_diagram
@@ -609,12 +612,15 @@ p -> p: 5. Crash here but no data loss {
 }
 ```
 
-Using **ISRs (In-Sync Replicas)** instead of all replicas is important
+Using **ISRs** (in-sync replicas) instead of all replicas is important
 because out-of-sync replicas might be slow or unavailable due to crashes or partitioning.
 Waiting for all replicas can degrade performance or block the partition entirely.
-Once a replica becomes in-sync again, it will fetch any missed events from the primary.
+Once a replica becomes in-sync again, it will fetch any missed events from the primary partition.
 
-Please keep **ACK** in mind—this mechanism is crucial for understanding [Delivery Semantics](#delivery-semantics).
+{{< callout type="info" >}}
+Please keep the **ACK** settings in mind,
+this mechanism is crucial for understanding [Delivery Semantics]({{< ref "delivery-semantics" >}}).
+{{< /callout >}}
 
 ## Consuming
 
@@ -698,7 +704,8 @@ p2: Partition 2 {
 }
 ```
 
-Consumers periodically fetch new events from partitions, handle them, and then **commit/increase the offset** to avoid reprocessing.
+Consumers periodically fetch new events from partitions (those with offsets greater than the last one they processed).
+After handling these events, consumers commit or advance their offsets to ensure they do not reprocess the same data in future cycles.
 
 ```d2
 shape: sequence_diagram
@@ -711,7 +718,7 @@ q: Partition {
 c -> q: 1. Consume
 q -> c: 2. Return an event
 c -> c: 3. Handle the event
-c -> q: 4. Commit offset
+c -> q: 4. Commit offset (offset = offset + 1)
 ```
 
 ### Consumer Group
@@ -799,6 +806,6 @@ t1.p1 -> c.cg3.c1
 t1.p2 -> c.cg3.c2
 ```
 
-Partition replicas serve solely for backup and recovery purposes. Consumers must always read from the primary broker.
+Partition replicas serve solely for backup and recovery purposes, consumers must always read from the primary broker.
 Unlike traditional databases, where read operations do not alter the state of the system,
 in {{< term esp >}}, consumption is [non-idempotent]({{< ref "api-design#request-idempotency" >}}) because each read updates the consumer’s offset.

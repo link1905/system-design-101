@@ -1,6 +1,8 @@
 ---
 title: Peer-to-peer Architecture
 weight: 20
+prev: master-slave-architecture
+next: gossip-protocol
 ---
 
 In terms of high availability and resiliency,
@@ -150,7 +152,6 @@ It’s easier to understand through an example:
 
 First, we define a **hash function** that returns a value within a fixed range, `[0, N]`:
 `map(value) -> output in [0, N]`.
-
 This range is conceptualized as a **ring**, wrapping values from `N` back to `0`.
 
 For instance, we can use `value % 100` to map values to `[0 → 99]`, forming a circular virtual ring:
@@ -192,7 +193,7 @@ rather than the entire database.
 
 Thus, consistent hashing avoids the need to remap the entire database when scaling out.
 
-## Virtual Nodes
+### Virtual Nodes
 
 One remaining issue with {{< term ch >}} is imbalance.
 Real-world data distributions can cause **hotspots**:
@@ -220,7 +221,7 @@ For example, when removing a server from the cluster,
 we must also migrate the data associated with **all** of its virtual nodes.
 This process can involve a large number of physical servers, significantly increasing the migration workload.
 
-## Shard Replication
+### Shard Replication
 
 Allowing shards to reside on only one server is risky.
 If that server crashes without recovery, the shard and its data will be lost.
@@ -228,7 +229,7 @@ If that server crashes without recovery, the shard and its data will be lost.
 Thus, we must introduce **replication**:
 
 - Each shard has one **primary** owner and multiple **replicas** stored on different servers.
-- The number of replicas for each shard is commonly referred to as the **Replication Factor**.
+The number of replicas for each shard is commonly referred to as the **Replication Factor**.
 - Replica shards can independently serve read queries, enhancing both availability and performance.
 
 For example, with `3` shards and a replication factor of `2`:
@@ -263,20 +264,32 @@ peer: Peer-to-peer cluster {
   s1: "Server 1" {
     grid-gap: 50
     grid-columns: 1
-    p1: Shard 1 primary
-    p2: Shard 2 replica
+    p1: Shard 1 primary {
+      class: db
+    }
+    p2: Shard 2 replica {
+      class: db
+    }
   }
   s2: "Server 2" {
     grid-gap: 50
     grid-columns: 1
-    p1: Shard 2 primary
-    p2: Shard 3 replica
+    p1: Shard 2 primary {
+      class: db
+    }
+    p2: Shard 3 replica {
+      class: db
+    }
   }
   s3: "Server 3" {
     grid-gap: 50
     grid-columns: 1
-    p1: Shard 3 primary
-    p2: Shard 1 replica
+    p1: Shard 3 primary {
+      class: db
+    }
+    p2: Shard 1 replica {
+      class: db
+    }
   }
   s1.p1 -> s3.p2: Replicate {
     style.animated: true
@@ -293,13 +306,13 @@ db.p2 -> peer.s2.p1
 db.p3 -> peer.s3.p1
 ```
 
-### How Are Replicas Chosen?
+#### Replica Selection
 
 A simple strategy is to pick the next servers clockwise on the ring.
 
 ![Picking Replicas](consistent-hashing-pick-replicas.png)
 
-Some systems strengthen this further by considering **infrastructure diversity** —
+Some systems strengthen this further by considering **infrastructure diversity**,
 for example, placing replicas across different data centers or regions to guard against localized failures.
 
 ## Master-Slave And Peer-to-peer
@@ -323,10 +336,6 @@ for high availability and fault tolerance.
 
 We have extensively discussed data sharding and replication.
 Now, the question arises: *how can we effectively combine them into a single virtual database?*
-
-Maintaining a {{< term p2p >}} system is no simple task.
-This architecture embraces decentralization, aiming for high availability and fault tolerance,
-with **no single point of failure**.
 
 A decentralized cluster must ensure that metadata (e.g., member addresses, sharding information, etc.)
 is both reliable and consistently shared across all members.
@@ -359,19 +368,18 @@ p1 <-> p3 {
 Before moving forward, we need to explore the **CAP Theorem**,
 a fundamental trade-off that governs distributed systems.
 
-Distributed systems are essentially characterized by three key properties:
+In essence, distributed systems are essentially characterized by three key properties:
 **Consistency**, **Availability** and **Partition Tolerance**.
 
-#### 1. Consistency (C)
+#### Consistency (C)
 
 **Consistency** in the context of {{< term cap >}}
-means that all nodes see the same data at the same time,
+means that all nodes contain the same data,
 either immediately or eventually through synchronization mechanisms.
 
-#### 2. Availability (A)
+#### Availability (A)
 
-**Availability (A)** —
-as discussed in the [Service Cluster]({{< ref "service-cluster#service-availability" >}}) section —
+**Availability (A)**
 ensures that every request receives a response,
 even if the response contains outdated or inconsistent data.
 In short, a system is considered **available** as long as it responds, regardless of accuracy.
@@ -381,7 +389,7 @@ We've only briefly touched on **Consistency** and **Availability** here;
 deeper explanations will follow in the sections below.
 {{< /callout >}}
 
-#### 3. Partition Tolerance (P)
+#### Partition Tolerance (P)
 
 To understand **Partition Tolerance**, we first need to grasp the concept of a **Partition**:
 
@@ -471,10 +479,10 @@ Thus, practical systems must choose between three design patterns: **AP**, **CP*
 
 ### CA System
 
-A **CA** system provides **Consistency** and **Availability** but not **Partition Tolerance**.
-In theory, this sounds ideal, but in practice, it’s **impractical**.
+A **CA** system provides **Consistency (C)** and **Availability (A)** but not **Partition Tolerance**.
 
-When a network partition occurs, a **CA** system would either stop working entirely or behave incorrectly —
+In practice, this pattern is barely applied.
+When a network partition occurs, a **CA** system would either stop working entirely or behave incorrectly,
 both outcomes are unacceptable.
 Since network partitions are inevitable in real-world environments,
 a system that does not tolerate partitions is essentially unusable.
@@ -486,7 +494,8 @@ In the presence of a partition, a distributed system must choose between **Consi
 
 Consider a cluster of two servers:
 
-- `A` hosts `Shard 1`; `B` maintains a replica of it.
+- Server `A` hosts `Shard 1`.
+- Server `B` maintains a replica of `Shard 1`.
 - If clients write to `Shard 1` via `B`, `B` forwards the request to `A` (the shard owner).
 
 ```d2
@@ -508,7 +517,7 @@ c.sb -> c.sa: "2. Forward to the primary"
 ```
 
 Suppose a network partition occurs, separating `A` from `B`.
-Now, clients connecting to `B` can **only read** from the replica — **writes are disabled** to preserve consistency.
+Now, clients connecting to `B` can **only read** from the replica, **writes are disabled** to preserve consistency.
 
 ```d2
 grid-rows: 2
@@ -580,7 +589,7 @@ client -> c.g2.sb: Read and write {
 }
 ```
 
-In this **AP** system, partitions remain fully functional —
+In this **AP** system, partitions remain fully functional,
 but at the cost of **Consistency**: different partitions may accept conflicting updates.
 
 ```d2
@@ -630,7 +639,6 @@ clients.c2 -> c.g2.sb: Write
 Consistency here refers to **cross-partition consistency** during a network split,
 not the usual node-to-node replication consistency.
 Since partitions **cannot communicate**, inconsistencies persist until the cluster is healed.
-After recovery, conflict resolution strategies must be applied.
 
 Choosing between **Consistency** and **Availability** is a fundamental decision when designing a distributed database.
 In the following sections, we will explore two major approaches for managing decentralized clusters:

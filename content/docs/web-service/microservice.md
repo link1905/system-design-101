@@ -3,7 +3,7 @@ title: Microservice
 weight: 10
 ---
 
-Let’s begin our journey with a concept that has become ubiquitous in recent years — {{< term ms>}}
+Let’s begin our journey with a concept that has become ubiquitous in recent years - {{< term ms>}}
 
 ## System Scaling
 
@@ -125,7 +125,7 @@ cluster: "Distributed System" {
 }
 ```
 
-Keep this concept in mind — a significant portion of this document will focus on the challenges and solutions
+Keep this concept in mind! a significant portion of this document will focus on the challenges and solutions
 associated with {{< term ds >}}.
 
 ## Microservice
@@ -172,61 +172,102 @@ and allow teams to work in parallel with clearly defined responsibilities.
 ### Microservice Architecture
 
 {{< term ms >}} is an **architectural pattern** that decomposes a system into smaller,
-independent services—each handling a specific function.
+independent services, each handling a specific function.
 
 For example, the microservice approach splits the previous system into three
-**independent services**
-and assigns them to different teams.
+**independent services** and assigns them to different teams.
 
 {{< filetree/container >}}
-  {{< filetree/folder name="Account Module" >}}
+  {{< filetree/folder name="Account Service" >}}
     {{< filetree/file name="Account.class" >}}
   {{< /filetree/folder >}}
-  {{< filetree/folder name="Payment Module" >}}
+  {{< filetree/folder name="Payment Service" >}}
     {{< filetree/file name="Request.class" >}}
     {{< filetree/file name="Transaction.class" >}}
   {{< /filetree/folder >}}
-  {{< filetree/folder name="Notification Module" >}}
+  {{< filetree/folder name="Notification Service" >}}
     {{< filetree/file name="Email.class" >}}
     {{< filetree/file name="PushNotification.class" >}}
   {{< /filetree/folder >}}
 {{< /filetree/container >}}
 
-Ideally, microservices are **isolated** and share no common dependencies.
-This isolation allows teams to manage their services autonomously,
-choose their own technology stacks, and independently deploy and test their code,
-thereby speeding up development cycles.
+Ideally, microservices operate in complete **isolation**, sharing no common dependencies such as codebase, databases, or specific technologies.
+
+```d2
+grid-columns: 1
+t {
+  grid-rows: 1
+  horizontal-gap: 250
+  class: none
+  ta: Team A {
+    class: group
+  }
+  tb: Team B {
+    class: group
+  }
+}
+s {
+  grid-rows: 1
+  class: none
+  sa: Microservice A {
+    grid-rows: 1
+    c: Codebase {
+      class: code
+    }  
+    db: Data schema {
+      class: db
+    }
+  }
+  sb: Microservice B {
+    grid-rows: 1
+    c: Codebase {
+      class: code
+    }  
+    db: Data schema {
+      class: db
+    }
+  }
+}
+t.ta -> s.sa: Maintain
+t.tb -> s.sb: Maintain
+```
+
+This fundamental isolation empowers teams to manage their services with full autonomy.
+It grants them the freedom to select their own technology stacks and to **independently deploy** and test their code.
+Consequently, this autonomy significantly **speeds up development cycles** and fosters greater agility.
 
 ### Microservice & Monolith
 
-Is microservice inherently better than monolith architecture?
-It depends on the context.
+Is a microservice architecture inherently superior to a monolithic one?
+The answer depends entirely on context.
 
-In a monolithic system, components communicate via **native function calls**.
-In contrast, microservices should be isolated and broadly communicate **over a network**,
-which introduces additional latency, more potential points of failure,
-and increased complexity in testing and troubleshooting.
-Moreover,
-achieving complete autonomy in a microservice environment probably
-leads to **duplication of code**.
+In monolithic systems, all modules reside within a single codebase.
+This centralized structure makes it simpler to design, develop, and deploy,
+particularly for small to medium-sized projects.
+Modules communicate directly and efficiently (in-process),
+resulting in lower latency and higher performance.
 
-However, in large-scale systems developed by dozens or hundreds of people,
-the monolith approach can create bottlenecks and impede parallel development.
-Briefly, {{< term ms >}} offer significant benefits from the **development perspective**
-rather than runtime factors such as performance or reliability.
+By contrast, microservices are intentionally isolated and must interact **across a network**.
+This distributed model introduces added latency, creates more potential points of failure,
+and increases the complexity of monitoring, managing, and troubleshooting the system.
+Additionally, striving for complete autonomy in microservices can often result in **code duplication** across services.
 
-For example, if a monolithic system is slow under high traffic,
-migrating to the microservice model is not a way of improving performance,
-because network calls are not supposed to match the efficiency of native calls.
+However, as organizations scale, especially those with dozens or hundreds of developers;
+A monolithic architecture can become a bottleneck,
+hindering parallel development and making it difficult for teams to work independently.
+
+Ultimately, microservices tend to provide the most value from a **development perspective**,
+enabling independent deployments, flexible scaling, and clearer team ownership,
+rather than offering benefits for runtime characteristics like raw performance or reliability.
 
 {{< callout type="info" >}}
-Honestly, I’m not a big fan of **Microservice**, and I know many developers feel the same.
-Once data leaves my service and travels over the network,
-it opens the door to a host of unpredictable issues that eat up my time and energy.
+To be honest, I’m not a fan of **Microservice**, and I know many developers share this sentiment.
+Once data leaves my service and crosses the network,
+it’s exposed to a host of unpredictable issues that can drain significant amounts of time and energy.
 
-That said, I dislike working with plenty of people even more.
-When something breaks, I often have no idea who to turn to for answers.
-And worse, I keep getting pulled into questions and problems that aren’t even part of my scope.
+That said, I find working with very large teams even more challenging.
+When things break, it’s often unclear where to turn for help,
+and I frequently get dragged into problems that fall outside my area of responsibility.
 {{< /callout >}}
 
 ### Microservice & Horizontal Scaling
@@ -237,14 +278,6 @@ while a microservice system always requires {{< term hs >}}.
 In reality, the development model is separate from operational strategies.
 Both monolithic and microservice systems can be scaled either vertically or horizontally.
 
-### Microservice Design
-
-Designing a microservice-based system is a complex challenge.
-Errors in the design process can result in an overly complicated architecture
-that fails to deliver the benefits.
-This concern is overwhelming for an open chapter,
-we will see it in detail in [a later chapter]({{< ref "microservice-decomposition" >}}).
-
 ## Service Decoupling
 
 ### Tight Coupling
@@ -253,39 +286,38 @@ A significant challenge in {{< term ms >}} is tight coupling,
 where isolated services become **overly dependent** on one another
 and behave more like components of a monolithic system.
 
-For example, when a user completes a subscription purchase,
-the `Payment Service` calls the `Account Service` to update the account:
+For example, when a user completes a subscription purchase, the `Subscription Service` first retrieves the necessary account information from the `Account Service`.
+After gathering these details, it then notifies the `Account Service` to update the user’s account status accordingly.
 
 ```d2
 direction: right
 system: System {
+    s: Subscription Service {
+      class: server
+    }
     acc: Account Service {
       class: server
     }
-    p: Payment Service {
-      class: server
-    }
-    p -> acc: 1. Update account subscription
+    s <- acc: "1. GetAccountInformation()"
+    s -> acc: "2. UpdateSubscription()"
 }
 ```
 
 Even though these services reside in separate codebases, they remain **implicitly dependent**.
 Changes to the `Account Service`, such as interfaces or logic,
-can have unintended consequences for the `Payment Service`,
-requiring coordination and redeployment to prevent runtime errors and limiting service autonomy.
+can have unintended consequences for the `Subscription Service`,
+requiring coordination and redeployment to prevent runtime errors and limiting service autonomy:
 
-- The more consumer the `Account Service` has, the more coordination needs to happen.
+- The more consumers the `Account Service` has, the more coordination needs to happen.
 - If the `Account Service` undergoes frequent changes,
   dependent services must constantly cope with it to maintain system integrity.
 
 While **consolidating** services into a single unit might seem like a straightforward solution,
-it risks creating a large, monolithic service — bringing back the very issues we sought to avoid.
+it risks creating a large, monolithic service bringing back the very issues we sought to avoid.
 {{< callout type="info" >}}
 You may see it's silly to bolt services back after demarcating them.
 Nowadays, this occurs a lot in many organizations.
-That's because they've expected too much and produced excessively complex systems,
-or more simply, they don't have enough workforces after downsizing.
-🥺
+That's because they've initially expected too much and produced excessively complex systems.
 {{< /callout >}}
 
 Coupling between services is, to some extent, **unavoidable**.
@@ -296,43 +328,45 @@ while ensuring that services remain as independent and loosely coupled as possib
 
 **Loose Coupling**
 involves minimizing dependencies between services so that changes in one service have little or no effect on others.
-Services can be coupled in several aspects, including:
 
-#### Temporal Coupling
+Services can be coupled in several aspects, typically including:
 
-**Temporal (or Sequential) Coupling** occurs when one service depends on another in a **particular sequence**.
+#### Sequential Coupling
 
-For example, suppose the `Payment Service` initially calls the `Account Service` to update premium accounts:
+**Sequential Coupling** occurs when one service depends on another in a **particular sequence**.
+
+For example, suppose the `Subscription Service` initially calls the `Account Service` to update subscriptions:
 
 ```d2
 direction: right
-a: Payment Service {
+a: Subscription Service {
     class: server
 }
 b: Account Service {
     class: server
 }
-a -> b: "UpdatePremium()"
+a -> b: "UpdateSubscription()"
 ```
 
-Later, if the `Payment Service` also requires functions for upgrading or
+Later, if the `Subscription Service` also requires functions for upgrading or
 canceling subscription plans,
 the `Account Service` must expose additional functions:
 
 ```d2
 direction: right
-a: Payment Service {
+a: Subscription Service {
     class: server
 }
 b: Account Service {
     class: server
 }
-a -> b: "UpdatePremium()"
-a -> b: "UpgradePremiumPlan()"
-a -> b: "CancelPremium()"
+
+a -> b: "UpdateSubscription()"
+a -> b: "UpgradePlan()"
+a -> b: "CancelPlan()"
 ```
 
-We observe that the `Payment Service` grasps the inner logic of the `Account Service`,
+We observe that the `Subscription Service` grasps the inner logic of the `Account Service`,
 every time it needs something,
 it dictates the `Account Service` to accommodate that.
 The services are tightly coupled with each other,
@@ -346,7 +380,7 @@ When a service is added or removed, the **overall topology** changes and
 can impact other services.
 
 For example, suppose we add a `Notification Service` and a `Fraud Detection Service`,
-and the `Payment Service` is then required to **adapt** to send payment receipts to them:
+and the `Subscription Service` is then required to **adapt** to send payment receipts to them:
 
 ```d2
 direction: right
@@ -354,7 +388,7 @@ s1: System {
     acc: Account Service {
       class: server
     }
-    p: Payment Service {
+    p: Subscription Service {
       class: server
     }
     p -> acc
@@ -363,7 +397,7 @@ s2: Adapted System {
     acc: Account Service {
       class: server
     }
-    p: Payment Service {
+    p: Subscription Service {
       class: server
     }
     n: Notification Service {
@@ -389,24 +423,23 @@ s2: Adapted System {
 s1 -> s2: Changed to
 ```
 
-Likewise, as additional services are added or removed,
-the `Payment Service` is forced to **continuously adapt** to the topology.
-However, managing these changes should not fall on the `Payment Service`,
-instead, the responsibility for handling dynamic topology changes should lie with added or removed components.
+Similarly, as new services are introduced or existing ones are removed, the `Subscription Service` must **constantly adapt** to these new topologies.
+However, for greater agility and maintainability, the burden of managing such changes should not rest with the `Subscription Service`.
+Instead, the responsibility for handling dynamic topology adjustments should belong to the individual components being added or removed.
 
 #### Semantic Coupling
 
 **Semantic Coupling** occurs when services share the same data structures and semantics.
 
-For example, if the `Payment Service` receives a response from the `Account Service`,
+For example, if the `Subscription Service` receives a response from the `Account Service`,
 it must understand the structure of that response.
-If the `Account Service` modifies the structure, it must notify the `Payment Service` to prevent errors.
+If the `Account Service` modifies the structure, it must notify the `Subscription Service` to prevent errors.
 
 ```d2
 grid-rows: 1
 horizontal-gap: 100
 direction: right
-a: Payment Service {
+a: Subscription Service {
     class: server
 }
 r: Response {
@@ -479,7 +512,7 @@ We'll see an indirect approach to implement {{< term ioc >}} called {{< term msg
 ### Messaging
 
 The {{< term ioc >}} principle can be implemented using {{< term msg >}}.
-We essentially build an informative **message channel** with two primary associates:
+We essentially build an informative **message broker** with two primary associates:
 
 - **Publishers** publish messages.
 - **Consumers** consume and process messages.
@@ -489,7 +522,7 @@ direction: right
 p: Publisher {
   class: server
 }
-m: Message Channel {
+m: Message Broker {
   class: mq
 }
 c: Consumer {
@@ -501,7 +534,7 @@ c <- m: Consume
 
 Integrating {{< term msg >}} into the first coupling example:
 
-- The `Payment Service` can publish account subscription messages to the channel.
+- The `Subscription Service` can publish account subscription messages to the broker.
 - The `Account Service` can later retrieve these messages to update the associated accounts.
 
 ```d2
@@ -509,10 +542,10 @@ direction: right
 acc: Account Service {
     class: server
 }
-p: Payment Service {
+p: Subscription Service {
     class: server
 }
-mq: Message Channel {
+mq: Message Broker {
     class: mq
 }
 msg: |||yaml
@@ -532,13 +565,13 @@ from being called to a caller.
 
 #### Decoupling With Messaging
 
-Beneficially, this design moves us away from:
+Beneficially, {{< term msg >}} moves us away from:
 
-- [Temporal coupling](#temporal-coupling): The `Account Service` exposes only a minimal set of interfaces
+- [Sequential coupling](#sequential-coupling): The `Account Service` exposes only a minimal set of interfaces
   and adapts to handle various messages instead.
-  Furthermore, the scope of the `Payment Service` is reduced, granting it more flexibility;
+  Furthermore, the scope of the `Subscription Service` is reduced, granting it more flexibility;
   Like so, even if the `Account Service` fails to process messages,
-  the `Payment Service` continues to develop and deliver without disruption.
+  the `Subscription Service` continues to develop and deliver without disruption.
 
 ```d2
 direction: right
@@ -546,10 +579,10 @@ system: System {
     acc: Account Service {
         class: server
     }
-    p: Payment Service {
+    p: Subscription Service {
         class: server
     }
-    mq: Message Channel {
+    mq: Message Broker {
         class: mq
     }
     p -> mq: Subscription Message
@@ -560,7 +593,7 @@ system: System {
 ```
 
 - [Topology coupling](#topology-coupling): Additional services, such as `Notification Service` and `Fraud Detection Service`,
-  can autonomously read messages without requiring any changes from the `Payment Service`.
+  can autonomously read messages without requiring any changes from the `Subscription Service`.
 
 ```d2
 direction: right
@@ -568,10 +601,10 @@ system: System {
     acc: Account Service {
         class: server
     }
-    p: Payment Service {
+    p: Subscription Service {
         class: server
     }
-    mq: Message Channel {
+    mq: Message Broker {
         class: mq
     }
     n: Notification Service {
@@ -589,14 +622,9 @@ system: System {
 
 Nevertheless, we still encounter some dependencies
 
-- Both services depend on {{< term msg >}}. The dependency is minimized and barely problematic,
-  as **Message Channels** expose only basic `Publish()` and `Consume()` interfaces that rarely change.
+- Both services depend on {{< term msg >}}. Luckily, the dependency is minimized and barely problematic,
+  as **Message Brokers** expose only basic `Publish()` and `Consume()` interfaces that rarely change.
 - Both the publisher and consumer adhere to the same message schema, which is [Semantic Coupling](#semantic-coupling).
-
-We've just gone through some types of coupling and made messaging look mighty.
-However, keep in mind that there are more types of couplings,
-e.g., technology dependency, data dependency, flow dependency (like [SAGA]({{< ref "compensating-protocols#saga" >}})), ...
-which may weaken messaging.
 
 Occasionally, messaging may result in an **unnecessary overhead** and outweigh the benefits of decoupling.
 
@@ -608,4 +636,4 @@ Occasionally, messaging may result in an **unnecessary overhead** and outweigh t
 - Debugging may become more challenging as failures are asynchronous and harder to trace.
 
 In summary, while coupling in a microservice architecture can’t be eliminated,
-they can be reduced and managed more effectively through messaging.
+they can be reduced and managed more effectively through {{< term msg >}}.

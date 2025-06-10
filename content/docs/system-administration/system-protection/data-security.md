@@ -1,6 +1,7 @@
 ---
 title: Data Security
 weight: 10
+prev: system-administration
 ---
 
 ## Data Compliance
@@ -15,7 +16,7 @@ Several well-known frameworks are widely recognized and implemented:
 - **Payment Card Industry Data Security Standard (PCI DSS):** Ensures organizations securely accept, transmit, and store credit card information.
 
 When operating in a specific region, country, or industry,
-it is essential to thoroughly research and strictly follow all applicable rules and regulations.
+it is essential to thoroughly research and strictly follow applicable rules and regulations.
 **Non-compliance** can result in severe financial penalties, legal consequences, and significant damage to an organization’s reputation.
 
 In essence, the most effective ways to achieve data compliance include:
@@ -34,7 +35,6 @@ Key practices include:
 ### Data Segmentation
 
 **Data Segmentation** involves dividing data into distinct segments within the system to reduce complexity, limit risk, and lower compliance costs.
-Proper segmentation provides enhanced access control and isolates sensitive data.
 
 Example: Under **GDPR**, only personal data falls under strict regulation.
 
@@ -70,18 +70,20 @@ not only against external threats, but also to protect data from internal misuse
 If the necessary security controls cannot be guaranteed in-house,
 it is best to use a trusted third party (such as **Stripe**) to handle these tasks.
 
+---
+
 Next, we’ll explore common techniques to protect data.
 
 ## Data Masking
 
 **Data Masking** is the technique of obscuring sensitive data by replacing it with meaningless or partially hidden values.
-The purpose is to protect confidential information while keeping the data usable for specific tasks such as development, analytics, or research.
 
 For example,
 **HIPAA** mandates that **Personal Health Information (PHI)** be de-identified before use in secondary contexts
 (e.g., analytics or research) outside direct patient care.
 
 - **Original PHI:**
+
 ```yaml
 CitizenId: 1111-2222-9999
 Symptom: trouble sleeping
@@ -89,6 +91,7 @@ Conclusion: asthenia
 ```
 
 - **Masked PHI:**
+
 ```yaml
 CitizenId: XXXX-XXXX-9999
 Symptom: trouble sleeping
@@ -106,19 +109,14 @@ It supports safe use of realistic data for testing, analytics, and sharing witho
 
 **Data Tokenization** involves replacing sensitive data with a unique, meaningless **token**.
 The actual, sensitive data is securely stored in a separate, protected **Vault**.
-This process, **tokenization**, enables systems to reference the real data using its corresponding token,
-allowing for controlled access and operations on the original information without direct exposure.
 
-Consider the development of a proprietary `Payment Service` designed specifically to securely store and process sensitive credit card details.
-When another internal service, such as a `Subscription Service`, requires payment processing capabilities,
-it does not directly handle or access the credit card information.
-Instead, it delegates the task by forwarding the relevant transaction details to the specialized `Payment Service`.
+Consider the development of a proprietary `Payment Service` designed specifically to securely store and process sensitive credit card details:
 
-1.  The client initiates a subscription by interacting with the `Subscription Service`.
-2.  The `Subscription Service` then forwards the client to the `Payment Service`.
-3.  The client submits their card information directly to the `Payment Service`.
-4.  The `Payment Service` generates a unique **token** (e.g., `TKN1234`) to represent the card details.
-5.  The `Subscription Service` receives only this **token**. It uses this **token** for future payment operations,
+1. The client initiates a subscription by interacting with the `Subscription Service`.
+2. The `Subscription Service` then forwards the client to the `Payment Service`.
+3. The client submits their card information directly to the `Payment Service`.
+4. The `Payment Service` generates a unique **token** (e.g., `TKN1234`) to represent the card details.
+5. The `Subscription Service` receives only this **token**. It uses this **token** for future payment operations,
 such as charging or refunding.
 
 ```d2
@@ -148,14 +146,14 @@ s -> p: 5. Charge with token TKN1234 {
 }
 ```
 
-This workflow centralizes the handling of sensitive data within the secure `Payment Service`, minimizing exposure elsewhere.
+This workflow centralizes the handling of sensitive data within the secure `Payment Service`, **minimizing exposure** elsewhere.
 The `Subscription Service` can perform actions related to the card (e.g., process payments)
 without ever possessing or accessing the actual card number.
 
-If a stolen **token** is used in an unauthorized attempt to initiate a charge,
+If a **stolen token** is used in an unauthorized attempt to initiate a charge,
 the transaction would still be processed by the legitimate `Payment Service`.
 Any funds would be directed to the intended merchant, not the attacker,
-because the **token** only has operational meaning within that secure payment system.
+because the token only has operational meaning within that secure payment system.
 
 The effectiveness of this method is critically dependent on the robust security of the **Vault**.
 The **Vault** must be maintained as a strictly isolated component with rigorously enforced,
@@ -163,7 +161,7 @@ tightly controlled access mechanisms.
 
 ## Cryptographic Hashing
 
-Cryptographic hashing is a security technique that protects data by converting it into a non-sensitive form using a hash function,
+**Cryptographic Hashing** is a security technique that protects data by converting it into a non-sensitive form using a hash function,
 such as [MD5](https://en.wikipedia.org/wiki/MD5) or [SHA](https://en.wikipedia.org/wiki/SHA-1).
 
 Hash functions are mathematically complex.
@@ -189,14 +187,14 @@ Email: example@gmail.com
 Password: mystrongpassword
 ```
 
-- Instead, hash the password (for example, using MD5), and save only the hashed value:
+- Instead, hash passwords (for example, using MD5) and saving only the hashed values are recommended:
 
 ```yaml
 Email: example@gmail.com
 Password: c924729b0e04eb0d21908a7454c0218a # MD5(mystrongpassword)
 ```
 
-- When the user signs in, hash the input and compare it with the stored value:
+- When a user signs in, we hash the input and compare it with the stored value:
 
 ```yaml
 UserInput: mystrongpassword → c924729b0e04eb0d21908a7454c0218a
@@ -352,7 +350,7 @@ d: Data {
   name: Stew
   |||
 }
-k: Key {
+k: Symmetric Key {
   class: pub-key
 }
 ed: Ciphertext {
@@ -406,7 +404,7 @@ k.k2 -> d: Decrypt
 One of the two keys will be published for consumers to use;
 this is the **Public Key**.
 The other key is retained privately and is called the **Private Key**.
-Typically, the public key is used for encryption, as decryption is considered more sensitive.
+Typically, the public key is used for encryption, as decryption is often considered more sensitive.
 
 For example,
 we might distribute the public key so that the encryption step can occur on the client side,
@@ -509,22 +507,21 @@ Any modification results in a different ciphertext, and the public key cannot de
 
 This concept is widely applied, for example:
 
-- [JWT]({{< ref "iam#json-web-token-jwt" >}})
-- [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security)
+- [Json Web Token (JWT)]({{< ref "iam#json-web-token-jwt" >}}).
+- [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security).
 - File distribution, providing assurance that distributed files are valid and unmodified.
 
 Data encryption is a granular approach.
 Key holders can independently manage the encryption/decryption process,
-making it highly efficient in distributed workflows.
+making it highly efficient in distributed environments.
 
 ## Key Management
 
-Keys are essential to securing data, but they also present a security challenge,
-and must be properly managed and protected.
+Keys are essential to securing data, thus, they must be properly managed and protected.
 
 ### Key Store
 
-Scattering keys throughout the system is not a recommended practice.
+Scattering keys throughout the system is not a good practice.
 It is better to centralize key management,
 providing a clear overview of all keys and their access permissions.
 Building a centralized key store is therefore an effective solution.
@@ -544,12 +541,13 @@ s: Service {
 k: Key Store {
     class: pri-key
 }
-s -> k: Encrypt/Decrypt
+s -> k: Encrypt()
+s -> k: Decrypt()
 ```
 
 However, this method has drawbacks in terms of performance and availability.
 Cryptographic operations can be resource-intensive,
-so a centralized store handling all requests may become a bottleneck and a single point of failure.
+so a centralized store handling all requests may become a bottleneck and a {{< term spof >}}.
 
 #### Key Distribution
 
@@ -579,10 +577,10 @@ Consumers are required to securely store distributed keys and may encounter heig
 
 ### Hold Your Own Key (HYOK)
 
-**HYOK** (Hold Your Own Key) means clients retain complete control over their encryption keys.
-There is no need for a key store; clients are responsible for managing key processes themselves.
+**HYOK** means clients retain complete control over their encryption keys.
+There is no need for a key store; clients are responsible for managing keys themselves.
 
-This approach is especially useful when clients wish to conceal their data even from the backend system, as in end-to-end encryption.
+This approach is especially useful when clients wish to conceal their data even from the backend system, as in **end-to-end encryption**.
 
 ```d2
 direction: right
@@ -602,4 +600,4 @@ c <- ed: Decrypt data after getting
 ```
 
 This strategy requires additional support for securely sharing keys between client devices.
-Since keys are stored locally, changing or losing devices can result in key—and therefore data loss.
+Since keys are stored locally, changing or losing devices can result in key, and therefore data loss.

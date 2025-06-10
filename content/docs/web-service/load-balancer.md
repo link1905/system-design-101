@@ -1,6 +1,8 @@
 ---
 title: Load Balancer
 weight: 40
+prev: communication-protocols
+next: api-design
 ---
 
 We previously introduced how to build a cluster of instances in the [Service Cluster]({{< ref "service-cluster" >}}) topic.
@@ -10,9 +12,12 @@ In this lecture, we’ll explore how to expose a service to the outside world.
 
 ### Reverse Proxy Pattern
 
-When running a cluster of service instances, these instances typically reside on different machines with distinct addresses. Moreover, instances can be dynamically added or removed. As a result, it’s impractical for clients to directly communicate with individual service instances.
+When running a cluster of service instances, these instances typically reside on different machines with distinct addresses.
+Moreover, instances can be dynamically added or removed. As a result, it’s impractical for clients to directly communicate with individual service instances.
 
-A **Reverse Proxy** is a pattern that exposes a system through **a single entry point**, concealing the underlying internal structure. Following this pattern, service instances are placed behind a proxy that forwards traffic to them. This proxy should be a fixed and discoverable endpoint, often achieved through **DNS**.
+**Reverse Proxy** is a pattern that exposes a system through **a single entry point**, concealing the underlying internal structure.
+Following this pattern, service instances are placed behind a proxy that forwards traffic to them.
+This proxy should be a fixed and discoverable endpoint, often achieved through **DNS**.
 
 ```d2
 direction: right
@@ -40,7 +45,7 @@ p -> s.s2
 Proxying alone isn’t enough.
 To efficiently utilize resources, we want to **distribute traffic evenly** across the service instances.
 
-For example, one instance might be handling `4 requests` while another processes only `1` — clearly an imbalance.
+For example, one instance might be handling `4 requests` while another processes only `1`, clearly an imbalance.
 
 ```d2
 direction: right
@@ -67,7 +72,7 @@ s: Service {
     }
   }
   s2: Instance 2 {
-    r1: Request 1 {
+    r1: Request 5 {
       class: request
     }
   }
@@ -77,37 +82,47 @@ p -> s.s1
 p -> s.s2
 ```
 
-To solve this, we add a load balancing capability to the proxy component, which we refer to as a {{< term lb >}}.
-For example, a load balancer might use a [round-robin strategy](https://en.wikipedia.org/wiki/Round-robin_scheduling) to evenly distribute traffic across the cluster.
+To solve this, we add the load balancing capability to the proxy component, which we refer to as a {{< term lb >}}.
+For example, the load balancer evenly distribute traffic across the cluster.
 
 ```d2
 direction: right
-s: Service {
-  s1: Instance 1 {
-    class: server
-  }
-  s2: Instance 2 {
-    class: server
-  }
-}
-lb: Load Balancer {
-  class: lb
-}
 c: Client {
   class: client
 }
-c -> lb
-lb -> s.s1: 1. Request 1
-lb -> s.s2: 2. Request 2
-lb -> s.s1: 3. Request 3
+p: Proxy {
+  class: lb
+}
+s: Service {
+  s1: Instance 1 {
+    grid-rows: 1
+    r1: Request 1 {
+      class: request
+    }
+    r2: Request 2 {
+      class: request
+    }
+  }
+  s2: Instance 2 {
+    r3: Request 3 {
+      class: request
+    }
+    r4: Request 4 {
+      class: request
+    }
+  }
+}
+c -> p
+p -> s.s1
+p -> s.s2
 ```
 
 ### Service Discovery
 
 A {{< term lb >}} needs to be aware of the available service instances behind it.
-The most common approach is to implement a central {{< term svd >}} system to track all instances. Load balancers often come bundled with this feature.
+The most common approach is to implement a central {{< term svd >}} system to track all instances.
 
-In this setup, instances must register themselves with the {{< term lb >}}, which otherwise has no inherent knowledge of their existence.
+In this setup, service instances must register themselves with the {{< term lb >}}, which otherwise has no inherent knowledge of their existence.
 
 ```d2
 direction: right
@@ -132,7 +147,7 @@ s.s1 -> sd.lb: Register
 s.s2 -> sd.lb: Register
 ```
 
-### Health Check
+#### Health Check
 
 To ensure only healthy instances receive traffic,
 the {{< term lb >}} periodically performs [health checks]({{< ref "service-cluster#heartbeat-mechanism" >}}) and removes unhealthy ones from the pool.
@@ -147,20 +162,20 @@ system: System {
       }
       r: |||yaml
       Instance 1: 1.1.1.1, Healthy
-      Instance 2: 2.2.2.2, Healthy
+      Instance 2: 2.2.2.2, Unhealthy
       |||
     }
     s1: Instance 1 {
       class: server
     }
     s2: Instance 2 {
-      class: server
+      class: generic-error
     }
-    lb.lb -> s1: Check periodically {
+    lb.lb -> s1: Health check {
       style.animated: true
     }
-    lb.lb -> s2: Check periodically {
-      style.animated: true
+    lb.lb -> s2: Stop forwarding {
+      class: error-conn
     }
   }
 }
@@ -215,13 +230,13 @@ s1: System {
   }
   s2: Instance 2 {
     grid-columns: 3
-    r1: "Request" {
-      class: request
-    }
-    r2: "Request" {
-      class: request
-    }
     r3: "Request" {
+      class: request
+    }
+    r1: "In-flight Request" {
+      class: request
+    }
+    r2: "In-flight Request" {
       class: request
     }
   }
@@ -260,10 +275,10 @@ lb.lb -> s.s2: Pick Instance 2
 ```
 
 Is this better than **Round-robin**?
-Not necessarily — because the number of active connections doesn’t always reflect the actual resource consumption.
+Not necessarily, because the number of active connections doesn’t always reflect the actual resource consumption.
 For example, `10` requests on `Instance 1` might use just `1 MB` of memory, while `3` requests on `Instance 2` could consume `100 MB`.
 
-This strategy shines for **long-lived sessions** (like {{< term ws >}} connections), where client sessions persist on the same server for extended periods.
+This strategy shines for **long-lived sessions** (like {{< term ws >}}), where client sessions persist on the same server for extended periods.
 In such cases, **Round-robin** can easily lead to imbalance, making **Least Connections** a better choice.
 
 ### Session Stickiness
@@ -292,12 +307,14 @@ c <- lb: '3. Respond with stickiness key "I1"' {
   style.bold: true
 }
 c -> lb: '4. Use the key to connect to "I1"'
+lb -> s0
 ```
 
 **Why is this necessary?**
-For [stateful applications]({{< ref "service-cluster#stateful-service" >}}) like multiplayer games or chat services, clients often need to consistently interact with the same server instance — for example, reconnecting to the same match or session after a temporary disconnection.
+For [stateful applications]({{< ref "service-cluster#stateful-service" >}}) like multiplayer games or chat services, clients often need to consistently interact with the same server instance.
+For example, reconnecting to the same session after a temporary disconnection.
 
-**However**, this comes at a cost.
+However, this comes at a cost.
 Session stickiness can easily lead to uneven load distribution, as it bypasses the load balancer’s configured algorithm in favor of sticking with a specific instance.
 
 ## Load Balancer Types
@@ -310,7 +327,7 @@ They define which network layer the load balancing occurs at.
 Briefly, a network message’s journey through a machine can be explained via **7 layers** in the [OSI model](https://www.cloudflare.com/learning/ddos/glossary/open-systems-interconnection-model-osi/).
 ![OSI Model](/images/osi_model_7_layers.png)
 
-This layered design helps separate concerns — each layer has distinct responsibilities, operates independently, and can evolve autonomously.
+This layered design helps separate concerns, each layer has distinct responsibilities, operates independently, and can evolve autonomously.
 In this topic, we’ll focus solely on the **Application**, **Transport**, and **Network** layers.
 
 #### Encapsulation
@@ -351,7 +368,7 @@ m: Machine {
 ```
 
 As the message moves down, it’s **enriched** with networking information at each layer.
-Notably, lower layers cannot interpret or modify the data encapsulated by higher layers — maintaining isolation.
+Notably, lower layers cannot interpret or modify the data encapsulated by higher layers.
 
 #### Decapsulation
 
@@ -395,7 +412,8 @@ m: Machine {
 
 A {{< term lb7 >}} operates at the **Application Layer (L7)** of the OSI model, handling protocols like {{< term http >}} or {{< term ws >}}.
 
-This high-level position allows it to inspect application-specific details, like HTTP headers, parameters, and message bodies — letting it make intelligent routing decisions.
+This high-level position allows it to inspect **application-specific details**, like HTTP headers, parameters, and message bodies,
+letting it make intelligent routing decisions.
 Technically, two separate connections are established:
 
 1. Between the client and the load balancer.
@@ -507,7 +525,7 @@ lb -> user: /b {
 #### SSL Termination
 
 A major challenge with {{< term lb7 >}} is handling encrypted traffic via [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security).
-Since {{< term lb7 >}} needs to read application-level data to make decisions, it cannot work directly with end-to-end encryption.
+Since {{< term lb7 >}} needs to read application-level data to make decisions, it cannot work directly with **end-to-end encryption**.
 
 ```d2
 direction: right
@@ -529,7 +547,7 @@ c -> s.lb: payload=13a8f5f167f4 {
 ```
 
 In other words,
-we can't use {{< term lb7 >}} to ensure **complete** end-to-end encryption.
+we can't use {{< term lb7 >}} to ensure complete end-to-end encryption.
 To make it work,
 the **SSL/TLS decryption** must be shifted to the {{< term lb >}} itself.
 This process is known as {{< term sslt >}}.
@@ -557,7 +575,7 @@ s: System {
       style.bold: true
     }
 }
-c -> s.lb: 1. Send payload=13a8f5f167f4
+c -> s.lb: 1. Send payload=a8f5f167f4
 ```
 
 ##### Security Concern
@@ -565,7 +583,6 @@ c -> s.lb: 1. Send payload=13a8f5f167f4
 This introduces a security risk: decrypted data resides at the load balancer, potentially exposing sensitive information.
 
 In some compliance and data governance contexts, data must remain encrypted all the way to its destination service.
-
 Additionally, using an **external** load balancer for {{< term sslt >}} can lead to data leakage outside your trusted environment.
 
 ```d2
@@ -599,20 +616,24 @@ lbw.lb -> s.sv: 3. Forward
 ### Layer 4 Load Balancer
 
 A {{< term lb4 >}} operates at the **Transport Layer (L4)** of the OSI model.
-It cannot inspect application-level content — routing decisions are based solely on the **destination address and port**.
+It cannot inspect application-level content; routing decisions are based solely on the **destination address and port**.
 
 Essentially, a {{< term lb4 >}} acts like a network router between clients and services.
-Once a client connects to a server, it keeps communicating with the same instance as long as the connection stays open.
+Once a client connects to a server, it keeps communicating with **the same instance** as long as the connection stays open.
 
-This problem arises from [packet segmentation](https://en.wikipedia.org/wiki/Packet_segmentation), where large messages are split into multiple network packets (or [TCP segments](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)).
+This problem arises from [packet segmentation](https://en.wikipedia.org/wiki/Packet_segmentation), where large messages are split into multiple network packets (aka [TCP segments](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)).
 
 For example,
-an {{< term http >}} request is split into two network
-segments ([aka TCP messages](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)).
+an {{< term http >}} request is split into two network segments.
 A {{< term lb7 >}} can understand protocols like HTTP and reassemble segmented requests before forwarding them.
 
 ```d2
 direction: right
+r {
+  class: none
+  h1: HTTP request 1
+  h2: HTTP request 2
+}
 s: System {
     lb: L7 Load Balancer {
         s1: Segment 1
@@ -632,23 +653,16 @@ s: System {
     s2: Instance 2 {
        class: server
     }
-    lb.h1 -> s1: Combine {
-      class: bold-text
-    }
-    lb.h2 -> s2: Combine {
-      class: bold-text
-    }
+    lb.h1 -> s1: Assemble
+    lb.h2 -> s2: Assemble
 }
-c: Client {
-  class: client
-}
-c -> s.lb.s1
-c -> s.lb.s2
-c -> s.lb.s3
-c -> s.lb.s4
+r.h1 -> s.lb.s1
+r.h1 -> s.lb.s2
+r.h2 -> s.lb.s3
+r.h2 -> s.lb.s4
 ```
 
-Conversely, a {{< term lb4 >}} is unaware of application protocols and may accidentally distribute segments of the same request to different servers — leading to errors.
+Conversely, a {{< term lb4 >}} is unaware of application protocols and may accidentally distribute segments of the same request to different servers, leading to errors.
 
 ```d2
 
@@ -667,9 +681,7 @@ s: System {
     lb.s1 -> s1: Forward
     lb.s2 -> s2: Forward
 }
-c: Client {
-  class: client
-}
+c: HTTP request
 c -> s.lb.s1
 c -> s.lb.s2
 ```
@@ -710,5 +722,6 @@ Why choose a {{< term lb4 >}} over a {{< term lb7 >}}?
 - It avoids {{< term sslt >}}, which can be a security risk.
 - It delivers significantly better performance, since it simply forwards packets without interpreting them.
 
-However, due to this **sticky connection behavior**, a {{< term lb4 >}} can easily become **unbalanced** — one server might receive a disproportionate load while others stay underutilized.
+However, due to the sticky connection behavior, a {{< term lb4 >}} can easily become **unbalanced**,
+one server might receive a disproportionate load while others stay underutilized.
 Still, it’s a solid choice for **stateful, high-performance services** like multiplayer gaming backends.
