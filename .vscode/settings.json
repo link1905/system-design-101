@@ -1,11 +1,13 @@
 {
     "cSpell.words": [
+        "antipattern",
         "apiv",
         "asynr",
         "Backpressure",
         "filetree",
         "HATEOAS",
         "lpoll",
+        "Retryable",
         "spof",
         "spoll",
         "sqld",
