@@ -4,38 +4,51 @@ weight: 20
 ---
 
 {{< callout type="info" >}}
-You may review the [Concurrency Control topic](Concurrency-Control.md) about transaction and consistency
-before browsing through this one.
+It may be beneficial to review the [Concurrency Control topic]({{< ref "concurrency-control" >}})
+concerning transactions and consistency before proceeding with this section.
 {{< /callout >}}
 
-In a distributed environment,
-transactions can be truly complicated with the participation of multiple servers (nodes).
-Because of physical segregation, it's challenging to ensure distributed transactions to follow
-what we talked in the [ACID](Concurrency-Control.md) topic.
-Let's compare them a bit!
+A distributed transaction is a single,
+logical transaction that spans multiple physical servers or nodes.
 
-## Characteristics
+```d2
+t: Transaction {
+    class: process
+}
+s {
+    class: none
+    s1: Server 1 {
+        class: server
+    }
+    s2: Server 2 {
+        class: server
+    }
+    s3: Server 3 {
+        class: server
+    }
+}
+t -> s.s1
+t -> s.s2
+t -> s.s3
+```
 
-### Atomicity
+The physical separation of these nodes introduces challenges in ensuring that distributed transactions fully adhere to the
+[ACID]({{< ref "concurrency-control#acid" >}}) properties (Atomicity, Consistency, Isolation, Durability).
+This adherence necessitates tight collaboration and coordination between the participating servers.
 
-The shortage of **Atomicity** probably lead to permanent inconsistencies.
-So, at least, a distributed transaction needs to guarantee **Atomicity**,
-requiring it to be written in all nodes (commit) or failed entirely (rollback).
+In some scenarios, a deliberate decision might be made to relax strict **ACID** compliance to gain other benefits,
+such as higher availability or lower coupling between services.
 
-### Isolation
+Regardless of the specific implementation details,
+any distributed transaction algorithm must guarantee that changes across all involved nodes are either **committed together**
+or **aborted together** (all or nothing).
 
-**Isolation** primarily decides the consistency and accuracy of data.
-In a single node, it's more straightforward to control this property,
-we can locally set isolation levels or use a lock strategy.
-However, in a distributed system, achieving **Isolation** is extremely challenging.
-Different nodes may implement their own concurrency control,
-requiring a consensus mechanism to prevent serialization anomalies between them.
+Essentially, there are two primary approaches to consistency in distributed transactions:
 
-In essence, we have two approaches to implement a distributed transaction:
-
-- **Strong Consistency**: In this system, we need a transaction to be immediately completed (committed) in relevant nodes.
-To do that, a strict algorithm is required to ensure the **Isolation**,
-it's frequently about [locking](Concurrency-Control.md#locking-mechanism) data.
+- **Strong Consistency**: Systems aiming for strong consistency require that a transaction is **atomically committed** across all relevant nodes.
+This means all parts of the transaction either succeed or fail as a single, indivisible unit.
+This model typically employs strict algorithms, often involving [locking]({{< ref "concurrency-control.md#locking-mechanism" >}}) mechanisms,
+to ensure the **Isolation** property, preventing transactions from interfering with each other.
 
 ```d2
 grid-columns: 1
@@ -43,20 +56,18 @@ p: Transaction {
     class: process
 }
 c: Commit {
-    width: 30
     height: 30
-    shape: circle
 }
 n: "" {
     grid-rows: 1
     n1: Node A {
-        class: db
+        class: server
     }
     n2: Node B {
-        class: db
+        class: server
     }
     n3: Node C {
-        class: db
+        class: server
     }
 }
 p -> c
@@ -65,9 +76,10 @@ c -> n.n2
 c -> n.n3
 ```
 
-- **Eventual Consistency**: Transactions are separated into phases committed at different moments.
-In this model, we **don't** even implement **Isolation** because of the asynchronous behavior,
-the system must be designed somehow to implicitly avoid inconsistencies.
+- **Eventual Consistency**: In this model, transactions are often decomposed into phases that may be committed at **different times** across various nodes.
+Due to this asynchronous behavior, the **Isolation** property is typically not implemented in the same strict sense as in strong consistency models.
+Instead, the system must be designed to **implicitly avoid or resolve inconsistencies** over time,
+eventually reaching a consistent state across all nodes.
 
 ```d2
 grid-columns: 1
@@ -77,13 +89,13 @@ p: Transaction {
 n: "" {
     grid-rows: 1
     n1: Node A {
-        class: db
+        class: server
     }
     n2: Node B {
-        class: db
+        class: server
     }
     n3: Node C {
-        class: db
+        class: server
     }
 }
 p -> n.n1: Commit

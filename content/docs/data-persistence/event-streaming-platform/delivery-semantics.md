@@ -407,7 +407,7 @@ c -> q: Commit the event {
 ```
 
 This approach is often preferred over {{< term 2pc >}} due to its simplicity and better fault tolerance.
-It is commonly used in combination with the [Saga]({{< ref "compensating-protocols" >}})
+It is commonly used in combination with the [Saga]({{< ref "compensation-protocols" >}})
 pattern to manage long-running, distributed operations.
 
 However, this method does not provide **atomicity** across the system,

@@ -3,28 +3,24 @@ title: Distributed Job Patterns
 weight: 40
 ---
 
-Unlike long-term services,
-**Job** is a short-term process dedicating to a specific workload.
-A job can be small as *compressing an image*,
-sometimes it can be expensive with high computing capability as *processing a large dataset*.
+In contrast to long-term services, a **Job** is a short-term process dedicated to a specific workload.
+Jobs can range from simple tasks, like *compressing an image*, to computationally intensive operations,
+such as *processing a large dataset*, which demand significant computing power.
 
-In a distributed environment,
-we will distribute jobs on multiple machines to make the most of the system resources.
-We will take a look at some popular patterns to do that.
+In distributed environments,
+jobs are often distributed across multiple machines to optimize the use of system resources.
+Let's explore some common patterns for achieving this.
 
 ## Data Processing
 
-Most of the time, jobs are used to process data.
-There are two patterns of processing data: **Streaming** and **Batching**.
+Jobs are predominantly used for data processing.
+There are two primary patterns for this: **Streaming** and **Batching**.
 
 ### Streaming
 
-Needless to say about this pattern.
-Jobs are executed with the help of an event stream,
-we need to maintain some worker services continuously pulling and processing events.
-
-This pattern brings the near-realtime adaption,
-events are fired and then processed immediately.
+The streaming pattern is straightforward.
+Jobs are executed with the assistance of an event stream, requiring the continuous maintenance of worker services that pull and process events.
+This pattern enables near-realtime adaptation, as events are processed almost immediately after they are generated.
 
 ```d2
 grid-columns: 3
@@ -36,7 +32,7 @@ e2: Event 2 {
     class: event
     height: 100
 }
-w: Worker { 
+w: Worker {
     class: process
     height: 200
 }
@@ -48,20 +44,18 @@ r2: Result 2 {
     class: event
     height: 100
 }
-
 e1 -> r1: Process
 e2 -> r2: Process
 ```
 
-**Streaming Processing** comes with the cost of maintaining fault-tolerant and highly available workers,
-increasing operational overheads.
-Furthermore,
-achieving the fast adaption often involves costly allocating resources to handle peak loads and avoid bottlenecks.
+However, **Streaming Processing** incurs the cost of maintaining fault-tolerant and highly available workers,
+which increases operational overhead.
+Furthermore, achieving rapid adaptation often necessitates costly resource allocation to manage peak loads and prevent bottlenecks.
 
 ### Batching
 
-Another style of processing data is batching.
-We stack up data to a threshold before actually handling it, e.g. after 100MB of data or every 12h.
+An alternative data processing style is batching.
+In this approach, data accumulates to a predefined threshold (e.g., 100MB of data or every 12 hours) before it is processed.
 
 ```d2
 grid-columns: 3
@@ -74,7 +68,7 @@ e2: Event 2 {
     class: event
     height: 100
 }
-w: Worker Service { 
+w: Worker Service {
     class: process
     height: 200
 }
@@ -87,29 +81,27 @@ e2 -> w
 w -> r1: Process
 ```
 
-In general, **Batch Processing** is easier and cost-effective:
+Generally, **Batch Processing** is simpler and more cost-effective for several reasons:
 
-- Batch jobs often process a predictable amount of data,
-making resource allocation and performance tuning straightforward.
-- In terms of programming, processing a lot of data at once is typically beneficial,
-when we can apply efficient algorithms on large datasets.
+- Batch jobs typically handle a predictable volume of data, simplifying resource allocation and performance tuning.
+- From a programming perspective, processing large amounts of data at once is often advantageous,
+allowing for the application of efficient algorithms to large datasets.
 
-In practice, the cheapness is so impressive.
-When your system doesn't require near-realtime power,
-**Batching** should be seriously taken into account.
+In practice, the cost-effectiveness of batching can be quite significant.
+When a system does not require near-realtime capabilities, **Batching** should be a serious consideration.
 
 ### Kappa Architecture
 
-However, they're not two sides of the same coin.
-**Kappa Architecture** combines both of them in a single event stream.
+Streaming and batching are not mutually exclusive.
+The **Kappa Architecture** combines both approaches using a single event stream.
 
-As usual, streaming workers pull events and process them continuously.
-Besides, due to event durability, batching services periodically compute data by replaying from the stream.
+- Streaming workers continuously pull and process events as usual.
+- Simultaneously, batching services periodically compute data by replaying events from the stream, leveraging event durability.
 
-For example, an e-commerce system with:
+For instance, consider an e-commerce system with:
 
-- `Order Service`: adapts to order creations instantly.
-- `Dashboard Service`: computes analytical metrics from the order book **daily**.
+- An `Order Service`: Adapts to order creations instantly.
+- A `Dashboard Service`: Computes analytical metrics from the order book **daily**.
 
 ```d2
 direction: right
@@ -124,27 +116,27 @@ e: Event Stream {
 }
 o <- e: Pull instantly
 d <- e: Replay orders daily {
-    style.stroke-dash: 3
+    style.animated: true
 }
 ```
 
 ## Directed Acyclic Graph (DAG)
 
-**Directed Acyclic Graph (DAG)** is a graph structure in which
+A **Directed Acyclic Graph (DAG)** is a graph structure characterized by:
 
-- **Directed**: The edges have only one direction.
-- **Acyclic**: The edges form no cycles.
+- **Directed**: Edges have a single direction.
+- **Acyclic**: Edges do not form any cycles.
 
-**DAG** can be used to represent task scheduling, dividing the system into smaller workers.
+**DAGs** can represent task scheduling, dividing a system into smaller, manageable workers.
 
-For example, an e-commerce website allows sellers to upload product information (metadata, video, images...).
-The system can branch into different flows to make use of the parallel power,
-a product record is actually created after the assets are processed.
+For example, an e-commerce website might allow sellers to upload product information (metadata, videos, images, etc.).
+The system can then branch into different processing flows to leverage parallel processing capabilities,
+with a product record being created only after all associated assets are processed.
 
 ```d2
 direction: right
 p: Uploaded Data {
-    class: storage
+    class: resource
 }
 v: Video Encoder {  
     class: process
@@ -155,22 +147,20 @@ i: Image Encoder {
 ps: Product Creator {
     class: process    
 }
-p -> v: Encode video
-p -> i: Encode images
+p -> v: Encode
+p -> i: Encode
 v -> ps
 i -> ps
-p -> ps
-ps -> ps: Create the product record with the encoded assets
+p -> ps: Create with the encoded assets
 ```
 
 ### Event Buffering
 
-To make use of parallelism, we may choreograph the workflow with collaborative events.
-When the steps are distinct, we may build them as separate workers.
-This makes the system more flexible, workers only focus on its responsibility, and can be scaled independently.
+To maximize parallelism, workflows can be choreographed using collaborative events.
+When steps in a workflow are distinct, they can be implemented as separate workers.
+This enhances system flexibility, as each worker focuses solely on its responsibility and can be scaled independently.
 
 ```d2
-direction: right
 e: Event Stream {
     class: mq
 }
@@ -183,17 +173,15 @@ i: Image Encoder {
 ps: Product Creator {
     class: process    
 }
-e -> v: ProductUploaded
-v -> e: VideoEncoded
-e -> i: ProductUploaded
-i -> e: ImageEncoded
-e -> ps: ProductUploaded + VideoEncoded + ImageEncoded
-ps -> ps: Create the product record referencing the encoded assets
+e -> v: ProductUploadedEvent
+v -> e: VideoEncodedEvent
+e -> i: ProductUploadedEvent
+i -> e: ImageEncodedEvent
+e -> ps: ProductUploadedEvent + VideoEncodedEvent + ImageEncodedEvent
 ```
 
-How do we suppose to capture three events together?
-Buffering events locally to wait for their joined arrival is an effective solution,
-the `ProduceCreator` stands still before getting the necessary events.
+How can we coordinate the capture of three distinct events? Buffering events locally until all joined events arrive is an effective solution.
+The `ProductCreator`, for instance, would pause its execution until it receives all necessary events.
 
 ```d2
 direction: right
@@ -203,23 +191,19 @@ e: Event Stream {
 ps: Product Creator {
     class: process    
 }
-j: Join {
-    class: join
-    width: 50
-}
+j: Join By ProductId
 e -> j: ProductUploaded
 e -> j: VideoEncoded
 e -> j: ImageEncoded
 j -> ps
 ```
 
-### Claim-Check Pattern
+### Stateless Worker
 
-Querying external datasets is not a rare requirement of jobs.
+Jobs frequently need to query external datasets.
 
-Let's say we have a job which sends emails to users,
-its attended events only contain `userId`.
-Consequently, it needs to ask the `UserService` about user emails.
+Consider a job that sends emails to users. The events triggering this job might only contain a `userId`.
+Consequently, the job must query a `UserService` to retrieve the user's email address.
 
 ```d2
 direction: right
@@ -242,68 +226,109 @@ event -> m
 m <- u: Get user email
 ```
 
-This is called **Claim-Check** pattern
-
-- **Claim**: build lightweight events with minimal metadata (e.g. `userId`, `orderId`...).
-- **Check**: cause consumers to retrieve full payloads from other services.
-
-The **Claim-Check** pattern ensures statelessness and strong consistency,
-helping build lightweight workers.
-However, this pattern doesn’t only make the worker slower but also creates a dependency on the data providers,
-reducing their performance and availability,
-especially problematic when a worker depends on many providers.
+This statelessness promotes strong consistency,
+contributing to the development of lightweight workers.
+However, it can slow down the worker and create dependencies on data providers,
+potentially impacting their performance and availability.
+This is particularly problematic when a worker relies on multiple data providers.
 
 ### Stateful Worker
 
-We've discussed this in the [Event Sourcing]({{< ref "event-sourcing" >}}) topic.
-Worker services can depend on a shared event stream to build their own local stores instead.
+As discussed in the [Event Sourcing]({{< ref "event-sourcing" >}}) topic,
+worker services can instead depend on a shared event stream to build their own local data stores.
 
-For example,
-`Mail Worker` builds a local of user emails by capturing `UserInformationUpdated` events.
+For example, a `Mail Worker` could build a local store of user emails by capturing `UserInformationUpdated` events.
 
 ```d2
-u: UserInformationUpdated {
-    class: msg
-}
+direction: right
 e: User Stream {
     class: mq
+}
+u: UserInformationUpdated {
+    class: msg
 }
 m: Mail Worker {
     m: Local mail store {
         class: db
     }
 }
-u -> e
-e -> m.m: Build {
-    style.stroke-dash: 3
+e -> u {
+    style.animated: true
+}
+u -> m.m: Build {
+    style.animated: true
 }
 ```
 
-Of course, stateful services like this require more resources to initialize and maintain.
-Additionally, the asynchronous model only supports **eventual consistency**,
-which can an issue occasionally,
-e.g. a user has changed email, but the `Mail Worker` slowly captures this event,
-leading to send to the old mailbox unexpectedly.  
+Naturally, stateful services like this require more resources for initialization and maintenance.
+Additionally, the asynchronous model only supports **eventual consistency**.
+This can occasionally lead to issues, such as when a user changes their email,
+but the `Mail Worker` processes this update slowly, resulting in an email being sent to the old mailbox.
+
+### Claim-Check Pattern
+
+Dealing with large-sized events presents a critical challenge.
+Overwhelming the event stream with such events can lead to significantly degraded performance.
+
+The **Claim-Check** pattern offers a solution by recommending the separation of large events into two distinct parts:
+
+- **Claim-Check Token**: A unique token, representing the event, is transmitted through the event stream.
+- **Payload**: The actual (heavy) data associated with the token is stored in a shared data store.
+
+Upon receiving a claim-check token from the stream,
+consumers become responsible for retrieving the corresponding full payload from the shared store using that token.
+
+```d2
+grid-rows: 1
+horizontal-gap: 200
+m: Event {
+    class: msg
+}
+s {
+    class: none
+    grid-columns: 1
+    e: Event Stream {
+        class: mq
+    }
+    s: Payload Store {
+        class: db
+    }
+}
+c: Consumer {
+    class: process
+}
+m -> s.e: Claim-check token
+m -> s.s: Store payload
+c <- s.e: Pull the token
+c <- s.s: Get the payload
+```
+
+It's important to acknowledge that this pattern introduces management overhead for the payload store.
+Therefore, consider implementing the **Claim-Check** pattern primarily when our events are so large that
+they genuinely cause performance issues or instability.
 
 ## MapReduce
 
-**MapReduce** is a paradigm designed to process large data sets **in parallel**
-across a distributed cluster.
+**MapReduce** is a programming paradigm designed for processing large datasets **in parallel** across a distributed cluster.
 
 {{< callout type="info" >}}
 This concept was originally introduced by `Google` and is widely used in big data frameworks.
 {{< /callout >}}
 
-**MapReduce** recommends separating a job into two sequential steps:
+**MapReduce** advocates for separating a job into two sequential steps:
 
-1. **Map**: this part is used to initially process input data to provide intermediary **key-value pairs**.
-2. **Reduce**: this part aggregates and **reduces** the volume of the previous step based on unique keys.
+1. **Map**: This stage initially processes input data to produce intermediate **key-value pairs**.
+2. **Reduce**: This stage aggregates and **reduces** the volume of data from the previous step, based on unique keys.
 
-Let's make it clear with an example.
-We have a large set of web server logs, and we want to count how many times each page was accessed.
+Let's clarify with an example.
+Suppose we have a large set of web server logs and want to count the access frequency for each page.
 
-- **Map**: First, the dataset is sliced into chunks, each chunk is assigned to a mapping worker.
-The mappers produce a list of key-value pairs by grouping their page.
+{{% steps %}}
+
+### Map
+
+First, the dataset is divided into small chunks, and each chunk is assigned to a mapping worker.
+The mappers generate a list of key-value pairs by grouping their respective page accesses.
 
 ```d2
 s: Source log {
@@ -347,11 +372,12 @@ s -> m.w1.data
 s -> m.w2.data
 ```
 
-- **Reduce**: This step initiates after the mappers complete.
-Reducing workers pull data from mappers,
-selecting with a certain **hash function** (like [Data Ownership]({{< ref "distributed-database#data-ownership" >}}))
-to let data having the same key go to the same reducer.
-The final result is calculated by aggregating the intermediary pairs.
+### Reduce
+
+This step begins after the mappers have completed.
+Reducing workers pull data from the mappers,
+using a specific **hash function** (similar to [Data Ownership]({{< ref "distributed-database#data-ownership" >}})) to ensure that data with the same key is processed by the same reducer.
+The final result is calculated by aggregating these intermediate pairs.
 
 ```d2
 s: Source log {
@@ -392,7 +418,7 @@ m: "1. Map" {
     }
 }
 r: "2. Reduce" {
-    w1: Reducer 1 {
+    w1: Reducing Worker 1 {
         data: |||yaml
         (/index.html, 2)
         (/index.html, 1)
@@ -402,7 +428,7 @@ r: "2. Reduce" {
         |||
         data -> output: Aggregate
     }
-    w2: Reducer 2 {
+    w2: Reducing Worker 2 {
         data: |||yaml
         (/about.html, 1)
         (/about.html, 1)
@@ -423,10 +449,12 @@ m.w2.output -> r.w2.data
 m.w1.output -> r.w2.data
 ```
 
-We see that the process focuses on data grouped by unique keys,
-making data of different keys can be distributed and processed on different workers in parallel.
+{{% /steps %}}
 
-A critical problem of **MapReduce** is significantly using network bandwidth and cloning data.
-You may carefully consider the applicability of **MapReduce**,
-small datasets are not good targets for highlighting the power of parallelism,
-the performance is even downgraded sometimes because of moving data a lot.
+This process focuses on data grouped by unique keys,
+enabling data associated with different keys to be distributed and processed in parallel on different workers.
+
+A critical challenge with **MapReduce** is its significant use of network bandwidth and data duplication.
+Careful consideration should be given to the applicability of **MapReduce**.
+Small datasets are not ideal for showcasing the benefits of parallelism;
+in such cases, performance might even degrade due to extensive data movement.

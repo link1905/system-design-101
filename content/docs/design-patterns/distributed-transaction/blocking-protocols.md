@@ -3,35 +3,40 @@ title: Blocking Protocols
 weight: 10
 ---
 
-First, we find out about protocols that strictly lock data to ensure consistency,
-requiring deep interactions between participants.
+First, we will explore protocols that ensure consistency by strictly locking data,
+which necessitates deep interactions between participating components.
 
-## Two-phase Commit - 2PC
+## Two-Phase Commit (2PC)
 
-**Two-phase Commit - 2PC** stands out as the most popular solution for distributed transactions.
-It allows a set of participants
-to either **commit** or **abort** a transaction in a coordinated way.
+The **Two-Phase Commit (2PC)** protocol is a widely recognized solution for managing distributed transactions.
+It enables a group of participants to collectively **commit** (make permanent) or **abort** (discard) a transaction in a coordinated manner.
 
-As the name suggests, **2PC** will happen in two phases.
-**2PC** itself requires a **coordinator**, other participants are called **cohorts**.
-When a transaction is initiated
+As its name implies, **2PC** operates in two distinct phases.
+The protocol requires a designated **coordinator**; other participating entities are referred to as **cohorts**.
 
-1. **Prepare Phase**: First, the coordinator will ask cohorts to prepare for the transaction.
-   They will perform necessary actions: verify, lock, update data... but **not commit yet** (temporary dirty data)
+When a transaction is initiated:
 
-2. **Commit Phase**: The coordinator will decide based on responses from the cohorts
+1. **Prepare Phase**: Initially, the coordinator instructs the cohorts to prepare for the transaction. Each cohort performs the necessary actions, such as verifying data, acquiring locks, but they **do not yet commit** these changes.
 
-- If **all** respond **Yes**: The coordinator will request them to **commit** the dirty data.
-- If **any** responds **No** (failed to prepare): The coordinator will request them to **abort** the dirty data.
+2. **Commit Phase**: The coordinator then makes a decision based on the responses received from all cohorts:
 
-Let's say we want to transfer an amount of money across different banks (`A` to `B`)
+    - If **all** cohorts respond with `Yes` (indicating they are prepared),
+    the coordinator instructs them to **commit** their dirty data, making the changes permanent.
+    - If **any** cohort responds with `No` (or fails to respond, indicating it could not prepare),
+    the coordinator instructs all cohorts to **abort** their dirty data, rolling back any provisional changes.
 
-1. **Prepare**: The coordinator sends a `Prepare` request to account services of `A` and `B`.
+Let's illustrate this with an example of transferring money between different banks (from Bank `A` to Bank `B`):
+
+{{% steps %}}
+
+### Prepare
+
+The coordinator sends a `Prepare` request to the account services of both Bank `A` and Bank `B`.
 
 ```d2
 shape: sequence_diagram
 c: Coordinator {
-    class: router
+    class: process
 }
 aa: Account Service (A) {
     class: server
@@ -42,17 +47,17 @@ ab: Account Service (B) {
 "1. Prepare" {
     c -> aa: Prepare
     c -> ab: Prepare
-} 
+}
 ```
 
-2. These cohorts will verify, update,
-   and **lock** the accounts' balance to prevent other interferences.
-   If everything is smooth, they respond `Yes` back to the coordinator
+These cohort services will verify account details, update balances provisionally, and crucially,
+**lock** the accounts' balances to prevent other operations from interfering during the transaction.
+If both services can successfully prepare, they respond `Yes` back to the coordinator.
 
 ```d2
 shape: sequence_diagram
 c: Coordinator {
-    class: router
+    class: process
 }
 aa: Account Service (A) {
     class: server
@@ -63,15 +68,21 @@ ab: Account Service (B) {
 "1. Prepare" {
     c -> aa: Prepare
     c -> ab: Prepare
-    aa -> aa: Verify the account and lock the balance 
+    aa -> aa: Verify the account and lock the balance {
+        style.bold: true
+    }
     aa -> c: Yes
-    ab -> ab: Verify the account and lock the balance 
+    ab -> ab: Verify the account and lock the balance {
+        style.bold: true
+    }
     ab -> c: Yes
-} 
+}
 ```
 
-3. **Commit**: The coordinator observes that all cohorts are prepared for the transaction,
-   it starts to send them a `Commit` request
+### Commit
+
+Observing that all cohorts are prepared for the transaction (having received `Yes` from all),
+the coordinator sends them a `Commit` request. The cohorts then make their changes permanent.
 
 ```d2
 shape: sequence_diagram
@@ -87,24 +98,30 @@ ab: Account Service (B) {
 "1. Prepare" {
     c -> aa: Prepare
     c -> ab: Prepare
-    aa -> aa: Verify the account and lock the balance 
+    aa -> aa: Verify the account and lock the balance
     aa -> c: Yes
-    ab -> ab: Verify the account and lock the balance 
+    ab -> ab: Verify the account and lock the balance
     ab -> c: Yes
-} 
+}
 "2. Commit" {
-    c -> aa: Commit
-    c -> ab: Commit
+    c -> aa: Commit {
+        style.bold: true
+    }
+    c -> ab: Commit {
+        style.bold: true
+    }
 }
 ```
 
-Due to straightforwardness,
-we can instantly come up with some obvious problems happening in this process.
+{{% /steps %}}
+
+Despite its straightforwardness, this process is susceptible to several evident problems.
 
 ### Coordinator Failure
 
-First, corruption is unavoidable.
-How do we handle if the coordinator dies after sending any `Prepare`?
+Firstly, system failures are unavoidable.
+How should the system handle a scenario where the coordinator fails after sending the `Prepare` requests
+but before sending the final `Commit` or `Abort` decision?
 
 ```d2
 shape: sequence_diagram
@@ -130,13 +147,11 @@ c -> c: Crash {
 }
 ```
 
-Responding `Yes` means that
-cohorts are moving the `Prepare` state,
-**locking** some pieces of data and willing to commit them.
-
-The corruption of the coordinator causes participants to come an uncertain state and **wait indefinitely**, why?
-A participant is confused to decide whether it should commit or abort data,
-it has no information of the others.
+When a cohort responds `Yes`, it transitions to a `Prepared` state,
+**locking** some data and committing to finalize the transaction as per the coordinator's eventual instruction.
+If the coordinator fails at this juncture, the participants enter an uncertain state and may **wait indefinitely**.
+A participant cannot unilaterally decide whether to commit or abort because it lacks information about the status
+of other participants and the coordinator's final decision.
 
 ```d2
 shape: sequence_diagram
@@ -161,28 +176,32 @@ s3: Server 3 {
     c -> c: Crash {
         class: error-conn
     }
-    s1 <-> c: Blocked {
-       class: i-conn
+    s1 <-> s1: Blocked {
+        class: error-conn
     }
-    s2 <-> c: Blocked {
-       class: i-conn
+    s2 <-> s2: Blocked {
+        class: error-conn
     }
-    s3 <-> c: Blocked {
-       class: i-conn
+    s3 <-> s3: Blocked {
+        class: error-conn
     }
 }
 ```
 
-Therefore, **2PC** is a **blocking protocol**, which blocks data to ensure consistency.
-However, a single-node failure can block the entire process **indefinitely**.
-The cohorts stand in the uncertain state until the coordinator is healthy again.
-This problem significantly degrades the system performance and availability.
+Therefore, **2PC** is a **blocking protocol**.
+It blocks data (by locking resources) to ensure consistency.
+However, the failure of a single node (the coordinator) can block the entire transaction **indefinitely**.
+Cohorts remain in an uncertain state, holding locks, until the coordinator recovers.
+This issue significantly degrades system performance and availability.
 
 ### Cohort Cooperation
 
-We easily see that the blocking problem arises because the coordinator is the {{< term spof >}},
-how about letting cohorts play with each other?
-After **timing out**, cohorts will ask mutually and decide to commit if they get unanimity.
+It's evident that the blocking problem arises largely because the coordinator is a {{< term spof >}}.
+What if cohorts could interact with each other to resolve uncertainty?
+
+One idea is that after a **timeout** period (waiting for the coordinator),
+cohorts could communicate among themselves.
+They might decide to commit if they achieve unanimity (all prepared cohorts agree to commit).
 
 ```d2
 shape: sequence_diagram
@@ -215,14 +234,12 @@ s3: Server 3 {
     s2 -> s2: Commit
     s3 -> s3: Commit
 }
-
 ```
 
-Unfortunately, we've not boosted up the availability yet.
-If any sever goes down with the coordinator,
-once again, the remaining cohorts get no unanimity and stay in the uncertain state.
-Moreover, in fact, the coordinator is frequently implemented as a cohort also;
-That means its corruption still halts the entire system.
+Unfortunately, this doesn't fully resolve the availability issue.
+If any cohort goes down along with the coordinator,
+the remaining active cohorts might not achieve unanimity (as they can't confirm the state of the crashed cohort)
+and would still be stuck in an uncertain state.
 
 ```d2
 shape: sequence_diagram
@@ -250,28 +267,61 @@ s3: Server 3 {
     s3 -> s3: Crash {
         class: error-conn
     }
-    s1 <-> s3: Unanimous Yes
-    s1 <-> s3: No unanimity because of no information of Server 3 {
+    s1 <-> s2: No unanimity because of no information from Server 3 {
         class: error-conn
     }
-    s1 -> s1: Abort
-    s2 -> s2: Abort
-    s3 -> s3: Abort
 }
 ```
 
-## Three-phases Commit - 3PC
+Moreover, in many implementations, the coordinator's logic is often hosted on one of the cohort machines.
+This means its failure is equivalent to a cohort failure, which can still halt the entire system.
 
-**Three-phases Commit - 3PC** is a variation of **2PC**.
-In short, **3PC** adds an extra phase between **Prepare** and **Commit**,
-letting cohorts **know the final consensus** of the transaction before they actually commit data.
+## Three-phase Commit (3PC)
 
-Now, a transaction happens within **three** phases:
+**Three-Phase Commit (3PC)** is a variation of **2PC** designed to address some of its blocking issues.
+In essence, **3PC** introduces an additional phase between the **Prepare** and **Commit** phases.
+This extra step aims to ensure that all cohorts are aware of the consensus outcome of the transaction **before** they proceed to actually commit the data.
 
-1. **Prepare Phase** is similar to **2PC**, the coordinator ask cohorts whether they will accept the transaction.
-2. **PreCommit Phase**: The coordinator will send a **PreCommit** (all `Yes`) or **Abort** (any `No`) signal.
-The cohorts respond back an **ACK** (Acknowledgement) to the coordinator.
-3. **Commit Phase**: After receiving **ACKs** from **all** cohorts, the coordinator finally requests them to commit.
+Now, a transaction unfolds in **three** phases:
+
+{{% steps %}}
+
+### Prepare Phase
+
+Similar to 2PC, the coordinator asks cohorts if they are willing and able to accept the transaction. Cohorts respond `Yes` or `No`.
+
+```d2
+shape: sequence_diagram
+c: Coordinator {
+    class: router
+}
+s1: Server 1 {
+    class: server
+}
+s2: Server 2 {
+    class: server
+}
+s3: Server 3 {
+    class: server
+}
+"1. Prepare" {
+    c -> s1: "Prepare"
+    c -> s2: "Prepare"
+    c -> s3: "Prepare"
+    s1 -> c: "Yes"
+    s2 -> c: "Yes"
+    s3 -> c: "Yes"
+}
+```
+
+### PreCommit Phase
+
+Based on the responses:
+
+- If all cohorts voted `Yes`, the coordinator sends a `PreCommit` message to all cohorts.
+- If any cohort voted `No` (or failed to respond), the coordinator sends an `Abort` message.
+
+Cohorts receiving a `PreCommit` or `Abort` message acknowledge it by responding with an `ACK` (Acknowledgement) to the coordinator.
 
 ```d2
 shape: sequence_diagram
@@ -300,8 +350,45 @@ s3: Server 3 {
     c -> s2: "PreCommit"
     c -> s3: "PreCommit"
     s1 -> c: ACK
+    s2 -> c: ACK
+    s3 -> c: ACK
+}
+```
+
+### Commit Phase
+
+After receiving ACKs from **all** cohorts for the `PreCommit` message,
+the coordinator sends a final `Commit` request to all cohorts, instructing them to make their changes permanent.
+
+```d2
+shape: sequence_diagram
+c: Coordinator {
+    class: router
+}
+s1: Server 1 {
+    class: server
+}
+s2: Server 2 {
+    class: server
+}
+s3: Server 3 {
+    class: server
+}
+"1. Prepare" {
+    c -> s1: "Prepare"
+    c -> s2: "Prepare"
+    c -> s3: "Prepare"
+    s1 -> c: "Yes"
+    s2 -> c: "Yes"
+    s3 -> c: "Yes"
+}
+"2. PreCommit" {
+    c -> s1: "PreCommit"
+    c -> s2: "PreCommit"
+    c -> s3: "PreCommit"
     s1 -> c: ACK
-    s1 -> c: ACK
+    s2 -> c: ACK
+    s3 -> c: ACK
 }
 "3. Commit" {
     c -> s1: Commit
@@ -310,21 +397,21 @@ s3: Server 3 {
 }
 ```
 
-Now, we don't block data indefinitely but adding a **timeout** mechanism.
-If the **PreCommit** phase lasts too long (timeout),
-cohorts will communicate mutually to form a **consensus**:
+{{% /steps %}}
 
-- **At least one** cohort has received the **PreCommit** request:
-This means all the cohorts have accepted the transaction before (that's why we have the **PreCommit** request),
-the cohorts will commit the transaction.
-- No **PreCommit** is detected:
-The transaction has been declined by some cohorts, so it's aborted.
+Instead of blocking indefinitely,
+**3PC** incorporates a **timeout** mechanism.
+If the coordinator becomes unresponsive before the final `Commit`,
+cohorts can communicate mutually to reach a consensus:
 
-We may imagine the **PreCommit** phase works as a shim maintaining the final result of the transaction.
-Even if the coordinator has failed, other cohorts can decide to finalize the transaction autonomously.
+- If **at least one** cohort has received the `PreCommit` request from the coordinator:
+This implies that all cohorts must have voted `Yes` in the prepare phase (otherwise the coordinator would have sent an `Abort`). Therefore, the cohorts can safely decide to commit the transaction.
+- If **no** cohort has received a `PreCommit` request:
+This indicates that the transaction was likely aborted by the coordinator (due to a `No` vote or coordinator failure before sending `PreCommit`). Thus, the transaction is aborted.
 
-Let's see what if the coordinator crashes in between `3PC`.
-In this case, at least one **PreCommit** is fired:
+Let's consider coordinator crashes during 3PC:
+
+### Case 1: Coordinator crashes after sending at least one `PreCommit` message
 
 ```d2
 shape: sequence_diagram
@@ -351,15 +438,15 @@ s3: Server 3 {
         class: error-conn
     }
 }
-"3. Commit (Timeout)" {
-    s1 <-> s3: 'Decide to commit because of detecting a "PreCommit" in Server 1' 
+"3. Commit (Timeout & Recovery)" {
+    s1 <-> s3: 'Decide to commit because Server 1 received "PreCommit"'
     s1 -> s1: Commit
     s2 -> s2: Commit
     s3 -> s3: Commit
 }
 ```
 
-Or no **PreCommit** is detected:
+### Case 2: Coordinator crashes before sending any `PreCommit` message
 
 ```d2
 shape: sequence_diagram
@@ -385,21 +472,27 @@ s3: Server 3 {
         class: error-conn
     }
 }
-"3. Commit (Timeout)" {
-    s1 <-> s3: 'Decide to abort because of no "PreCommit"' 
+"3. Commit (Timeout & Recovery)" {
+    s1 <-> s3: 'Decide to abort because no cohort received "PreCommit"'
     s1 -> s1: Abort
     s2 -> s2: Abort
     s3 -> s3: Abort
 }
 ```
 
-Unfortunately, this is not a panacea,
-because **3PC** does not provide strong consistency in [network partitions](Peer-to-peer-Architecture.md#network-partition).
-Imagine when the `Server 1` receives a **PreCommit** request but gets **partitioned** from the rest.
-That leads to an inconsistency in the timeout phase:
+The **PreCommit phase** acts as a buffer, holding the final decision of the transaction.
+Even if the coordinator fails after initiating the phase,
+other cohorts can autonomously finalize the transaction based on whether any cohort reached the `PreCommit` state.
 
-- `Server 1` will commit the transaction.
-- (`Server 2`, `Server 3`) will abort it because of no **PreCommit**.
+Unfortunately, **3PC** is not a perfect solution.
+It does not guarantee strong consistency in the presence of [network partitions]({{< ref "peer-to-peer-architecture#network-partition" >}}).
+Imagine a scenario where `Server 1` receives a `PreCommit` request but then gets partitioned from the coordinator and other cohorts.
+During the timeout and recovery phase:
+
+- `Server 1` (isolated) will proceed to commit the transaction.
+- `Server 2` and `Server 3` will detect no `PreCommit` among themselves and decide to abort the transaction.
+
+This leads to an inconsistent state across the system.
 
 ```d2
 shape: sequence_diagram
@@ -422,31 +515,35 @@ s3: Server 3 {
 }
 "2. PreCommit" {
     c -> s1: "PreCommit"
-    c -> c: Crash {
-        class: error-conn
-    }
 }
-"3. Commit (Network Partition 1)" {
-    s1 <-> s1: 'Commit' 
+c -> c: Crash {
+    class: error-conn
 }
-"3. Commit (Network Partition 2)" {
-    s2 <-> s3: 'Abort'
+"3. Commit (Timeout in Partition 1)" {
+    s1 <-> s1: 'Commit (global decision was PreCommit)'
+}
+"3. Commit (Timeout in Partition 2)" {
+    s2 <-> s3: 'Abort (no PreCommit detected among themselves)'
 }
 ```
 
-**2PC** and **3PC** is a choice between **Availability** and **Consistency**:
+The choice between **2PC** and **3PC** often involves a trade-off between **Availability** and **Consistency**:
 
-- **2PC** favors consistency. If we can recover the coordinator fast enough and
-  the system is satisfied with the downtime, `2PC` is an easier solution
-- Meanwhile, discarding inconsistencies and recovering data in **3PC** can be exceptionally intricate.
-  Therefore, it is less commonly used than **2PC**.
+- **2PC** favors consistency over availability.
+If coordinator recovery is fast and the system can tolerate the potential downtime caused by blocking,
+2PC offers a simpler solution.
+- **3PC** aims to improve availability by being non-blocking in more failure scenarios (except network partitions).
+However, resolving inconsistencies that can arise from network partitions in 3PC can be exceptionally intricate. Consequently, it is less commonly used in practice than 2PC.
 
-The best advantage of **Phase Committing** is **strong consistency** and high performance.
-Changes can be performed in participating services simultaneously,
-helps prevent inconsistent states are left in the system.
-**Phase Committing** is usually applied in the context that a service updates data on multiple data source, e.g.,
+## Use Cases
 
-- Between different shards of a single system.
+The primary advantage of **Phase Committing** protocols is their ability to achieve **strong consistency**.
+Changes can be applied across participating services in a coordinated, seemingly simultaneous manner,
+which helps prevent inconsistent states from being left in the system.
+
+**Phase Committing** is typically applied in contexts where a service needs to update data across multiple data sources atomically, for example:
+
+- Between different shards of a single logical database.
 
 ```d2
 s: Service {
@@ -468,10 +565,7 @@ s -> d.s1: Update user 3
 s -> d.s2: Update user 7
 ```
 
-- Between different data stores.
-In the [Event Streaming Platform](Event-Streaming-Platform.md) topic,
-we've discussed that we must equip more additional tools to actually reach the **exactly-once delivery**,
-**2PC** is an effective way to do that:
+- Between different types of data stores (e.g., a database and a message queue). In the context of an [Event Streaming Platform]({{< ref "event-streaming-platform" >}}), achieving **exactly-once delivery** semantics often requires additional mechanisms. **2PC** can be an effective way to ensure that an operation (like updating a database record) and publishing an associated event occur atomically:
 
 ```d2
 s: Service {
@@ -487,6 +581,9 @@ s -> d: Update a record
 s -> m: Create the associated event
 ```
 
-Both **2PC** and **3PC** are **low-level** algorithms.
-A microservice needs to expose interfaces like `PrepareTransaction`, `CommitTransaction`... creates high couplings.
-Thus, they're less used to perform transactions between services in a {{< term ms >}} environment.
+Both **2PC** and **3PC** are considered **low-level** distributed algorithms.
+Requiring microservices to expose interfaces like `PrepareTransaction`, `CommitTransaction`, etc.,
+for inter-service transactions can create high coupling between services.
+Therefore, they are less frequently used for orchestrating transactions between distinct business services in a
+{{< term ms >}} environment,
+where patterns like **Saga** are often preferred for managing distributed data consistency at a higher level.

@@ -237,14 +237,6 @@ while a microservice system always requires {{< term hs >}}.
 In reality, the development model is separate from operational strategies.
 Both monolithic and microservice systems can be scaled either vertically or horizontally.
 
-### Microservice Design
-
-Designing a microservice-based system is a complex challenge.
-Errors in the design process can result in an overly complicated architecture
-that fails to deliver the benefits.
-This concern is overwhelming for an open chapter,
-we will see it in detail in [a later chapter]({{< ref "microservice-decomposition" >}}).
-
 ## Service Decoupling
 
 ### Tight Coupling
@@ -595,7 +587,7 @@ Nevertheless, we still encounter some dependencies
 
 We've just gone through some types of coupling and made messaging look mighty.
 However, keep in mind that there are more types of couplings,
-e.g., technology dependency, data dependency, flow dependency (like [SAGA]({{< ref "compensating-protocols#saga" >}})), ...
+e.g., technology dependency, data dependency, flow dependency (like [SAGA]({{< ref "compensation-protocols#saga" >}})), ...
 which may weaken messaging.
 
 Occasionally, messaging may result in an **unnecessary overhead** and outweigh the benefits of decoupling.
