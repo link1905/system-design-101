@@ -21,18 +21,17 @@ and {{< term ha >}} (high availability).
 
 **[3. Communication Protocols]({{< ref "communication-protocols" >}})**:
 
-- Get an overview of key protocols such as {{< term http >}}, {{< term ws >}}, and {{< term sse >}}.
-See how these protocols facilitate efficient client-server communication,
+- Get an overview of key protocols such as {{< term http >}}, {{< term ws >}}, and {{< term sse >}},
 as well as streaming protocols like {{< term webrtc >}} and {{< term hls >}}.
 
 **[4. Load Balancer]({{< ref "load-balancer" >}})**:
 
 - Discover how load balancers distribute incoming traffic across multiple servers, ensuring high availability and reliability.
-- Learn about various load balancing algorithms, the role of {{< term apigw >}}, and the differences between common types of load balancers: {{< term lb4 >}} and {{< term lb7 >}}.
+- Learn about the differences between common types of load balancers: {{< term lb4 >}} and {{< term lb7 >}}.
 
 **[5. API Design]({{< ref "api-design" >}})**:
 
 - Develop an understanding of **RESTful API** principles, including statelessness, uniform interfaces, and self-descriptive messages.
-- Learn about implementing API pagination for efficient data retrieval.
+- Learn about implementing **API pagination** for efficient data retrieval.
 
 These foundational topics will equip you with the knowledge to design and implement effective web services.

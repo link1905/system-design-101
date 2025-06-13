@@ -1,5 +1,5 @@
 ---
 title: Redirecting...
 layout: redirect
-redirect: /docs/
+redirect: /docs/introduction
 ---
