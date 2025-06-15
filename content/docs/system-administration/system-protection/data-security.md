@@ -602,4 +602,4 @@ c <- ed: Decrypt data after getting
 ```
 
 This strategy requires additional support for securely sharing keys between client devices.
-Since keys are stored locally, changing or losing devices can result in key—and therefore data loss.
+Since keys are stored locally, changing or losing devices can result in key, and therefore data loss.

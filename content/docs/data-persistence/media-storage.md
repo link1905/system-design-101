@@ -222,7 +222,7 @@ f -> o.s4
 ```
 
 - On the other hand, using large chunk sizes reduces the number of chunks
-  but can create resource imbalances—small objects may be underutilized or ignored.
+  but can create resource imbalances, small objects may be underutilized or ignored.
   For example, objects smaller than the chunk size are inefficiently stored on the same server.
 
 ```d2

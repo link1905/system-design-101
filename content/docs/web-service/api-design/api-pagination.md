@@ -7,12 +7,10 @@ This limitation might stem from hardware constraints (e.g., memory, network band
 
 In this topic, we'll explore common strategies for handling large datasets in API design.
 
-## Large Binary File
+## Chunking
 
 A typical case involves downloading large binary files.
 Low-level protocols like **FTP** or **SMB** aren't ideal here because we're designing a high-level interface.
-
-### Chunking
 
 **Chunking** is a practical solution in this scenario.
 It involves splitting a file into smaller parts (chunks), enabling clients to request and handle data in portions.
@@ -175,14 +173,17 @@ the database still processes the entire result set up to the specified offset.
 This can become a performance concern on large tables,
 as it consumes unnecessary I/Os and processing resources for each paginated request.
 
-> For a deeper explanation, see [SQL Query Optimization]({{< ref "query-optimization" >}}).
+{{< callout type="info" >}}
+For a deeper explanation, see [SQL Query Optimization]({{< ref "query-optimization" >}}).
+{{< /callout >}}
 
 ### Keyset Pagination
 
 The **OFFSET** clause is applied **after the entire result set is generated**.
 Although rows before the specified offset aren't returned, resources are still consumed to retrieve and validate them.
 
-A more efficient alternative is to avoid using **OFFSET** altogether and instead rely on the **last fetched key** — a technique known as **Keyset Pagination**.
+A more efficient alternative is to avoid using **OFFSET** altogether and instead rely on the **last fetched key**,
+this technique is known as **Keyset Pagination**.
 
 In this approach, each page response includes a keyset value, which the client uses to request the next page.
 
@@ -195,10 +196,7 @@ For example:
     "nextPage": "/users?keyset=10"
   },
   "content": [
-    {
-      "id": 10,
-      "name": "Micheal"
-    }
+    // ...
   ],
 }
 ```
@@ -210,14 +208,15 @@ This allows the database to skip over earlier records during the filtering stage
 ```sql
 SELECT *
 FROM users
-WHERE age > 30 AND id > :keyset
+WHERE age > 30 AND id > keyset
 LIMIT 10
 ```
 
-**However, this method comes with trade-offs:**
+However, this method comes with trade-offs:
 
-1. It doesn’t support direct navigation to arbitrary pages — clients must move sequentially through pages.
-2. If new records are inserted **before** a client’s keyset, their view of the paginated data may drift out of sync with the current dataset, requiring a refresh to realign.
+1. It doesn’t support direct navigation to arbitrary pages, clients must move sequentially through pages.
+2. If new records are inserted before a client’s keyset,
+their view of the paginated data may drift out of sync with the current dataset, requiring a **refresh** to realign.
 
 Thus, due to agility, **Rowset Pagination** is still a more preferred approach.
 
@@ -227,20 +226,20 @@ Thus, due to agility, **Rowset Pagination** is still a more preferred approach.
 When an application doesn’t require real-time updates, pages can be **precomputed at scheduled intervals**.
 This allows clients to quickly access any page by **page key**, without triggering additional server-side computation.
 
-For example, pages might be **regenerated** every hour.
+For example, pages might be regenerated every hour.
 Clients can subsequently request any page, assured of its immediate availability:
 
 ```d2
 db0: Database (00:00) {
     r: |||json
-    {
+    [
         "Page 0": [
             {
               "id": 1,
               "name": "John"
             }
         ]
-    }
+    ]
     |||
 }
 db5: Database (01:00) {

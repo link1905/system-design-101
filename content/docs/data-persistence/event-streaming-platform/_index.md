@@ -99,7 +99,7 @@ m1: {
   s: Service 1 {
     class: server
   }
-  m: Message Channel {
+  m: Message Queue {
     grid-rows: 1
     grid-gap: 0
     m1: Message 1 {
@@ -122,7 +122,7 @@ m2 {
   s: Service 2 {
     class: server
   }
-  m: Message Channel {
+  m: Message Queue {
     grid-rows: 1
     grid-gap: 0
     m2: Message 2 {
@@ -142,7 +142,7 @@ m3 {
   s: Service 1 {
     class: server
   }
-  m: Message Channel {
+  m: Message Queue {
     grid-rows: 1
     grid-gap: 0
     m3: Message 3 {
@@ -156,9 +156,10 @@ m3 {
 While this is efficient in terms of resource usage, it isn’t suitable for systems that require high reliability or audit trails.
 In those scenarios, messages are often considered valuable records of what occurred within the system.
 
-#### Message Persistence
+#### Message Durability
 
-To address this, more robust solutions persist messages durably on storage—ensuring they are retained even after being consumed.
+To address this, more robust solutions persist messages durably in **Message Brokers**,
+ensuring they are retained even after being consumed.
 A key feature is that a single message can be consumed by multiple consumers.
 
 ```d2
@@ -176,7 +177,7 @@ m1: {
       class: server
     }
   }
-  m: Message Channel {
+  m: Message Broker {
     grid-rows: 1
     grid-gap: 0
     m1: Message 1 {
@@ -202,7 +203,7 @@ m2 {
       class: server
     }
   }
-  m: Message Bus {
+  m: Message Broker {
     grid-rows: 1
     grid-gap: 0
     m1: Message 1 {
@@ -277,7 +278,7 @@ Briefly,
 Let’s explore how to build an {{< term esp >}}.
 
 {{< callout type="info" >}}
-In the following section, we’ll focus on core concepts popularized by **Apache Kafka**—
+In the following section, we’ll focus on core concepts popularized by **Apache Kafka**,
 the industry’s most widely adopted solution today.
 {{< /callout >}}
 
@@ -614,7 +615,8 @@ because out-of-sync replicas might be slow or unavailable due to crashes or part
 Waiting for all replicas can degrade performance or block the partition entirely.
 Once a replica becomes in-sync again, it will fetch any missed events from the primary.
 
-Please keep **ACK** in mind—this mechanism is crucial for understanding [Delivery Semantics](#delivery-semantics).
+Please keep **ACK** in mind,
+this mechanism is crucial for understanding [Delivery Semantics]({{< ref "delivery-semantics" >}}).
 
 ## Consuming
 

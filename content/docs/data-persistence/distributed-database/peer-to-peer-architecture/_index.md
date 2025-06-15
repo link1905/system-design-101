@@ -299,7 +299,7 @@ A simple strategy is to pick the next servers clockwise on the ring.
 
 ![Picking Replicas](consistent-hashing-pick-replicas.png)
 
-Some systems strengthen this further by considering **infrastructure diversity** —
+Some systems strengthen this further by considering **infrastructure diversity**,
 for example, placing replicas across different data centers or regions to guard against localized failures.
 
 ## Master-Slave And Peer-to-peer
@@ -370,8 +370,7 @@ either immediately or eventually through synchronization mechanisms.
 
 #### 2. Availability (A)
 
-**Availability (A)** —
-as discussed in the [Service Cluster]({{< ref "service-cluster#service-availability" >}}) section —
+**Availability (A)**
 ensures that every request receives a response,
 even if the response contains outdated or inconsistent data.
 In short, a system is considered **available** as long as it responds, regardless of accuracy.
@@ -474,7 +473,7 @@ Thus, practical systems must choose between three design patterns: **AP**, **CP*
 A **CA** system provides **Consistency** and **Availability** but not **Partition Tolerance**.
 In theory, this sounds ideal, but in practice, it’s **impractical**.
 
-When a network partition occurs, a **CA** system would either stop working entirely or behave incorrectly —
+When a network partition occurs, a **CA** system would either stop working entirely or behave incorrectly,
 both outcomes are unacceptable.
 Since network partitions are inevitable in real-world environments,
 a system that does not tolerate partitions is essentially unusable.
@@ -508,7 +507,7 @@ c.sb -> c.sa: "2. Forward to the primary"
 ```
 
 Suppose a network partition occurs, separating `A` from `B`.
-Now, clients connecting to `B` can **only read** from the replica — **writes are disabled** to preserve consistency.
+Now, clients connecting to `B` can **only read** from the replica, **writes are disabled** to preserve consistency.
 
 ```d2
 grid-rows: 2
@@ -580,7 +579,7 @@ client -> c.g2.sb: Read and write {
 }
 ```
 
-In this **AP** system, partitions remain fully functional —
+In this **AP** system, partitions remain fully functional,
 but at the cost of **Consistency**: different partitions may accept conflicting updates.
 
 ```d2

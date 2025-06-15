@@ -318,7 +318,7 @@ For example, a chart might illustrate the relationship between average latency a
 
 ![](load-testing.png)
 
-Combined with the application's specific requirements (such as those defined in a [Service Level Agreement — SLA](https://en.wikipedia.org/wiki/Service-level_agreement)),
+Combined with the application's specific requirements (such as those defined in a [Service Level Agreement (SLA)](https://en.wikipedia.org/wiki/Service-level_agreement)),
 this data helps ensure the application's performance targets can be met.
 For instance, *the application's average response time must not exceed 1 second*,
 a safe operational range for metrics like CPU usage can be relatively defined.

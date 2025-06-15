@@ -182,7 +182,9 @@ Actions should be expressed via request methods, not resource URIs.
 - **PUT**: Completely update a resource (the client sends the entire updated resource).
 - **PATCH**: Partially update a resource (the client sends only the fields that need updating).
 
-> You may follow [this link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) to learn more about HTTP methods
+{{< callout type="info" >}}
+You may follow [this link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) to learn more about HTTP methods.
+{{< /callout >}}
 
 Some methods, such as **POST**, **PUT**, and **PATCH**,
 require a payload (or body) to execute.

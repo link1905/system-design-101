@@ -10,7 +10,7 @@ These concurrency issues don't typically throw exceptions or halt execution.
 Instead, they quietly degrade data quality, even if the codebase itself remains logically sound.
 As a result, applications must anticipate and handle these problems from the outset.
 
-In this topic, we’ll explore concurrency control techniques —
+In this topic, we’ll explore concurrency control techniques,
 one of the more difficult aspects of maintaining a reliable {{< term sql >}} database.
 This knowledge isn’t limited to a single database, it’s equally valuable for managing distributed transactions.
 
@@ -62,9 +62,9 @@ a {
 }
 ```
 
-Notice what happens here —
-the balance goes wrong without any error or exception.
-The system silently produces incorrect results.
+Notice what happens here.
+The balance goes wrong without any error or exception,
+the system silently produces incorrect results.
 
 ## ACID
 
@@ -211,7 +211,7 @@ Rolling back the transaction actually removes the uncommitted tuple.
 
 ### 3. Consistency
 
-The **consistency** property ensures that a transaction transforms the database from one valid state to another —
+The **consistency** property ensures that a transaction transforms the database from one valid state to another,
 either by successfully committing or by rolling back.
 
 But what defines a valid state?
@@ -264,7 +264,7 @@ Therefore, selecting the appropriate isolation level is essential to balance con
 
 ### Dirty Read Phenomenon
 
-A **Dirty Read** occurs when a transaction reads uncommitted changes made by another transaction —
+A **Dirty Read** occurs when a transaction reads uncommitted changes made by another transaction,
 essentially accessing **dirty records** in progress.
 
 For example, consider two withdrawal transactions:
@@ -323,7 +323,7 @@ For instance, imagine an account `A` wants to withdraw `X`. The system must:
 2. Deduct the balance.
 
 If another transaction intervenes in between these steps and reduces the balance,
-it could result in an invalid final state — possibly a negative balance.
+it could result in a negative balance.
 
 ```d2
 shape: sequence_diagram
@@ -354,7 +354,7 @@ Ideally, one of these transactions should fail to preserve consistency.
 #### 2. Repeatable Read Isolation Level
 
 The **Repeatable Read** isolation level ensures a transaction sees
-only the data committed **before it began** — preventing unrepeatable reads.
+only the data committed **before it began**, preventing unrepeatable reads.
 
 At this isolation level, **locking** and **snapshotting** (versioning)
 mechanisms work together to maintain consistency.
@@ -362,7 +362,7 @@ When multiple transactions access the same data, two main strategies are used:
 
 ##### Snapshot Isolation
 
-**Snapshot Isolation** states that transactions see only the data version that existed when they started —
+**Snapshot Isolation** states that transactions see only the data version that existed when they started,
 newer updates are **isolated** from them.
 
 > The mechanism behind this isolation is discussed [above](#physical-isolation).
@@ -386,7 +386,7 @@ t2 -> a: Commit
 t1 <- a: Read balance (50)
 ```
 
-Thus, transactions are guaranteed **repeatable reads** —
+Thus, transactions are guaranteed **repeatable reads**,
 data remains consistent for the duration of the transaction, regardless of intermediate changes.
 
 However, this approach works well only when there is a **single writer**.
@@ -561,7 +561,7 @@ t1 -> a: XL (Waiting for T2 SL...) {
 }
 ```
 
-3. The second transaction then also attempts to acquire an **XL** —
+3. The second transaction then also attempts to acquire an **XL**,
 and is blocked by the first transaction’s **SL**.
 Now, both are stuck waiting on each other: a classic deadlock.
 
@@ -640,8 +640,8 @@ t2 -> a: Updates the balance (50 - 30 = 20) - Update {
 t2 -> t2: Commit
 ```
 
-2. **`Transaction 1` successfully commits** — Here,
-`Transaction 2` must roll back because it may have operated on stale data, and applying its changes could result in inconsistent or incorrect outcomes.
+2. **`Transaction 1` successfully commits**.
+Here, `Transaction 2` must roll back because it may have operated on stale data, and applying its changes could result in inconsistent or incorrect outcomes.
 
 ```d2
 
@@ -677,7 +677,7 @@ The **Phantom Read** phenomenon is somewhat similar to **Unrepeatable Read**,
 but occurs at the **table level**.
 It refers to a situation where the set of rows matching a condition changes during the course of a transaction.
 
-This happens when rows that satisfy a condition appear or disappear unexpectedly—like phantoms.
+This happens when rows that satisfy a condition appear or disappear unexpectedly, like phantoms.
 Consider an example from a banking system that processes loan applicants:
 
 1. The system first counts the number of eligible accounts and calculates the total loan amount as: `3,000 * number of eligible accounts`.
@@ -736,7 +736,7 @@ la {
 This results in an inconsistency between the `Loan` and `Loan Account` tables.
 While the total loan is calculated as `6,000`, `4` loan accounts are created instead of the expected `2`.
 
-The **Repeatable Read Isolation Level** cannot prevent this issue, as it locks **only individual rows**—not the entire table.
+The **Repeatable Read Isolation Level** cannot prevent this issue, as it locks **only individual rows**, not the entire table.
 Thus, newly inserted rows remain outside its scope.
 
 To address this, the **Serializable Isolation Level** must be used.

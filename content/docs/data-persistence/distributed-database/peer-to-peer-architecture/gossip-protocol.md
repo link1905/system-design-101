@@ -3,7 +3,7 @@ title: Gossip Protocol
 weight: 10
 ---
 
-We'll explore the first approach to maintaining a {{< term p2p >}} cluster—{{< term gosProto >}}.
+We'll explore the first approach to maintaining a {{< term p2p >}} cluster - {{< term gosProto >}}.
 
 ## Eager Reliable Broadcast Protocol
 
@@ -67,7 +67,7 @@ c: Cluster {
 ```
 
 This protocol follows an **eager delivery** model, where messages are immediately sent to all peers upon generation.
-While effective, this approach becomes inefficient as the number of peers grows—
+While effective, this approach becomes inefficient as the number of peers grows,
 it consumes substantial bandwidth and system resources due to redundant message exchanges.
 
 To address these inefficiencies, the {{< term gosProto >}} was introduced,

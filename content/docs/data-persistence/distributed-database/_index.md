@@ -59,8 +59,8 @@ Distributing data ensures it can be recovered in the event of failure.
 Once data is distributed across multiple servers,
 maintaining consistency becomes the primary challenge of {{< term dr >}}.
 
-This consistency largely depends on how data replication is handled — specifically,
-how a database server synchronizes with its replicas after a client (web service or user) performs an update.
+This consistency largely depends on how data replication is handled;
+Specifically, how a database server synchronizes with its replicas after a client (web service or user) performs an update.
 
 ```d2
 direction: right
@@ -282,7 +282,7 @@ For example, in a cluster with 2 replicas, we define:
 
 Now, imagine a read request initially reaches an inconsistent replica, such as `Replica 2`.
 To ensure data accuracy, the read operation leverages the remaining **Read Quorum** by querying
-at least one consistent server — either `Replica 1` or the `Primary` — before returning a response to the client.
+at least one consistent server, either `Replica 1` or the `Primary`, before returning a response to the client.
 
 ```d2
 shape: sequence_diagram

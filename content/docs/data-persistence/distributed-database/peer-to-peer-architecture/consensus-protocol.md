@@ -38,7 +38,7 @@ n -> c.a: Join {
 ```
 
 Instead, the cluster must **reach a collective decision** to approve the new node.
-This typically happens when a **majority of nodes** agree—for example,
+This typically happens when a **majority of nodes** agree, for example,
 if nodes `A` and `B` approve `D`'s entry, it succeeds even if node `C` is down.
 
 ```d2
@@ -123,7 +123,7 @@ np: Network partition {
 #### Loss Of Quorum
 
 What if the cluster splits into **two equal partitions** (e.g., one node each)?
-In that case, none of them can achieve majority—resulting in **total unavailability** for writes.
+In that case, none of them can achieve majority, resulting in **total unavailability** for writes.
 This situation is known as **Loss Of Quorum**.
 
 ```d2
@@ -155,7 +155,7 @@ c: Network partition {
 
 This is how we achieve **CP (Consistency over Availability)**:
 A **Raft** cluster ensures only one partition (the one with a majority) can operate at a time.
-This guarantees that at any moment, there is a single writer—ensuring consistency.
+This guarantees that at any moment, there is a single writer, ensuring consistency.
 
 ## Raft Cluter
 
@@ -201,10 +201,10 @@ c: Cluster (Timeout = 3 seconds, Current time = 00:04) {
 }
 ```
 
-
 ### Election Process
 
-In the **Raft** election process, nodes vote for a candidate based on its term number—a logical counter representing election rounds.
+In the **Raft** election process, nodes vote for a candidate based on its term number,
+a logical counter representing election rounds.
 
 - For example, a node with `Term = 3` has participated in three election rounds.
 - Nodes will only vote for candidates with higher terms, which ensures the system can always make progress.
