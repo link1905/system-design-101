@@ -1,6 +1,8 @@
 ---
 title: Master-slave Architecture
 weight: 10
+prev: distributed-database
+next: peer-to-peer-architecture
 ---
 
 Many systems experience heavy read workloads, where read operations significantly outnumber write operations.
@@ -84,7 +86,7 @@ dc: Database cluster {
 }
 ```
 
-However, this paradigm **does not** significantly write throughput.
+However, this paradigm does not enhance write throughput.
 Every write operation must still be synchronized across all nodes in the cluster.
 This contrasts with read replicas, where each read request can be independently handled by a single replica.
 
@@ -100,11 +102,11 @@ Because of this, **Multi-Master** setups are rarely used in practice.
 They don’t offer enough benefits to justify their complexity:
 
 - If the masters collaborate to maintain {{< term acid >}}, they must compromise availability.
-- If they asynchronously replicate, they risk violating strong consistency.
+- If they asynchronously replicate, they risk violating {{< term acid >}} principles.
 
-## Replica Promotion
+## Standby Promotion
 
-Back to the {{< term maSl >}} model, the master handles all updates, becoming a **single point of failure** that can affect system availability.
+Back to the {{< term maSl >}} model, the master handles all updates, becoming a {{< term spof >}} that can affect system availability.
 To mitigate the impact of master failure, we can introduce a [Standby Server]({{< ref "distributed-database#standby-server" >}})
 that is synchronously replicated from the master.
 In the event of a failure, we can quickly **promote** the standby to become the new master.
@@ -146,7 +148,7 @@ s -> db.c
 ```
 
 Moreover, if the **Master** node becomes unresponsive,
-the **Coordinator** detects the failure and promptly promotes a **Replica** to take over its responsibilities.
+the **Coordinator** detects the failure and promptly promotes a server to take over its responsibilities.
 
 ```d2
 direction: right
@@ -156,7 +158,7 @@ c: Coordinator {
 m: Master {
   class: generic-error
 }
-r: Replica {
+r: Standby Server {
   class: server
 }
 c -> m: Detect failure
@@ -168,11 +170,11 @@ c -> r: Promote to master
 Opening a new database connection is both slow and resource-intensive.
 If each user request triggers a new connection, it leads to performance issues.
 
-**Connection Pooling** is a fundamental design pattern that enables the reuse of database connections.
+**Connection Pooling** is a fundamental design pattern that enables the **reuse** of database connections.
 Database connections are not immediately terminated but instead maintained in a pool for subsequent use.
 A **Pool Manager** component serves as the central authority responsible for managing and coordinating these shared connections.
 
-This functionality is often integrated into the **Coordinator** to improve performance.
+This functionality is integrated into the **Coordinator** to improve performance.
 
 ```d2
 grid-rows: 1

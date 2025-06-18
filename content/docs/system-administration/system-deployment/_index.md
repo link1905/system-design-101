@@ -1,6 +1,8 @@
 ---
 title: System Deployment
 weight: 20
+prev: system-protection
+next: containerization
 ---
 
 This section will cover some fundamental aspects of system deployment.
@@ -49,6 +51,32 @@ This shared environment can be vulnerable to exploitation.
 
 For instance, if an attacked process has incorrectly configured permissions for its executor,
 it could potentially abuse the OS to compromise other processes or even the entire server.
+
+```d2
+m: Server {
+  grid-columns: 1
+  p {
+    class: none
+    grid-rows: 1
+    horizontal-gap: 150
+    p1: Process 1 (Attacked) {
+      class: process
+    }
+    p2: Process 2 {
+      class: process
+    }
+  }
+  o: "" {
+    class: os
+  }
+  p.p1 -> p.p2: Compromise {
+    class: error-conn
+  }
+  p.p1 -> o: Compromise {
+    class: error-conn
+  }
+}
+```
 
 ### Virtual Machine
 

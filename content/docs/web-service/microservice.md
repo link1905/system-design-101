@@ -512,7 +512,7 @@ We'll see an indirect approach to implement {{< term ioc >}} called {{< term msg
 ### Messaging
 
 The {{< term ioc >}} principle can be implemented using {{< term msg >}}.
-We essentially build an informative **message channel** with two primary associates:
+We essentially build an informative **message broker** with two primary associates:
 
 - **Publishers** publish messages.
 - **Consumers** consume and process messages.
@@ -522,7 +522,7 @@ direction: right
 p: Publisher {
   class: server
 }
-m: Message Channel {
+m: Message Broker {
   class: mq
 }
 c: Consumer {
@@ -534,7 +534,7 @@ c <- m: Consume
 
 Integrating {{< term msg >}} into the first coupling example:
 
-- The `Subscription Service` can publish account subscription messages to the channel.
+- The `Subscription Service` can publish account subscription messages to the broker.
 - The `Account Service` can later retrieve these messages to update the associated accounts.
 
 ```d2
@@ -545,7 +545,7 @@ acc: Account Service {
 p: Subscription Service {
     class: server
 }
-mq: Message Channel {
+mq: Message Broker {
     class: mq
 }
 msg: |||yaml
@@ -582,7 +582,7 @@ system: System {
     p: Subscription Service {
         class: server
     }
-    mq: Message Channel {
+    mq: Message Broker {
         class: mq
     }
     p -> mq: Subscription Message
@@ -604,7 +604,7 @@ system: System {
     p: Subscription Service {
         class: server
     }
-    mq: Message Channel {
+    mq: Message Broker {
         class: mq
     }
     n: Notification Service {
@@ -623,7 +623,7 @@ system: System {
 Nevertheless, we still encounter some dependencies
 
 - Both services depend on {{< term msg >}}. Luckily, the dependency is minimized and barely problematic,
-  as **Message Channels** expose only basic `Publish()` and `Consume()` interfaces that rarely change.
+  as **Message Brokers** expose only basic `Publish()` and `Consume()` interfaces that rarely change.
 - Both the publisher and consumer adhere to the same message schema, which is [Semantic Coupling](#semantic-coupling).
 
 Occasionally, messaging may result in an **unnecessary overhead** and outweigh the benefits of decoupling.

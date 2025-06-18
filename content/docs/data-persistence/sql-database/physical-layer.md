@@ -1,6 +1,7 @@
 ---
 title: Physical Layer
 weight: 10
+prev: sql-database
 ---
 
 The way data is organized at the physical layer drives the entire database workflow.
@@ -33,7 +34,7 @@ Page {
 The actual data resides in the **Tuples** section as **sequentially packed records**.
 
 We call them *tuples* rather than *records* because tuples are **immutable**.
-To update a tuple, the database creates a **new version**, essentially an overriding tuple.
+To update a tuple, the database creates a new version, essentially an overriding tuple.
 
 For example, the third tuple is an updated version of the first one.
 
@@ -412,7 +413,7 @@ it moves down through child pages until it locates the desired tuplee.
 ```d2
 
 i: Index {
-    grid-gap: 100
+    vertical-gap: 100
     grid-rows: 2
     r: Page 1 (Root) {
         grid-gap: 0
@@ -495,10 +496,10 @@ An update can be treated as a **HOT (Heap-Only Tuple)** and does not require ind
 
 When multiple versions of a tuple reside on the same page, they are **chained together**.
 Each tuple carries **metadata**, such as its transaction state and a pointer to the next version.
-This chain ensures queries can resolve to the correct visible version of a tuplee.
+This chain ensures queries can resolve to the correct visible version of a tuple.
 
 For example, deleted tuples may include a pointer to the next valid tuple,
-allowing the system to traverse and retrieve the most up-to-date version
+allowing the system to traverse and retrieve the most up-to-date version.
 
 ```d2
 i: Index {

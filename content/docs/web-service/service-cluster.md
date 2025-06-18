@@ -1,6 +1,7 @@
 ---
 title: Service Cluster
 weight: 20
+next: communication-protocols
 params:
   math: true
 ---
@@ -305,7 +306,7 @@ This approach decouples the services, promoting greater resilience and flexibili
 
 ```d2
 direction: right
-m: Message Channel {
+m: Message Broker {
    class: mq
 }
 a: Subscription Service {
@@ -345,11 +346,11 @@ c -> d
 ```
 
 With {{< term msg >}},
-it becomes $SA = SA (self) \times MessageChannel$
+it becomes $SA = SA (self) \times MessageBroker$
 
 ```d2
 direction: down
-m: Message Channel {
+m: Message Broker {
    class: mq
 }
 a: Service A {
@@ -370,10 +371,10 @@ c <-> m
 d <-> m
 ```
 
-Actually, we've **shifted** the complex interdependency to the channel.
+Actually, we've **shifted** the complex interdependency to the broker.
 Now, the system looks more manageable as the dependencies only end with one connection,
 not a harmfully long chain.
-Probably, the message channel becomes a dangerous {{< term spof >}},
+Probably, the message broker becomes a dangerous {{< term spof >}},
 requiring it to be highly available and fault-tolerant.
 
 ## Cluster Types
@@ -434,7 +435,7 @@ A common example of this is a chat application that holds client connections
 
 Consider a cluster of two instances,
 if `Client A` connects to `Instance 1` and `Client B` connects to `Instance 2`,
-they **cannot** chat with each other because different instances handle their **socket connections**.
+they cannot chat with each other because different instances handle their own **socket connections**.
 
 ```d2
 direction: right
@@ -470,7 +471,7 @@ The first approach is building a **shared store** between instances.
 
 In the chat example, we introduce a shared component known as the `Presence Store`, which manages the mapping of users to their current server instances.
 Whenever a user connects to the system, their server instance creates or updates a **presence record** in this store.
-Leveraging the information in the `Presence Store`, server instances can effectively determine the location of any user,
+Service instances can effectively determine the location of any user,
 enabling them to forward messages directly to the appropriate instance.
 
 ```d2
@@ -479,6 +480,7 @@ horizontal-gap: 300
 c: Clients {
   grid-columns: 1
   vertical-gap: 150
+  class: none
   c1: Client 1 (C1) {
     class: client
   }
@@ -496,6 +498,9 @@ s: Cluster {
   s2: Instance 2 (I2) {
     class: server
   }
+  s1 <-> s2: Forward {
+    style.animated: true
+  }
 }
 p: Presence Store {
   class: none
@@ -503,11 +508,9 @@ p: Presence Store {
   t: |||yaml
   Client 1: Instance 1
   Client 2: Instance 2
-  ||| {
-    class: bold-text
-  }
+  |||
   s: "Presence Store" {
-      class: [cache;bold-text]
+      class: cache
   }
 }
 c.c1 -> s.s1

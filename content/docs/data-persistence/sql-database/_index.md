@@ -1,6 +1,8 @@
 ---
 title: SQL Database
 weight: 10
+prev: data-persistence
+next: physical-layer
 ---
 
 Despite the growing momentum of {{< term nosql >}} databases in recent years,

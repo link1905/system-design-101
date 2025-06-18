@@ -1,6 +1,7 @@
 ---
 title: Deployment Strategies
 weight: 20
+next: system-monitoring
 ---
 
 We have previously explored various deployment options.
@@ -23,7 +24,7 @@ s1: Service (v0.1) {
 
 There are multiple deployment strategies, each suited to different use cases:
 
-## 1. Recreate Deployment
+## Recreate Deployment
 
 The concept is extremely straightforward:
 the old version of the service is completely shut down before the new version is deployed.
@@ -65,7 +66,7 @@ During the deployment,
 users cannot access the system until the new version is fully set up.
 This is problematic for services requiring **high availability**.
 
-## 2. Blue/Green Deployment
+## Blue/Green Deployment
 
 **Blue/Green** deployment is similar to the **Recreate** strategy in that only one version is live at a time,
 but it significantly reduces downtime by **fully preparing** the new version before making it active.
@@ -74,7 +75,7 @@ This strategy involves managing two identical production environments,
 traditionally named **Blue** and **Green**.
 At any moment, only one environment is **active** and exposed to client traffic.
 
-Initially, let's say the **Blue** environment is active:
+Initially, let's say the Blue environment is active:
 
 ```d2
 s: Service {
@@ -155,7 +156,9 @@ s: Service {
             class: server
         }
     }
-    s1 -> s2: Transition
+    s1 -> s2: Transition {
+      style.bold: true
+    }
 }
 c -> s.s2
 ```
@@ -186,7 +189,9 @@ s: Service {
             class: server
         }
     }
-    s1 <- s2: Rollback
+    s1 <- s2: Rollback {
+      style.bold: true
+    }
 }
 c: Client {
   class: client
@@ -194,9 +199,8 @@ c: Client {
 c -> s.s1
 ```
 
-Similar to **Recreate**,
-this strategy reduces conflicts by operating only one active version at a time.
-However, unlike Recreate, users continue to access the old version during the deployment of the new one,
+This strategy reduces conflicts by operating only one active version at a time.
+However, unlike **Recreate**, users continue to access the old version during the deployment of the new one,
 ensuring minimized downtime.
 Furthermore, it allows for rapid rollback if errors are encountered.
 
@@ -205,11 +209,10 @@ Since two full production environments need to be maintained concurrently,
 it can lead to double the infrastructure expenses.
 In practice, **Blue/Green** is generally recommended over **Recreate** if the associated costs are manageable.
 
-## 3. Rolling Update
+## Rolling Update
 
 Instead of shutting down everything simultaneously,
-a **Rolling Update** is a strategy that gradually **replaces** instances of the old version with instances of the new version.
-Old instances are taken down one by one (or in batches) and replaced with new version instances.
+**Rolling Update** is a strategy that **gradually replaces** instances of the old version with instances of the new version.
 
 ```d2
 grid-columns: 1
@@ -260,8 +263,8 @@ s4: "Service (v0.2)" {
 s1 -> s2 -> s3 -> s4
 ```
 
-This strategy ensures a fluid transition between versions because it always retains some instances to serve traffic.
-However, **Rolling Update** is generally cheaper than **Blue/Green** because the total number of concurrently available instances is minimized.
+This strategy ensures a **fluid transition** between versions because it always retains some instances to serve traffic.
+However, it's generally cheaper than **Blue/Green** because the total number of concurrently available instances is minimized.
 
 There are two primary problems with this approach:
 
@@ -275,15 +278,14 @@ some users might be routed to instances running the old version,
 while others are routed to instances running the new version.
 This can lead to inconsistent user experiences if there are breaking changes or significant differences between versions.
 
-## 4. Canary Deployment
+## Canary Deployment
 
 **Canary** deployment is a strategy offering more fine-grained control over the deployment process.
-
-The new version is initially deployed experimentally to a small subset of users,
+The new version is **deployed experimentally** to a small subset of users,
 known as the **Canary Group**.
 
 For example,
-we route 10% of traffic (canary group) to the new version.
+we route `10%` of traffic (canary group) to the new version.
 
 ```d2
 direction: right
@@ -361,6 +363,7 @@ c.ca -> s.s2: 50% traffic
 
 This strategy is particularly valuable when releasing new features incrementally or when there's a higher risk associated with the new version.
 It allows teams to collect early user feedback and detect unexpected issues with minimal impact.
+
 Additionally, if the new version proves problematic,
 it's relatively easy and quick to revert by simply routing all traffic back to the old version.
 

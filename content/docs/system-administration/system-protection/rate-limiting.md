@@ -1,6 +1,7 @@
 ---
 title: Rate Limiting
 weight: 30
+next: system-deployment
 ---
 
 **Rate Limiting** is an essential component in every system.
@@ -88,10 +89,9 @@ This approach reliably maintains a **consistent processing rate** for traffic.
 Excess requests are either queued (thereby delayed) or discarded,
 rendering it an inherently straightforward and cost-effective strategy for implementation.
 
-However, its primary function is to smooth out traffic bursts.
+Its primary function is to smooth out traffic bursts.
 Consequently, discarding or delaying excessive traffic can significantly **degrade the user experience**.
-Therefore,
-it is not an ideal choice for applications that frequently encounter bursts of traffic,
+Therefore, it is not an ideal choice for applications that frequently encounter bursts of traffic,
 such as online gaming services.
 
 ## Token Bucket
@@ -150,7 +150,7 @@ r3: Request 3 {
 r3 -> b: Discarded (or delayed) because of no token
 ```
 
-**Periodically**, the bucket receives a configurable number of tokens.
+At intervals, the bucket receives a configurable number of tokens.
 If the bucket reaches its capacity, any excess tokens are discarded.
 For example, 2 tokens are added every second.
 
@@ -191,7 +191,7 @@ a mechanism conceptually similar to the **Leaky Bucket** algorithm.
 
 A key distinction, however, is that this approach permits tokens to **accumulate** during periods of lower traffic (slack rounds),
 up to the predetermined capacity of the bucket.
-This accumulated reserve of tokens then enables the system to effectively absorb and manage sudden bursts of traffic by
+This accumulated reserve of tokens then enables the system to effectively manage sudden bursts of traffic by
 allowing temporary transmission rates higher than the average.
 
 A key challenge with this method is preparing the system to operate effectively during such bursts. Traffic bursts compel system services to consume additional resources, potentially leading to crashes. Furthermore, as bursts in one service can propagate to others, it is vital to ensure that all affected services are intolerant.
@@ -221,10 +221,10 @@ b -> s.s1
 
 While rate limiting mechanisms can be implemented on the client side,
 such strategies are inherently **unreliable** and considered unsafe from a security perspective.
-This is because client-side controls are susceptible to manipulation or complete bypass by the end-user.
+This is because client-side controls are susceptible to manipulation or complete bypass.
 
 Consequently, client-side rate limiting should only be employed in a **supplementary capacity**,
-supporting more robust server-side enforcement, rather than serving as a primary security measure
+supporting more robust server-side enforcement.
 
 ### Exponential Backoff
 
@@ -276,100 +276,100 @@ This pattern operates as a proxy and manages requests through **three distinct s
 
 1. **Closed**: In this state, requests are routed to the target service as usual.
 
-```d2
-direction: right
-c: Client {
-  c: |||yaml
-  state: Closed
-  threshold: 3
-  failures: 0
-  |||
-}
-t: Target Service {
-    class: server
-}
-c -> t {
-  style.animated: true
-}
-```
+    ```d2
+    direction: right
+    c: Client {
+      c: |||yaml
+      state: Closed
+      threshold: 3
+      failures: 0
+      |||
+    }
+    t: Target Service {
+        class: server
+    }
+    c -> t {
+      style.animated: true
+    }
+    ```
 
 2. **Open**: If the number of failures surpasses a **predefined threshold**,
 the circuit breaker transitions to the **Open** state.
 In this state, all requests are immediately cancelled.
 This prevents resource wastage on calls that are likely to fail and provides the target service with an opportunity to recover.
 
-```d2
-direction: right
-c: Client {
-  c: |||yaml
-  state: Open
-  threshold: 3
-  failures: 4
-  |||
-}
-t: Target Service {
-    class: server
-}
-c -> t: Fail {
-  class: error-conn
-}
-```
+    ```d2
+    direction: right
+    c: Client {
+      c: |||yaml
+      state: Open
+      threshold: 3
+      failures: 4
+      |||
+    }
+    t: Target Service {
+        class: server
+    }
+    c -> t: Fail {
+      class: error-conn
+    }
+    ```
 
 3. **Half-Open**: After a designated timeout period,
 the circuit breaker transitions from the **Open** state to **Half-Open**.
 In this state, a limited number of trial requests are allowed to pass through to the target service:
 
-* If **any** of these trial requests fail,
-the breaker presumes the underlying fault persists and reverts to the **Open** state.
+    - If **any** of these trial requests fail,
+    the breaker presumes the underlying fault persists and reverts to the **Open** state.
 
-```d2
-direction: right
-c: Client {
-  c: |||yaml
-  state: Half-Open -> Open
-  threshold: 3
-  failures: 4
-  |||
-  r1: Request 1 {
-    class: request
-  }
-  r2: Request 2 {
-    class: request
-  }
-}
-t: Target Service {
-  class: server
-}
-c.r1 -> t: Successful
-c.r2 -> t: Failed {
-  class: error-conn
-}
-```
+    ```d2
+    direction: right
+    c: Client {
+      c: |||yaml
+      state: Half-Open -> Open
+      threshold: 3
+      failures: 4
+      |||
+      r1: Request 1 {
+        class: request
+      }
+      r2: Request 2 {
+        class: request
+      }
+    }
+    t: Target Service {
+      class: server
+    }
+    c.r1 -> t: Successful
+    c.r2 -> t: Failed {
+      class: error-conn
+    }
+    ```
 
-* If **all** trial requests succeed,
-the circuit breaker transitions back to the **Closed** state, resuming normal operation.
+    - If **all** trial requests succeed,
+    the circuit breaker transitions back to the **Closed** state, resuming normal operation.
 
-```d2
-direction: right
-c: Client {
-  c: |||yaml
-  state: Half-Open -> Closed
-  threshold: 3
-  failures: 4
-  |||
-  r1: Request 1 {
-    class: request
-  }
-  r2: Request 2 {
-    class: request
-  }
-}
-t: Target Service {
-  class: server
-}
-c.r1 -> t: Successful
-c.r2 -> t: Successful
-```
+    ```d2
+    direction: right
+    c: Client {
+      c: |||yaml
+      state: Half-Open -> Closed
+      threshold: 3
+      failures: 4
+      |||
+      r1: Request 1 {
+        class: request
+      }
+      r2: Request 2 {
+        class: request
+      }
+    }
+    t: Target Service {
+      class: server
+    }
+    c.r1 -> t: Successful
+    c.r2 -> t: Successful
+    ```
 
 The **Half-Open** state permits only a restricted volume of traffic, which helps prevent the target service from being **overwhelmed** and allows it additional time to recover.
 

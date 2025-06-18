@@ -13,7 +13,7 @@ since they must interact with multiple tables,
 which might reside in different files (or even on different servers).
 
 In this topic, we’ll cover common techniques to improve query performance.
-At its core, the guiding principle is simple: **minimize `I/O operations` as much as possible**.
+At its core, the guiding principle is simple: **minimize I/O operations as much as possible**.
 
 ## I/O Operation
 
@@ -41,7 +41,7 @@ A common caching strategy is **LRU (Least Recently Used)**, which works like thi
 In runtime, how an index is utilized depends heavily on the query context.
 There are typically three common query patterns:
 
-### 1. Index Scan
+### Index Scan
 
 This is the standard way to use an index.
 It involves at least **two I/O operations** per record retrieval:
@@ -161,7 +161,7 @@ However, note that adding extra columns makes the index larger, increasing the s
 It also complicates updates, any change to an included column requires updating the index entry as well,
 making optimizations like [HOT updates]({{< ref "physical-layer#hot-update" >}}) unfeasible.
 
-### 2. Table Scan
+### Table Scan
 
 A **Table Scan** bypasses indexes entirely and reads the **entire set of table pages** sequentially.
 
@@ -211,7 +211,7 @@ query -> h.p1: 1. Read first page
 query -> h.p2: 2. Read second page
 ```
 
-### 3. Bitmap Scan
+### Bitmap Scan
 
 A **Bitmap Scan** offers a hybrid strategy, useful when:
 

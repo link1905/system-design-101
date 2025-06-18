@@ -1,6 +1,8 @@
 ---
 title: Load Balancer
 weight: 40
+prev: communication-protocols
+next: api-design
 ---
 
 We previously introduced how to build a cluster of instances in the [Service Cluster]({{< ref "service-cluster" >}}) topic.
@@ -10,7 +12,8 @@ In this lecture, we’ll explore how to expose a service to the outside world.
 
 ### Reverse Proxy Pattern
 
-When running a cluster of service instances, these instances typically reside on different machines with distinct addresses. Moreover, instances can be dynamically added or removed. As a result, it’s impractical for clients to directly communicate with individual service instances.
+When running a cluster of service instances, these instances typically reside on different machines with distinct addresses.
+Moreover, instances can be dynamically added or removed. As a result, it’s impractical for clients to directly communicate with individual service instances.
 
 **Reverse Proxy** is a pattern that exposes a system through **a single entry point**, concealing the underlying internal structure.
 Following this pattern, service instances are placed behind a proxy that forwards traffic to them.
@@ -159,20 +162,20 @@ system: System {
       }
       r: |||yaml
       Instance 1: 1.1.1.1, Healthy
-      Instance 2: 2.2.2.2, Healthy
+      Instance 2: 2.2.2.2, Unhealthy
       |||
     }
     s1: Instance 1 {
       class: server
     }
     s2: Instance 2 {
-      class: server
+      class: generic-error
     }
     lb.lb -> s1: Health check {
       style.animated: true
     }
-    lb.lb -> s2: Health check {
-      style.animated: true
+    lb.lb -> s2: Stop forwarding {
+      class: error-conn
     }
   }
 }
@@ -311,7 +314,7 @@ lb -> s0
 For [stateful applications]({{< ref "service-cluster#stateful-service" >}}) like multiplayer games or chat services, clients often need to consistently interact with the same server instance.
 For example, reconnecting to the same session after a temporary disconnection.
 
-**However**, this comes at a cost.
+However, this comes at a cost.
 Session stickiness can easily lead to uneven load distribution, as it bypasses the load balancer’s configured algorithm in favor of sticking with a specific instance.
 
 ## Load Balancer Types
@@ -621,12 +624,16 @@ Once a client connects to a server, it keeps communicating with **the same insta
 This problem arises from [packet segmentation](https://en.wikipedia.org/wiki/Packet_segmentation), where large messages are split into multiple network packets (aka [TCP segments](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)).
 
 For example,
-an {{< term http >}} request is split into two network
-segments ([aka TCP messages](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)).
+an {{< term http >}} request is split into two network segments.
 A {{< term lb7 >}} can understand protocols like HTTP and reassemble segmented requests before forwarding them.
 
 ```d2
 direction: right
+r {
+  class: none
+  h1: HTTP request 1
+  h2: HTTP request 2
+}
 s: System {
     lb: L7 Load Balancer {
         s1: Segment 1
@@ -646,20 +653,13 @@ s: System {
     s2: Instance 2 {
        class: server
     }
-    lb.h1 -> s1: Combine {
-      class: bold-text
-    }
-    lb.h2 -> s2: Combine {
-      class: bold-text
-    }
+    lb.h1 -> s1: Assemble
+    lb.h2 -> s2: Assemble
 }
-c: Client {
-  class: client
-}
-c -> s.lb.s1
-c -> s.lb.s2
-c -> s.lb.s3
-c -> s.lb.s4
+r.h1 -> s.lb.s1
+r.h1 -> s.lb.s2
+r.h2 -> s.lb.s3
+r.h2 -> s.lb.s4
 ```
 
 Conversely, a {{< term lb4 >}} is unaware of application protocols and may accidentally distribute segments of the same request to different servers, leading to errors.
@@ -681,9 +681,7 @@ s: System {
     lb.s1 -> s1: Forward
     lb.s2 -> s2: Forward
 }
-c: Client {
-  class: client
-}
+c: HTTP request
 c -> s.lb.s1
 c -> s.lb.s2
 ```

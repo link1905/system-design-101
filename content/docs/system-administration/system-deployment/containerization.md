@@ -1,11 +1,11 @@
 ---
 title: Containerization
 weight: 10
+prev: system-deployment
 ---
 
 **Containerization** is a lightweight virtualization method that has gained significant momentum in recent years,
 establishing itself as a cornerstone of modern software development and deployment practices.
-
 
 ## Kernel
 
@@ -225,7 +225,7 @@ OS {
         class: client
     }
   }
-  k: Kernal {
+  k: Kernel {
     c: |||yaml
     Namespace Mappings:
       Namespace 1:
@@ -324,7 +324,6 @@ A question might arise here: *Can users in different user namespaces see the sam
 
 It's important to recognize that different types of namespaces serve distinct purposes and operate independently.
 Each namespace type helps segregate a particular aspect of the system.
-A process can be run within specific combinations of namespaces to achieve desired isolation.
 
 For example, `Process 1` could be placed in:
 
@@ -361,7 +360,7 @@ IP addresses, firewall rules, routing tables, etc.
 
 A network namespace's settings apply to the processes running inside.
 These virtual network stacks ultimately still rely on the host's physical network,
-and their network messages are processed by the host's network settings before exiting the machine.
+and their network messages are processed by the host's network settings **before** exiting the machine.
 
 ```d2
 OS {
@@ -384,15 +383,13 @@ OS {
 
 #### Bridging
 
-Processes are restricted to interacting only with network components within their own namespace,
-preventing malicious or accidental access to others.
 Essentially, different network namespaces, despite coexisting on the same machine,
 must communicate with each other (and the outside world) via networking mechanisms.
 Network bridging is a popular technique to connect network namespaces.
 
 In brief, a virtual network interface called a **bridge** is created on the host.
 This special interface acts as a virtual switch between different network namespaces
-(and potentially the host's network), allowing them to connect with each other by private IPs.
+(and potentially the host's network), allowing them to connect with each other by **private IPs**.
 
 ```d2
 OS {
@@ -422,14 +419,14 @@ OS {
 
 However, this setup is typically suitable for internal workloads.
 These private network IPs (e.g., `192.168.1.1`, `192.168.1.2`) cannot be exposed directly to the public internet,
-as the outside world has no knowledge of these private IP addresses.
+as the outside world has no knowledge of them.
 
 #### Port Mapping
 
-Another strategy for connecting network namespaces to external networks (and to each other via the host) is **Port Mapping**.
+Another strategy for connecting network namespaces to external networks is **Port Mapping**.
 This is similar in concept to [Network Address Translation (NAT)](https://en.wikipedia.org/wiki/Network_address_translation).
 
-The host can be configured to forward network messages to specific namespaces based on their destination port number.
+The host can be configured to forward network messages to specific namespaces based on their **destination port** number.
 
 ```d2
 OS {
@@ -463,6 +460,7 @@ Mounting is the process of attaching a directory (known as a **mount point**) to
 making the data on that device accessible via that directory path.
 
 For example:
+
 - `Device 1` is mounted to `/boot`.
 - `Device 2` is mounted to `/var`.
 
@@ -542,10 +540,11 @@ o: OS {
 
 Mount namespaces each have their own distinct view of the filesystem.
 Bind mounts can be used to cleanly mount host directories into these namespaces,
-allowing for isolated views while also enabling controlled data sharing between the host and containers,
-or between containers.
+allowing for **isolated views** while also enabling controlled data sharing between the host and containers
+(or between containers).
 
-For example,
+For example:
+
 - `/var` inside `Mount Namespace 1` points to `/app1` on the host.
 - `/var` inside `Mount Namespace 2` points to `/app2` on the host.
 - Both of them share the same `/etc` directory.
@@ -568,10 +567,10 @@ OS {
     }
     n2: Mount Namespace 2 {
         grid-rows: 1
-        v: "/var" {
+        e: "/etc" {
           class: folder
         }
-        e: "/etc" {
+        v: "/var" {
           class: folder
         }
     }
@@ -581,10 +580,10 @@ OS {
       u: "/app1" {
         class: folder
       }
-      a: "/app2" {
+      e: "/etc" {
         class: folder
       }
-      e: "/etc" {
+      a: "/app2" {
         class: folder
       }
   }
@@ -600,8 +599,8 @@ OS {
 **Namespaces** alone are not sufficient for building robust containers because
 they primarily provide isolation of view but not necessarily of resource consumption.
 Without constraints, processes could compete for system resources
-(CPU, memory, I/O) or one process could consume resources inefficiently,
-impacting others or the host.
+(CPU, memory, bandwidth) or some processes could consume resources inefficiently,
+impacting the others.
 
 The **Linux Kernel** includes a feature called **control groups (cgroups)** to address this.
 A cgroup can define limits for resources like CPU time and memory allocation.
@@ -632,11 +631,12 @@ OS {
 A container encompasses one or more processes running within a virtualized OS environment,
 effectively separating them from the host system and other containers.
 
-Creating a container involves:
+Creating a container typically involves:
+
 1. Creating the appropriate **namespaces** (user, process, network, mount, etc.) to
 provide resource isolation from the perspective of the processes within the container.
 2. Creating and configuring a **cgroup** to limit and account for the resources (CPU, memory, etc.) that the container's processes can consume.
-3. Running the intended application processes inside these configured namespaces and under the control of the cgroup.
+3. Running the container processes inside these configured namespaces and under the control of the cgroup.
 
 ```d2
 grid-columns: 1
@@ -680,21 +680,22 @@ Running multiple applications or processes directly on the same host OS without 
 If one process is attacked or behaves erratically,
 it can potentially bring down other processes or even the entire machine
 because they all share the host's resources.
+
 Containers help to build isolated environments,
 effectively providing each application with what appears to be its own operating system.
-This greatly mitigates many problems that can arise when a process is under attack or misbehaves.
+This greatly mitigates many problems that can arise when a container is under attack or misbehaves.
 
-Compared to virtual machines, containers are **not completely isolated** because they still share the host system's kernel.
+Compared to virtual machines, containers are **not completely isolated** because they still share the host kernel.
 Misconfigured containers can potentially be compromised in ways that could allow an attacker to affect the host system,
 such as:
 
-- **Mapping the host's root user to a container's user**:
-If the root user inside a container is mapped directly to the root user on the host,
-a compromise of the container's root could grant an attacker full access to the host kernel and the entire server.
-- **Mounting sensitive host folders into a container**:
-Through bind mounting, if a sensitive host directory (e.g., `/etc/passwd`)
-is made accessible inside a container without proper restrictions,
-an attacker gaining control of the container could maliciously access or modify data on the host.
+- **Mapping the host’s root user to a container’s user:**  
+If the root user inside a container is directly mapped to the root user on the host,
+any compromise of the container's root account could grant an attacker unrestricted access to the host kernel and the entire server.
+
+- **Mounting sensitive host folders into a container:**  
+When sensitive host directories (such as `/etc/passwd`) are bind-mounted into a container,
+an attacker who gains control of the container may be able to access or tamper with critical data on the host system.
 
 ## Distributed Containerization
 
@@ -738,7 +739,7 @@ irrespective of the underlying physical network infrastructure and on which host
 ### Network Overlaying
 
 **Network Overlaying** is a technique widely used in containerization solutions
-to address cross-host container communication.
+to address cross-host container communication:
 
 - An **underlay network** refers to the **physical network** infrastructure,
 comprising actual routers, switches, and physical links.
@@ -875,13 +876,12 @@ Cluster {
 
 Two main questions need to be addressed for this to work:
 
+**1. How do hosts (and containers) discover the cluster addresses of other containers?**
+
 #### Cluster Controller
 
-**1. How do hosts (and containers) discover the cluster addresses of other containers, especially those on different hosts?**
-
 Maintaining the state of this overlay network is often handled similarly to a [distributed database cluster]({{< ref "distributed-database" >}}).
-A central Controller typically manages the overlay network's settings and synchronizes them across the cluster.
-Strong consistency for this controller is preferred because:
+A central **controller** typically manages the overlay network's settings and synchronizes them across the cluster:
 
 - The cluster's network state changes frequently (e.g., containers starting, stopping, moving),
 necessitating strong consistency to avoid routing errors.
@@ -922,13 +922,13 @@ Cluster {
 }
 ```
 
-#### Packet Encapsulation
-
 **2. How is a packet actually transmitted between containers on different physical hosts?**
+
+#### Packet Encapsulation
 
 Let's consider an example of sending a packet from `Container 1` (on `Host 1`) to `Container 3` (on `Host 2`):
 
-- **Encapsulation**: The initial packet is created by `Container 1` with the source Cluster IP of `Container 1` and the destination Cluster IP of `Container 3`.
+- **Encapsulation**: The initial packet is created with the source address of `Container 1` and the destination address of `Container 3`.
 When this packet reaches the networking stack of `Host 1`, it is **encapsulated**.
 This means the original packet (with Cluster IPs) is wrapped inside
 the physical IP address of `Host 1` as its source and the physical IP address of `Host 2` as its destination.
@@ -969,7 +969,7 @@ Cluster {
 its networking stack recognizes it as an overlay packet.
 The outer header (with physical IPs) is stripped off (**decapsulated**),
 revealing the original inner packet (with Cluster IPs).
-`Host 2` then forwards the original inner packet to the `Container 3`.
+`Host 2` then forwards the original packet to `Container 3`.
 
 ```d2
 Cluster {

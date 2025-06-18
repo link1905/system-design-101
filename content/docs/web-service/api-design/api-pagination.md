@@ -1,5 +1,7 @@
 ---
 title: API Pagination
+prev: api-design
+next: data-persistence
 ---
 
 Sometimes, an API returns a large amount of data that clients can’t process all at once.
@@ -17,7 +19,11 @@ It involves splitting a file into smaller parts (chunks), enabling clients to re
 
 For example, consider a client downloading a 20MB file:
 
-1. The client first requests metadata from the server (name, type, size, etc.).
+{{% steps %}}
+
+### Metadata
+
+The client first requests metadata from the server (name, type, size, etc.).
 
 ```d2
 shape: sequence_diagram
@@ -28,10 +34,12 @@ s: Server {
     class: server
 }
 c -> s: Request file
-s -> c: Metadata (myfile.png, image, 20MB)
+s -> c: Metadata (myfile.png, 20MB)
 ```
 
-2. The client determines the number of chunks based on its capabilities (e.g., two 10MB chunks).
+### Chunks
+
+The client determines the number of chunks based on its capabilities (e.g., two 10MB chunks).
 Once all chunks are downloaded, they're reassembled into the final file.
 
 ```d2
@@ -44,11 +52,13 @@ s: Server {
 }
 
 c -> s: Request file
-s -> c: "Metadata (myfile.png, image, 20MB)"
+s -> c: "Metadata (myfile.png, 20MB)"
 c <- s: "Download chunk 1 [0, 10]"
 c <- s: "Download chunk 2 [11, 20]"
 c -> c: "Reassemble file = chunk 1 + chunk 2"
 ```
+
+{{% /steps %}}
 
 **Chunking** also applies to file uploads.
 Its benefits include:

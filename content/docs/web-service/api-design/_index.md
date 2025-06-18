@@ -1,8 +1,9 @@
 ---
 title: API Design
 weight: 50
+prev: load-balancer
+next: api-pagination
 ---
-
 
 ## API (Application Programming Interface)
 

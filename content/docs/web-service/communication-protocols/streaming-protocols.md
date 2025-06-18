@@ -1,9 +1,11 @@
 ---
 title: Streaming Protocols
 weight: 20
+prev: communication-protocols
+next: load-balancer
 ---
 
-We've highlighted the most popular protocols in the [previous topic](../).
+We've highlighted the most popular protocols in the [previous topic]({{< ref "communication-protocols" >}}).
 While those are versatile and suitable for various use cases, they aren't particularly optimized for streaming media data like video or audio.
 Given the increasing importance of media streaming today, let’s take a brief look at some protocols better suited for this purpose.
 

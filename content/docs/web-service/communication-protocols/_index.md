@@ -1,6 +1,8 @@
 ---
 title: Communication Protocols
 weight: 30
+prev: service-cluster
+next: streaming-protocols
 ---
 
 The communication protocol fundamentally shapes the way a service is built.
@@ -363,7 +365,8 @@ Additionally, a unidirectional connection incurs **less overhead** than a full-d
 {{< term sse >}} is recommended if the application only needs to send data from the server side,
 e.g., live scores, news websites.
 
-Similar to {{< term ws >}}, {{< term sse >}} also introduces the same problems about coupling and resource balancing.
+Similar to {{< term ws >}} (maintaining long-lived connections),
+{{< term sse >}} also introduces the same problems about coupling and resource balancing.
 
 ## Google Remote Procedure Call (gRPC)
 

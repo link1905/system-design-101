@@ -1,6 +1,8 @@
 ---
 title: Web Service
 weight: 10
+next: microservice
+prev: introduction
 ---
 
 A **Web Service** acts as the representational layer that stands in front of the internally complex backend components.
