@@ -1,6 +1,8 @@
 ---
 title: Design Patterns
 weight: 40
+prev: system-administration
+next: event-driven-architecture
 ---
 
 This final topic explores common patterns for system development across various facets:

@@ -218,7 +218,7 @@ o -> o: 4. Use the distributed key to validate {
 Distributing the secret key to consumer services is risky because it allows them to independently generate tokens.
 To maintain security, other services should **not** be permitted to create new tokens.
 
-By leveraging [Asymmetric Encryption](Data-Protection.md#asymmetric-encryption),
+By leveraging [Asymmetric Encryption]({{< ref "data-security#asymmetric-encryption" >}}),
 this risk is addressed by separating the key into two distinct parts:
 
 - **Signing (private) key**: Used solely for generating tokens.

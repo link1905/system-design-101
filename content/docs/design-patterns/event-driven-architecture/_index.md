@@ -1,6 +1,8 @@
 ---
 title: Event-Driven Architecture
 weight: 10
+prev: design-patterns
+next: event-sourcing
 ---
 
 ## Service-oriented Architecture (SOA)
@@ -102,7 +104,7 @@ Events are at the core of an **EDA** system.
 The business is conceptualized as events and their transformations;
 the system, comprising consumers and producers, is then developed to handle and adapt to these events.
 
-### Event Collaboration
+## Event Collaboration
 
 It is common for actions to involve multiple services.
 For instance, when a new account is registered in the `Account Service`:
@@ -110,7 +112,7 @@ For instance, when a new account is registered in the `Account Service`:
 1. The `User Service` creates a new user record.
 2. The `Notification Service` sends a welcome email.
 
-#### Orchestration
+### Orchestration
 
 The first approach involves introducing an **orchestrator service**,
 like the `Account Service`, which performs these tasks sequentially.
@@ -140,13 +142,13 @@ particularly for managing complex interactions.
 However, the orchestrator introduces distinct interdependencies and becomes a {{< term spof >}},
 potentially reducing overall system availability and fault tolerance.
 
-#### Choreography
+### Choreography
 
 Conversely, **Choreography** is an approach that relies purely on events:
 
 1. The `Account Service` emits `AccountCreated` events.
 2. The `User Service` captures these events and, in turn, produces new `UserCreated` events.
-3. The `Notification Service` then consumes the `UserCreated` event to send the welcome email.
+3. The `Notification Service` then consumes `UserCreated` events to send welcome emails.
 
 ```d2
 direction: right
@@ -176,11 +178,11 @@ However, this approach can become problematic when dealing with intricate workfl
 This complexity is the most significant challenge of **EDA**.
 A single business operation might involve a chain of numerous events,
 generated and causing effects in many different places.
-This makes it challenging for developers to fully grasp the business process and develop the system effectively.
+This makes it hard for developers to fully grasp the business process and develop the system effectively.
 The complexity is particularly pronounced in large systems,
 which may handle a vast number of events (potentially hundreds or even thousands).
 
 {{< callout type="info" >}}
-This is just an introduction of [Saga](Distributed-Transaction.md#saga).
+This is just an introduction of [Saga]({{< ref "distributed-transaction#saga" >}}).
 We will discuss it more in the appropriate section.
 {{< /callout >}}

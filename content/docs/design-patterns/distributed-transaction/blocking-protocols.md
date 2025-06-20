@@ -1,6 +1,7 @@
 ---
 title: Blocking Protocols
 weight: 10
+prev: distributed-transaction
 ---
 
 First, we will explore protocols that ensure consistency by strictly locking data,
@@ -38,10 +39,10 @@ shape: sequence_diagram
 c: Coordinator {
     class: process
 }
-aa: Account Service (A) {
+aa: Server A {
     class: server
 }
-ab: Account Service (B) {
+ab: Server B {
     class: server
 }
 "1. Prepare" {
@@ -50,7 +51,7 @@ ab: Account Service (B) {
 }
 ```
 
-These cohort services will verify account details, update balances provisionally, and crucially,
+These cohort services will verify account details, update balances provisionally,
 **lock** the accounts' balances to prevent other operations from interfering during the transaction.
 If both services can successfully prepare, they respond `Yes` back to the coordinator.
 
@@ -59,10 +60,10 @@ shape: sequence_diagram
 c: Coordinator {
     class: process
 }
-aa: Account Service (A) {
+aa: Server A {
     class: server
 }
-ab: Account Service (B) {
+ab: Server B {
     class: server
 }
 "1. Prepare" {
@@ -89,10 +90,10 @@ shape: sequence_diagram
 c: Coordinator {
     class: router
 }
-aa: Account Service (A) {
+aa: Server A {
     class: server
 }
-ab: Account Service (B) {
+ab: Server B {
     class: server
 }
 "1. Prepare" {
@@ -189,10 +190,9 @@ s3: Server 3 {
 ```
 
 Therefore, **2PC** is a **blocking protocol**.
-It blocks data (by locking resources) to ensure consistency.
-However, the failure of a single node (the coordinator) can block the entire transaction **indefinitely**.
+The failure of a single node (the coordinator) can block the entire transaction **indefinitely**.
 Cohorts remain in an uncertain state, holding locks, until the coordinator recovers.
-This issue significantly degrades system performance and availability.
+This issue significantly degrades system availability.
 
 ### Cohort Cooperation
 
@@ -264,17 +264,17 @@ s3: Server 3 {
     c -> c: Crash {
         class: error-conn
     }
-    s3 -> s3: Crash {
+    s1 -> s1: Crash {
         class: error-conn
     }
-    s1 <-> s2: No unanimity because of no information from Server 3 {
+    s2 <-> s3: No unanimity because of no information from Server 1 {
         class: error-conn
     }
 }
 ```
 
 Moreover, in many implementations, the coordinator's logic is often hosted on one of the cohort machines.
-This means its failure is equivalent to a cohort failure, which can still halt the entire system.
+This means its failure is equivalent to a coordinator and cohort failure, halting the entire system.
 
 ## Three-phase Commit (3PC)
 
@@ -405,9 +405,9 @@ If the coordinator becomes unresponsive before the final `Commit`,
 cohorts can communicate mutually to reach a consensus:
 
 - If **at least one** cohort has received the `PreCommit` request from the coordinator:
-This implies that all cohorts must have voted `Yes` in the prepare phase (otherwise the coordinator would have sent an `Abort`). Therefore, the cohorts can safely decide to commit the transaction.
+This implies that all cohorts must have voted `Yes` in the prepare phase. Therefore, the cohorts can safely decide to commit the transaction.
 - If **no** cohort has received a `PreCommit` request:
-This indicates that the transaction was likely aborted by the coordinator (due to a `No` vote or coordinator failure before sending `PreCommit`). Thus, the transaction is aborted.
+This indicates that the transaction was likely aborted by the coordinator. Thus, the transaction is aborted.
 
 Let's consider coordinator crashes during 3PC:
 
@@ -439,7 +439,9 @@ s3: Server 3 {
     }
 }
 "3. Commit (Timeout & Recovery)" {
-    s1 <-> s3: 'Decide to commit because Server 1 received "PreCommit"'
+    s1 <-> s3: 'Decide to commit because Server 1 received "PreCommit"' {
+        style.bold: true
+    }
     s1 -> s1: Commit
     s2 -> s2: Commit
     s3 -> s3: Commit
@@ -473,7 +475,9 @@ s3: Server 3 {
     }
 }
 "3. Commit (Timeout & Recovery)" {
-    s1 <-> s3: 'Decide to abort because no cohort received "PreCommit"'
+    s1 <-> s3: 'Decide to abort because no cohort received "PreCommit"' {
+        style.bold: true
+    }
     s1 -> s1: Abort
     s2 -> s2: Abort
     s3 -> s3: Abort
@@ -485,8 +489,8 @@ Even if the coordinator fails after initiating the phase,
 other cohorts can autonomously finalize the transaction based on whether any cohort reached the `PreCommit` state.
 
 Unfortunately, **3PC** is not a perfect solution.
-It does not guarantee strong consistency in the presence of [network partitions]({{< ref "peer-to-peer-architecture#network-partition" >}}).
-Imagine a scenario where `Server 1` receives a `PreCommit` request but then gets partitioned from the coordinator and other cohorts.
+It does not guarantee consistency in the presence of [network partitions]({{< ref "peer-to-peer-architecture#network-partition" >}}).
+Imagine a scenario where `Server 1` receives a `PreCommit` request but then gets partitioned from other cohorts.
 During the timeout and recovery phase:
 
 - `Server 1` (isolated) will proceed to commit the transaction.
@@ -520,10 +524,14 @@ c -> c: Crash {
     class: error-conn
 }
 "3. Commit (Timeout in Partition 1)" {
-    s1 <-> s1: 'Commit (global decision was PreCommit)'
+    s1 <-> s1: 'Commit (global decision was PreCommit)' {
+        style.bold: true
+    }
 }
 "3. Commit (Timeout in Partition 2)" {
-    s2 <-> s3: 'Abort (no PreCommit detected among themselves)'
+    s2 <-> s3: 'Abort (no PreCommit detected among themselves)' {
+        style.bold: true
+    }
 }
 ```
 
@@ -532,7 +540,7 @@ The choice between **2PC** and **3PC** often involves a trade-off between **Avai
 - **2PC** favors consistency over availability.
 If coordinator recovery is fast and the system can tolerate the potential downtime caused by blocking,
 2PC offers a simpler solution.
-- **3PC** aims to improve availability by being non-blocking in more failure scenarios (except network partitions).
+- **3PC** aims to improve availability by being non-blocking in more failure scenarios.
 However, resolving inconsistencies that can arise from network partitions in 3PC can be exceptionally intricate. Consequently, it is less commonly used in practice than 2PC.
 
 ## Use Cases
@@ -541,7 +549,7 @@ The primary advantage of **Phase Committing** protocols is their ability to achi
 Changes can be applied across participating services in a coordinated, seemingly simultaneous manner,
 which helps prevent inconsistent states from being left in the system.
 
-**Phase Committing** is typically applied in contexts where a service needs to update data across multiple data sources atomically, for example:
+**Phase Committing** is typically applied in contexts where a service needs to update data across multiple data sources immediately, for example:
 
 - Between different shards of a single logical database.
 
@@ -565,7 +573,7 @@ s -> d.s1: Update user 3
 s -> d.s2: Update user 7
 ```
 
-- Between different types of data stores (e.g., a database and a message queue). In the context of an [Event Streaming Platform]({{< ref "event-streaming-platform" >}}), achieving **exactly-once delivery** semantics often requires additional mechanisms. **2PC** can be an effective way to ensure that an operation (like updating a database record) and publishing an associated event occur atomically:
+- Between different types of data stores (e.g., a database and a message broker). In the context of an [Event Streaming Platform]({{< ref "event-streaming-platform" >}}), achieving **exactly-once delivery** semantics often requires additional mechanisms. **2PC** can be an effective way to ensure that an operation (like updating a database record) and publishing an associated event occur atomically:
 
 ```d2
 s: Service {
@@ -581,9 +589,9 @@ s -> d: Update a record
 s -> m: Create the associated event
 ```
 
-Both **2PC** and **3PC** are considered **low-level** distributed algorithms.
+Both **2PC** and **3PC** are considered low-level distributed algorithms.
 Requiring microservices to expose interfaces like `PrepareTransaction`, `CommitTransaction`, etc.,
-for inter-service transactions can create high coupling between services.
+for inter-service transactions can create **high coupling** between services.
 Therefore, they are less frequently used for orchestrating transactions between distinct business services in a
 {{< term ms >}} environment,
-where patterns like **Saga** are often preferred for managing distributed data consistency at a higher level.
+where high-level patterns like **Saga** are often preferred.

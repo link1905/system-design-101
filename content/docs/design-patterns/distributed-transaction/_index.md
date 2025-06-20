@@ -1,6 +1,8 @@
 ---
 title: Distributed Transaction
 weight: 20
+prev: event-driven-architecture
+next: blocking-protocols
 ---
 
 {{< callout type="info" >}}
@@ -47,8 +49,9 @@ Essentially, there are two primary approaches to consistency in distributed tran
 
 - **Strong Consistency**: Systems aiming for strong consistency require that a transaction is **atomically committed** across all relevant nodes.
 This means all parts of the transaction either succeed or fail as a single, indivisible unit.
-This model typically employs strict algorithms, often involving [locking]({{< ref "concurrency-control.md#locking-mechanism" >}}) mechanisms,
-to ensure the **Isolation** property, preventing transactions from interfering with each other.
+
+    This model typically employs strict algorithms, often involving [locking]({{< ref "concurrency-control#locking-mechanism" >}}) mechanisms,
+    to ensure the **Isolation** property, preventing transactions from interfering with each other.
 
 ```d2
 grid-columns: 1
@@ -77,9 +80,10 @@ c -> n.n3
 ```
 
 - **Eventual Consistency**: In this model, transactions are often decomposed into phases that may be committed at **different times** across various nodes.
-Due to this asynchronous behavior, the **Isolation** property is typically not implemented in the same strict sense as in strong consistency models.
-Instead, the system must be designed to **implicitly avoid or resolve inconsistencies** over time,
-eventually reaching a consistent state across all nodes.
+
+    Due to this asynchronous behavior, the **Isolation** property is typically not implemented in the same strict sense as in strong consistency models.
+    Instead, the system must be designed to **implicitly avoid or resolve inconsistencies** over time,
+    eventually reaching a consistent state across all nodes.
 
 ```d2
 grid-columns: 1

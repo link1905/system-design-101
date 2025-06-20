@@ -1,11 +1,11 @@
 ---
 title: Compensation Protocols
 weight: 20
+next: caching-patterns
 ---
 
 This section delves into simpler protocols that operate abstractly,
 without relying on low-level concepts.
-However, this abstraction can make it more challenging to prevent inconsistencies.
 
 In essence, **Compensation Protocols** enable transactions to commit data in a **reversible** manner.
 If an issue arises later, these transactions can roll back the system by compensating for the previously committed changes.
@@ -23,7 +23,7 @@ a strict requirement in some critical systems.
 It also involves two phases coordinated by a central entity:
 
 1. **Try**: The coordinator instructs participants to perform **tentative** actions, such as reserving resources.
-It's important to note that data is **actually committed** during this phase, not merely marked as dirty data with locking.
+It's important to note that data is **actually committed** during this phase, not merely marked as dirty data.
 
 2. **Confirm or Cancel**:
 
@@ -90,13 +90,15 @@ s2: Server B (Account B) {
 "2. Confirm (If all yes)" {
     s1 -> c: Yes
     s2 -> c: Yes
-    c -> s2: Update balance = balance + amount
+    c -> s2: Update balance = balance + amount {
+        style.bold: true
+    }
 }
 ```
 
 ### Cancel Phase
 
-For instance, if `Account B` is blocked by the bank, Server B would respond with `No`.
+For instance, if `Account B` is blocked by the bank, `Server B` would respond with `No`.
 The coordinator then instructs `Server A` to compensate for the change.
 
 ```d2
@@ -448,7 +450,7 @@ s: Saga {
       c: "1. CreateOrder()" {
          width: 200
       }
-      r: "2. ReserveItem()" {
+      r: "2. ReserveItems()" {
          width: 200
       }
       c -> r
@@ -523,7 +525,7 @@ o -> p: "3. ProcessPayment()" {
    class: error-conn
 }
 vs -> v: "UseVoucher()" {
-   class: error-conn
+   style.bold: true
 }
 o -> v: "DeleteVoucher()" {
     style.bold: true
@@ -535,8 +537,9 @@ The result is unexpected because an invalid voucher was used. There are several 
 1. **Rearrange the flow**: Move the voucher creation to the **Retryable** phase.
 Although it's an internal and compensable workload,
 its potential for causing issues makes it safer in the **Retryable** phase.
-This solution is known as the **Pessimistic View**,
-which assumes that actions prone to causing harm are likely to be compensated and should thus be deferred to a later point.
+
+    This solution is known as the **Pessimistic View**,
+    which assumes that actions prone to causing harm are likely to be compensated and should thus be deferred to a later point.
 
 ```d2
 shape: sequence_diagram
@@ -553,7 +556,8 @@ o -> v: "3. CreateVoucher()"
 2. **Lock data**: Employ a flag field that acts as a lock.
 For example, when a new voucher is created, its state is set to `Pending`, marking it as unavailable for use.
 When the saga that created the voucher completes successfully, it changes the state to `Approved`, allowing usage.
-This solution is called **Semantic Locking**, where application-level locking is implemented to prevent anomalies.
+
+    This solution is called **Semantic Locking**, where application-level locking is implemented to prevent anomalies.
 
 ```d2
 shape: sequence_diagram
@@ -572,7 +576,9 @@ s -> p: "3. ProcessPayment()"
 vs -> v: Fail to use the pending voucher {
     class: error-conn
 }
-s -> v: "4. ApproveVoucher()"
+s -> v: "4. ApproveVoucher()" {
+    style.bold: true
+}
 v {
     "state = Approved"
 }
@@ -664,7 +670,7 @@ Order Service (coordinator):
     State: Processing
 ```
 
-For added safety, the transaction state is also duplicated in the participating services:
+For added safety, the transaction state is also **duplicated** in the participating services:
 
 ```yaml
 Order Service (coordinator):
@@ -709,7 +715,9 @@ p: Payment Service
 o.s1: "transaction-1234: Processing"
 p.s2: "transaction-1234: Complete"
 o -> o: Recover
-o -> p: "ProcessPayment()"
+o -> p: "ProcessPayment()" {
+    style.bold: true
+}
 p -> o: The payment has been completed
 o."transaction-1234: Complete"
 ```
@@ -741,7 +749,7 @@ c -> sp: Commit
 
 #### Transactional Outbox Pattern
 
-Another challenge with **Choreography Saga** is ensuring that database changes are **atomically published** as events.
+Another challenge with **Choreography Saga** is ensuring that database changes are effectively published as events.
 For example, when a transaction is executed in an internal data store,
 we want to publish an associated event indicating its completion.
 
@@ -762,7 +770,6 @@ s -> e: Publish event
 ```
 
 The **Transactional Outbox Pattern** addresses this by storing external calls (event publications) as part of the internal database transaction.
-An **Outbox** table is created within the business database to hold intended events.
 
 For example, the transaction that creates an order also creates an associated record in the **Outbox** table,
 instead of immediately firing the event.
@@ -813,8 +820,10 @@ e: Event Stream {
 
 s <- store.e: 1. Scan
 s -> e: 2. Publish events
-s -> store.e: 3. Set State = Complete
+s -> store.e: 3. Set State = Complete {
+    style.bold: true
+}
 ```
 
-If the relay process crashes before updating the outbox record in the third step, it might publish the event twice.
+If the relay process crashes before updating the outbox record in the third step, it might publish the event **twice**.
 Fortunately, consumers can use an idempotency key (e.g., `OrderId`) to check for and ignore duplicated events.

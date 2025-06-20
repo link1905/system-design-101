@@ -1,6 +1,8 @@
 ---
 title: Event Sourcing Pattern
 weight: 10
+prev: event-driven-architecture
+next: distributed-transaction
 ---
 
 {{< callout type="info" >}}
@@ -14,7 +16,7 @@ In this topic, we will explore a common pattern utilized in **EDA** systems:
 
 **Data Coupling** is one of the most significant challenges in **EDA**.
 Events rarely contain all the information consumers need to process them,
-forcing consumers to seek additional data from **external data sources**.
+forcing consumers to seek additional data from other data sources.
 
 For instance, after receiving an `AccountBalanceChanged` event,
 the `Notification Service` must fetch user information from the `User Service` to send an email.
@@ -36,7 +38,7 @@ n <- u: 2. Fetch the user information
 
 Certain datasets are central to the business (e.g., common user information) and are widely accessed by numerous services.
 While we can decouple infrastructure, codebase, and workforce, data is inherently generated in specific locations.
-Although the goal is to make the system as loosely coupled as possible, some degree of data coupling is **inevitable**.
+Although the goal is to make the system as loosely coupled as possible, some degree of data coupling is inevitable.
 
 ### Service Interface
 
@@ -65,7 +67,7 @@ However, a clear disadvantage is that services become tightly coupled and more d
 #### Data Dichotomy
 
 {{< callout type="info" >}}
-I found the term in this useful [**Confluent** blog post](https://www.confluent.io/blog/data-dichotomy-rethinking-the-way-we-treat-data-and-services/) that you might want to review.
+I found the term in this useful [Confluent blog post](https://www.confluent.io/blog/data-dichotomy-rethinking-the-way-we-treat-data-and-services/) that you might want to review.
 {{< /callout >}}
 
 In principle, a service aims to encapsulate its data and **minimize sharing**, exposing only necessary interfaces.
@@ -100,20 +102,17 @@ d2: "" {
 }
 d -- d1
 d1 -> s: Share
-s -> d2: Expose
+s -> d2: Encapsulate
 ```
 
 As a service grows, it will encompass more data, requiring additional contact points.
 The service gradually deviates from its original objectives and starts behaving more **like a database**.
 
-```d2
-i: "User Service" {
-    grid-columns: 1
-    grid-gap: 0
-    "GetAllUsers()"
-    "GetUserById(userId)"
-    "GetUserByEmail(email)"
-}
+```yaml
+UserService:
+    GetAllUser()
+    GetUserById(userId)
+    GetUserByEmail(email)
 ```
 
 Moreover, since businesses often have core data,
@@ -167,9 +166,9 @@ n.db <- u.db: Cloned
 
 Now, consumer services can operate autonomously with copied data fragments,
 which can enhance performance and availability.
-However, as the diagram illustrates, this makes the interaction between services become complex.
-Data must be fetched from the owner service and kept **in-sync** using a synchronization mechanism.
 
+This pattern makes the interaction between services become complex.
+Data must be fetched from the owner service and kept **in-sync** using a synchronization mechanism.
 Fortunately, an **Event Stream** can help address this problem elegantly.
 
 #### Data Moving With Event Streaming
@@ -191,8 +190,8 @@ s1: Service {
         class: db
     }
 }
-s1 <- m: 1. Build local data from existing events
-s1 <- m: 2. Capture changes from new events {
+s1 <- m: Build local data from existing events
+s1 <- m: Capture changes from new events {
     style.animated: true
 }
 ```
@@ -372,6 +371,7 @@ v2 -> v3
 
 This approach works well for supplementary changes that complete event schemas.
 However, business transformation is unpredictable, and the immutability constraint can make events unmanageable.
+
 For instance, if an event modifies a field multiple times, it can grow unnecessarily large and gradually become nonsensical.
 
 ```yaml
@@ -477,7 +477,7 @@ giving consumers adequate time to prepare for migration.
 
 **Event Sourcing** alone is extremely inefficient for querying data,
 as it requires aggregating all events to retrieve any piece of data.
-We will now discuss a pattern that regularly accompanies **Event Sourcing** to make it truly powerful: **CQRS**.
+We will now discuss a pattern that regularly accompanies Event Sourcing to make it truly powerful: **Command Query Responsibility Segregation (CQRS)**.
 
 ### Command And Query
 
@@ -488,7 +488,7 @@ A command is typically synchronous and has a clear result (e.g., `Transfer(toAcc
 You can think of it as a normal function or API call.
 
 Commands originate from an actor, such as an end-user, staff member, or a third-party application.
-They are usually the root cause of many subsequent events.
+They are usually the root cause of many subsequent **events**.
 
 ```d2
 direction: right
@@ -547,7 +547,7 @@ QuarterTransactions:
   Amount: 100.00
 ```
 
-We observe that a single piece of data can have many representations (or views),
+We observe that a single piece of data can have many shapes (or views),
 and it may be inefficient to build a single store to serve all of them.
 Different views might require **dedicated techniques** (e.g., indexes, materialized views, or denormalized tables) or technologies (e.g., SQL, NoSQL).
 
@@ -558,7 +558,7 @@ Different views might require **dedicated techniques** (e.g., indexes, materiali
 For example, imagine maintaining an **SQL** database for banking accounts and transactions.
 
 - For `end-users`, we need to provide the most recent transactions.
-However, pagination tasks are not performed well in SQL (as explained in the [API Design](API-Design.md#re-querying) topic).
+However, pagination tasks are not performed well in SQL (as explained in the [API Design]({{< ref "api-pagination#rowset-pagination" >}}) topic).
 Therefore, we can build a **Key-value Store** that caches recent transactions by capturing newly created transactions from the primary database.
 
 ```d2
@@ -643,8 +643,7 @@ This pattern is most effective in an **eventual consistency** model, offering:
 When combined with **Event Sourcing**:
 
 - An event source is used for the **Command** side.
-- The **Query** stores capture events to independently manage their state.
-This means we don't need to repetitively aggregate states from **Event Sourcing**.
+- The **Query** stores capture events to independently manage their current state.
 
 For example, an `Account Query` store infers a user's balance from its transactions and updates this value by consuming new transaction events.
 
@@ -682,5 +681,5 @@ it can reproduce events from the latest snapshot instead of processing every sin
 
 However, **CQRS** can make an application overwhelmingly intricate.
 For small systems, the cost of development and maintenance might outweigh the anticipated advantages.
-Furthermore, this combination does not provide [strong consistency](Distributed-Database.md#strong-consistency-level);
+Furthermore, this combination does not provide strong consistency;
 **Command** and **Query** must communicate through an asynchronous channel.

@@ -1,9 +1,10 @@
 ---
 title: Caching Patterns
 weight: 30
+prev: distributed-transaction
 ---
 
-Caching is a crucial technique for optimizing system performance and conserving resources.
+**Caching** is a crucial technique for optimizing system performance and conserving resources.
 It involves temporarily storing and sharing data in a high-speed memory section.
 This approach offers two main benefits:
 
@@ -13,6 +14,7 @@ This approach offers two main benefits:
 ## Shared Cache
 
 A common caching pattern involves sharing a cache among multiple servers.
+
 Consider a web service as an example. If we want to cache a piece of data temporarily:
 
 - Storing it locally on a single instance might make the service **stateful**.
@@ -24,11 +26,13 @@ s: Service {
     i1: Instance 1 {
         "A: 123"
     }
-    i2: Instance 2
+    i2: Instance 2 {
+        "A: 234"
+    }
 }
 ```
 
-- To address this, shared data can be moved to a dedicated shared store.
+- To address this, cached data can be moved to a dedicated shared store.
 All instances will consistently serve the same data by accessing this central cache.
 
 ```d2
@@ -39,7 +43,7 @@ s: Service {
     i2: Instance 2 {
         class: server
     }
-    db: Shared Store {
+    db: Shared Cache {
         "A: 123"
     }
     i1 <-> db
@@ -53,7 +57,6 @@ s: Service {
 Cache components can be expensive due to their reliance on large amounts of fast memory.
 **Compression** is an important, though often overlooked, method to reduce runtime costs.
 
-The process is straightforward: data is compressed before being cached and decompressed after retrieval.
 Since cache components are frequently busy serving many clients,
 it's generally better to assign the responsibility of compression and decompression to the client-side.
 
@@ -74,8 +77,8 @@ s <- s: Decompress data
 ## Cache-aside (Lazy Loading)
 
 Adapted from the [lazy loading pattern](https://en.wikipedia.org/wiki/Lazy_loading),
-this strategy caches data only after it has been recently read.
-In other words, the data must be queried from the primary store for the first time,
+this strategy caches data only after it has been **recently read**.
+In other words, the data must be initialized from the primary store for the first time,
 and then the result is efficiently reused for subsequent requests.
 
 For example, if a service attempts to load data from the `Cache Store` and doesn't find it (a **cache miss**),
@@ -135,6 +138,7 @@ s <- c: 3. Retrieve cache
 Developing and managing a write-through cache is considerably more challenging.
 Imagine caching the result of a complex query involving several data entities.
 Any change in these entities would alter the query result, necessitating a refresh of the cache.
+
 Moreover, this preparatory caching can be resource-intensive if the cached data is ultimately not used.
 
 The write-through cache is particularly useful for:
@@ -152,9 +156,6 @@ Instead, the leaderboard can be computed and cached, say, every hour.
 
 ```d2
 shape: sequence_diagram
-client: Client {
-    class: client
-}
 s: Game Service {
     class: server
 }
@@ -171,7 +172,6 @@ s -> s: Wait 1 hour {
 }
 s <- db: Rank data
 s -> c: Update the leaderboard
-client -> c: Query the leaderboard
 ```
 
 The primary issue with this strategy is **staleness**; the data might be outdated between refresh intervals.
@@ -213,7 +213,7 @@ If the cache system fails before flushing the data, any unwritten updates will b
 ## Client-Side Caching
 
 In many scenarios, caching can be implemented on the client-side.
-This can help reduce resource consumption on the server, particularly network bandwidth.
+This helps reduce resource consumption on the server, particularly network bandwidth.
 
 However, this approach should be used cautiously.
 Client devices often have limited resources,

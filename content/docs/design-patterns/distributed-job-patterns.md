@@ -3,7 +3,8 @@ title: Distributed Job Patterns
 weight: 40
 ---
 
-In contrast to long-term services, a **Job** is a short-term process dedicated to a specific workload.
+In contrast to long-term services, a job is a **short-term** process dedicated to a specific workload.
+
 Jobs can range from simple tasks, like *compressing an image*, to computationally intensive operations,
 such as *processing a large dataset*, which demand significant computing power.
 
@@ -19,8 +20,8 @@ There are two primary patterns for this: **Streaming** and **Batching**.
 ### Streaming
 
 The streaming pattern is straightforward.
-Jobs are executed with the assistance of an event stream, requiring the continuous maintenance of worker services that pull and process events.
-This pattern enables near-realtime adaptation, as events are processed almost immediately after they are generated.
+Jobs are executed with the assistance of an event stream, requiring the continuous maintenance of worker services that consume and process events.
+This pattern enables **near-realtime adaptation**, as events are processed almost immediately after they are generated.
 
 ```d2
 grid-columns: 3
@@ -92,31 +93,34 @@ When a system does not require near-realtime capabilities, **Batching** should b
 
 ### Kappa Architecture
 
-Streaming and batching are not mutually exclusive.
-The **Kappa Architecture** combines both approaches using a single event stream.
+The **Kappa Architecture** brings these two paradigms together by utilizing a single event stream for all processing needs.
 
-- Streaming workers continuously pull and process events as usual.
-- Simultaneously, batching services periodically compute data by replaying events from the stream, leveraging event durability.
+- **Streaming workers** continuously consume and process incoming events in real time, enabling immediate reactions and up-to-date system states.
+- Meanwhile, **batching services** periodically replay events from the same stream, allowing for comprehensive, scheduled data computations.
 
-For instance, consider an e-commerce system with:
+For example, in an e-commerce system:
 
-- An `Order Service`: Adapts to order creations instantly.
-- A `Dashboard Service`: Computes analytical metrics from the order book **daily**.
+- The `Recommendation Service` instantly processes user interactions to personalize the experience.
+- The `Dashboard Service` periodically (e.g., daily) update analytical metrics based on the accumulated data.
 
 ```d2
 direction: right
-o: Order Service {
-    class: server
+
+o: Recommendation Service {
+  class: server
 }
+
 d: Dashboard Service {
-    class: server
+  class: server
 }
+
 e: Event Stream {
-    class: mq
+  class: mq
 }
+
 o <- e: Pull instantly
 d <- e: Replay orders daily {
-    style.animated: true
+  style.animated: true
 }
 ```
 
@@ -181,7 +185,7 @@ e -> ps: ProductUploadedEvent + VideoEncodedEvent + ImageEncodedEvent
 ```
 
 How can we coordinate the capture of three distinct events? Buffering events locally until all joined events arrive is an effective solution.
-The `ProductCreator`, for instance, would pause its execution until it receives all necessary events.
+The `Product Creator`, for instance, would pause the execution until it receives all necessary events.
 
 ```d2
 direction: right
@@ -228,44 +232,8 @@ m <- u: Get user email
 
 This statelessness promotes strong consistency,
 contributing to the development of lightweight workers.
-However, it can slow down the worker and create dependencies on data providers,
-potentially impacting their performance and availability.
-This is particularly problematic when a worker relies on multiple data providers.
 
-### Stateful Worker
-
-As discussed in the [Event Sourcing]({{< ref "event-sourcing" >}}) topic,
-worker services can instead depend on a shared event stream to build their own local data stores.
-
-For example, a `Mail Worker` could build a local store of user emails by capturing `UserInformationUpdated` events.
-
-```d2
-direction: right
-e: User Stream {
-    class: mq
-}
-u: UserInformationUpdated {
-    class: msg
-}
-m: Mail Worker {
-    m: Local mail store {
-        class: db
-    }
-}
-e -> u {
-    style.animated: true
-}
-u -> m.m: Build {
-    style.animated: true
-}
-```
-
-Naturally, stateful services like this require more resources for initialization and maintenance.
-Additionally, the asynchronous model only supports **eventual consistency**.
-This can occasionally lead to issues, such as when a user changes their email,
-but the `Mail Worker` processes this update slowly, resulting in an email being sent to the old mailbox.
-
-### Claim-Check Pattern
+#### Claim-Check Pattern
 
 Dealing with large-sized events presents a critical challenge.
 Overwhelming the event stream with such events can lead to significantly degraded performance.
@@ -297,15 +265,59 @@ s {
 c: Consumer {
     class: process
 }
-m -> s.e: Claim-check token
-m -> s.s: Store payload
-c <- s.e: Pull the token
-c <- s.s: Get the payload
+m -> s.s: 1. Store payload
+m -> s.e: 2. Claim-check token
+c <- s.e: 3. Pull the token
+c <- s.s: 4. Get the payload
 ```
 
 It's important to acknowledge that this pattern introduces management overhead for the payload store.
 Therefore, consider implementing the **Claim-Check** pattern primarily when our events are so large that
 they genuinely cause performance issues or instability.
+
+### Stateful Worker
+
+Stateless workers excel in resource efficiency and maintaining consistency by offloading state management to centralized data sources.
+However, relying solely on external data providers can slow down workers, increase latency, and create critical dependencies, affecting both performance and availability.
+This issue becomes even more pronounced when a worker needs to interact with multiple data providers.
+
+As discussed in the [Event Sourcing]({{< ref "event-sourcing" >}}) topic,
+worker services can instead depend on a shared event stream to build their own local data stores.
+
+For instance, a `Mail Worker` can maintain a local store of user email addresses by listening to and capturing `UserInformationUpdated` events.
+With this local store in place, the worker can swiftly retrieve the required user emails, enabling it to efficiently complete tasks without repeatedly relying on external data sources.
+
+```d2
+direction: right
+us: User Service {
+    class: server
+}
+e: User Stream {
+    class: mq
+}
+u: UserInformationUpdated {
+    class: msg
+}
+m: Mail Worker {
+    m: Local mail store {
+        class: db
+    }
+}
+us -> e {
+    style.animated: true
+}
+e -> u {
+    style.animated: true
+}
+u -> m.m: Build {
+    style.animated: true
+}
+```
+
+Naturally, stateful services like this require more resources for initialization and maintenance.
+Additionally, the asynchronous model only supports **eventual consistency**.
+This can occasionally lead to issues, such as when a user changes their email,
+but the `Mail Worker` processes this update slowly, resulting in an email being sent to the old mailbox.
 
 ## MapReduce
 
@@ -333,9 +345,12 @@ The mappers generate a list of key-value pairs by grouping their respective page
 ```d2
 s: Source log {
     data: |||yaml
+    # 1st chunk
     /index.html
     /about.html
     /index.html
+
+    # 2nd chunk
     /contact.html
     /index.html
     /about.html
@@ -376,7 +391,7 @@ s -> m.w2.data
 
 This step begins after the mappers have completed.
 Reducing workers pull data from the mappers,
-using a specific **hash function** (similar to [Data Ownership]({{< ref "distributed-database#data-ownership" >}})) to ensure that data with the same key is processed by the same reducer.
+using a specific **hash function** (akin to [Data Ownership]({{< ref "distributed-database#data-ownership" >}})) to ensure that data with the same key is processed by the same reducer.
 The final result is calculated by aggregating these intermediate pairs.
 
 ```d2
@@ -451,7 +466,7 @@ m.w1.output -> r.w2.data
 
 {{% /steps %}}
 
-This process focuses on data grouped by unique keys,
+This process focuses on data grouped by **unique keys**,
 enabling data associated with different keys to be distributed and processed in parallel on different workers.
 
 A critical challenge with **MapReduce** is its significant use of network bandwidth and data duplication.
