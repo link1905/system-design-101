@@ -30,8 +30,30 @@
     {{- $currentPage := . -}}
     {{- range .Site.Menus.main -}}
         {{- if eq .Params.type "toggle" -}}
-            {{ partial "theme-toggle" }}
-            {{ continue }}
+          {{ partial "theme-toggle" }}
+          {{ continue }}
+        {{- end -}}
+
+        {{- if eq .Params.type "star" -}}
+          {{- $githubStar := (T "starGithub") | default "Star this project on github" -}}
+          {{- $star := (T "star") | default "Star" -}}
+          <a class="github-button" 
+            href="{{ .Params.url }}"
+            data-color-scheme="no-preference: light; light: light; dark: dark;"
+            data-icon="octicon-star" data-size="large" data-show-count="true"
+            aria-label="{{ $githubStar }}">{{ $star }}
+          </a>
+          {{ continue }}
+        {{- end -}}
+
+        {{- if eq .Params.type "sponsor" -}}
+          {{- $githubSponsor := (T "sponsorGithub") | default "Sponsor the creator on Github" -}}
+          {{- $sponsor := (T "sponsor") | default "Sponsor" -}}
+          <a class="github-button"
+            href="{{ .Params.url }}"
+            data-color-scheme="no-preference: light; light: light; dark: dark;"
+            data-icon="octicon-heart" data-size="large" aria-label="{{ $githubSponsor }}">{{ $sponsor }}</a>
+          {{ continue }}
         {{- end -}}
         
         {{- if eq .Params.type "search" -}}

@@ -11,10 +11,7 @@ In this topic, we'll explore common strategies for handling large datasets in AP
 
 ## Chunking
 
-A typical case involves downloading large binary files.
-Low-level protocols like **FTP** or **SMB** aren't ideal here because we're designing a high-level interface.
-
-**Chunking** is a practical solution in this scenario.
+**Chunking** is a practical solution supporting downloading large binary files.
 It involves splitting a file into smaller parts (chunks), enabling clients to request and handle data in portions.
 
 For example, consider a client downloading a 20MB file:

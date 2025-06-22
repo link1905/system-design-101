@@ -568,30 +568,30 @@ There are two common misuses of CDNs:
    For dynamic data that updates often, it's better to query the source directly.
    If the source is geographically distant, consider using the **Backbone Network** to quickly replicate data to a nearby location:
 
-```d2
-direction: right
-c: Client in Vietnam {
-  class: client
-}
-o: Replica in Singapore {
-  class: db
-}
-cdn: Backbone Network {
-  class: cdn
-}
-s: Source in NA {
-  class: db
-}
-s -- cdn {
-  style.animated: true
-}
-cdn -> o: Replicate {
-  style.animated: true
-}
-c -> o: Query a nearby replica
-```
+    ```d2
+    direction: right
+    c: Client in Vietnam {
+      class: client
+    }
+    o: Replica in Singapore {
+      class: db
+    }
+    cdn: Backbone Network {
+      class: cdn
+    }
+    s: Source in NA {
+      class: db
+    }
+    s -- cdn {
+      style.animated: true
+    }
+    cdn -> o: Replicate {
+      style.animated: true
+    }
+    c -> o: Query a nearby replica
+    ```
 
-2. **Overengineering local deployments**:
+2. **Local deployments**:
    If content is only accessed within a limited geographic area (e.g., within one country),
    using a full {{< term cdn >}} and **Backbone Network** might be overkill.
    A simpler, localized caching system may offer a more cost-effective solution.

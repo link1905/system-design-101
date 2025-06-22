@@ -373,7 +373,6 @@ each assigned to one phase of the process.
 - One key is used to encrypt the data.
 - The other key is used to decrypt the data.
 
-
 ```d2
 grid-columns: 1
 d: Data {

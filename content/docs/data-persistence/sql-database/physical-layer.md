@@ -66,41 +66,41 @@ There are two main reasons for the immutability:
    If we tried to update it in place, subsequent tuples would need to shift to accommodate size changes,
    much like deleting an element from an array, which can be costly.
 
-```d2
-grid-gap: 0
-grid-columns: 1
-Header (Metadata)
-t: Tuples {
-  grid-rows: 1
-  horizontal-gap: 100
-  t: Old Tuples {
-      grid-gap: 0
-      grid-columns: 1
-      t1: '(ID=1, Name="John")' {
-          height: 50
-      }
-      t2: '(ID=3, Name="Charlie")' {
-          height: 50
-      }
-      "..." {
-          height: 50
-          class: none
-      }
-  }
-  ut: Updated Tuples {
+    ```d2
     grid-gap: 0
     grid-columns: 1
-    t1: '(ID=1, Name="John Doe")' {
-      height: 100
+    Header (Metadata)
+    t: Tuples {
+    grid-rows: 1
+    horizontal-gap: 100
+    t: Old Tuples {
+        grid-gap: 0
+        grid-columns: 1
+        t1: '(ID=1, Name="John")' {
+            height: 50
+        }
+        t2: '(ID=3, Name="Charlie")' {
+            height: 50
+        }
+        "..." {
+            height: 50
+            class: none
+        }
     }
-    t2: '(ID=3, Name="Charlie")' {
-      height: 50
+    ut: Updated Tuples {
+        grid-gap: 0
+        grid-columns: 1
+        t1: '(ID=1, Name="John Doe")' {
+        height: 100
+        }
+        t2: '(ID=3, Name="Charlie")' {
+        height: 50
+        }
     }
-  }
-  t.t2 -> ut.t2: Moved
-  t.t1 -> ut.t1: Increased
-}
-```
+    t.t2 -> ut.t2: Moved
+    t.t1 -> ut.t1: Increased
+    }
+    ```
 
 2. To support [Multi-version Concurrency Control (MVCC)](https://www.postgresql.org/docs/current/mvcc-intro.html),
    where transactions can access different versions of the same data concurrently.

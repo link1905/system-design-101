@@ -175,7 +175,6 @@ m: Server {
 }
 ```
 
-
 However, virtual machines are not optimal in terms of resource efficiency.
 Each VM runs its own **full operating system**, which consumes considerable CPU, memory, and storage resources.
 Moreover, booting a virtual machine involves numerous setup steps and can take several minutes to complete.

@@ -96,7 +96,7 @@ re: "" {
   u1: User 1 {
     shape: sql_table
     id: 1 {constraint: primary_key}
-    name: Filip
+    name: Fillip
   }
   u4: User 4 {
     shape: sql_table

@@ -533,7 +533,7 @@ Each instance is responsible for a specific group of users;
 When a user connects to the system, it will be assigned to the owner instance.
 For example, we define groups of users with the modulo operation `user id % the number of instances`.
 
-{{< local "diagramDecentralized" >}}
+```d2
 grid-rows: 3
 g1: "" {
     class: none
@@ -569,17 +569,49 @@ g1.c3 -> s.s1: '3 % 2 = 1' {
 g1.c2 -> s.s2: '2 % 2 = 0' {
   class: bold-text
 }
-{{< /local >}}
-
-{{< d2 include="diagramDecentralized" >}}
-{{< /d2 >}}
+```
 
 Now, with messages containing `user id`,
 instances can quickly specify where to forward them.
 The cluster is far cleaner without any dependency,
 the final availability is bounded around proprietary instances.
 
-{{< d2 include="diagramDecentralized" >}}
+```d2
+grid-rows: 3
+g1: "" {
+    class: none
+    grid-columns: 3
+    horizontal-gap: 200
+    c1: Client 1 (id = 1) {
+        class: client
+    }
+    c3: Client 3 (id = 3) {
+        class: client
+    }
+    c2: Client 2 (id = 2) {
+      class: client
+    }
+}
+
+s: Cluster {
+  grid-rows: 1
+  horizontal-gap: 300
+  s1: Instance 1 {
+    class: server
+  }
+  s2: Instance 0 {
+    class: server
+  }
+}
+g1.c1 -> s.s1: '1 % 2 = 1' {
+  class: bold-text
+}
+g1.c3 -> s.s1: '3 % 2 = 1' {
+  class: bold-text
+}
+g1.c2 -> s.s2: '2 % 2 = 0' {
+  class: bold-text
+}
 m: "" {
   class: none
   horizontal-gap: 300
@@ -602,7 +634,7 @@ m.m1 -> s.s1: '1 % 2 = 1' {
 m.m2 -> s.s2: '2 % 2 = 0' {
   class: bold-text
 }
-{{< /d2 >}}
+```
 
 However, this model is more complex than it appears.
 It’s extremely challenging to develop and maintain:

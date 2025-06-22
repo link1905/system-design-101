@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +17,37 @@ import (
 type RenderRequest struct {
 	Content string                 `json:"content"`
 	Options map[string]interface{} `json:"options"`
+}
+
+func setupLogging() (*os.File, error) {
+	// Create logs directory if it doesn't exist
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		return nil, err
+	}
+
+	// Open log file
+	logFile, err := os.OpenFile("logs/server.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set up multi-writer to write to both file and stdout
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(multiWriter)
+
+	return logFile, nil
+}
+
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	// Set the content type of the response
+	w.Header().Set("Content-Type", "text/plain")
+	// Write the response headers with HTTP status OK (200)
+	w.WriteHeader(http.StatusOK)
+	// Write the response body
+	_, err := w.Write([]byte("Successful"))
+	if err != nil {
+		fmt.Println("Error writing response:", err)
+	}
 }
 
 func handleRenderRequest(w http.ResponseWriter, r *http.Request) {
@@ -104,6 +136,14 @@ func getPortFromEnv() string {
 }
 
 func main() {
+
+	logFile, err := setupLogging()
+	if err != nil {
+		log.Fatal("Error setting up logging:", err)
+	}
+	defer logFile.Close()
+
+	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/render", handleRenderRequest)
 	// Move to use d2 icons
 	wd, _ := os.Getwd()

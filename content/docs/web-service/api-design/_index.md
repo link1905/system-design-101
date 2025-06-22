@@ -242,51 +242,51 @@ Before wrapping this section, let's discuss a critical characteristic of request
     - **Delete** and **Update**: Once a resource is deleted or updated, the following requests result in nothing.
       For example, a resource remains unchanged with the second update.
 
-```d2
-shape: sequence_diagram
-direction: right
-c: Client {
-    class: client
-}
-u: "/users/1234"
-u {
-    f1: |||yaml
-    Name: John
-    |||
-}
-c -> u: Update Name = Doe
-u {
-    f2: |||yaml
-    Name: Doe
-    |||
-}
-c -> u: Update Name = Doe
-u {
-    f3: |||yaml
-    Name: Doe
-    |||
-}
-```
+    ```d2
+    shape: sequence_diagram
+    direction: right
+    c: Client {
+        class: client
+    }
+    u: "/users/1234"
+    u {
+        f1: |||yaml
+        Name: John
+        |||
+    }
+    c -> u: Update Name = Doe
+    u {
+        f2: |||yaml
+        Name: Doe
+        |||
+    }
+    c -> u: Update Name = Doe
+    u {
+        f3: |||yaml
+        Name: Doe
+        |||
+    }
+    ```
 
 2. **Non-idempotent** requests result in different system states when they're made multiple times.
     - **Create**: Repeatedly creating a resource generates new and distinct data records.
 
-```d2
-shape: sequence_diagram
-direction: right
-c: Client {
-    class: client
-}
-u: "/users"
-c -> u: Create
-u {
-    "Name: Johnny, CreatedAt: 00:00"
-}
-c -> u: Create
-u {
-    "Name: Johnny, CreatedAt: 00:02"
-}
-```
+    ```d2
+    shape: sequence_diagram
+    direction: right
+    c: Client {
+        class: client
+    }
+    u: "/users"
+    c -> u: Create
+    u {
+        "Name: Johnny, CreatedAt: 00:00"
+    }
+    c -> u: Create
+    u {
+        "Name: Johnny, CreatedAt: 00:02"
+    }
+    ```
 
 Identifying the idempotency of a request is crucial for ensuring **request safety**.
 
@@ -335,7 +335,7 @@ ensuring that all messages (both requests and responses) contain enough informat
 For example, a message representing a user might look like this.
 The plain-text indicator guides how to read the **JSON** payload.
 
-```
+```text
 // Indicator
 TYPE: JSON
 

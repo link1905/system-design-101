@@ -558,51 +558,48 @@ Let’s walk through a scenario involving two concurrent withdrawals:
 Since shared locks are compatible with one another,
 both transactions can safely access the record concurrently.
 
-```d2
-
-shape: sequence_diagram
-t1: Withdrawal Transaction 1 (40)
-a: Account A (50)
-t2: Withdrawal Transaction 2 (30)
-t1 -> a: Verifies balance (50 > 40) - SL
-t2 -> a: Verifies balance (50 > 30) - SL
-```
+    ```d2
+    shape: sequence_diagram
+    t1: Withdrawal Transaction 1 (40)
+    a: Account A (50)
+    t2: Withdrawal Transaction 2 (30)
+    t1 -> a: Verifies balance (50 > 40) - SL
+    t2 -> a: Verifies balance (50 > 30) - SL
+    ```
 
 2. Both transactions then attempt to update the balance.
 One transaction, e.g., `Transaction 1`, proceeds first and tries to acquire an exclusive lock,
 but it’s blocked because the other transaction still holds a shared lock.
 
-```d2
-
-shape: sequence_diagram
-t1: Withdrawal Transaction 1 (40)
-a: Account A (50)
-t2: Withdrawal Transaction 2 (30)
-t1 -> a: Verifies balance (50 > 40) - SL
-t2 -> a: Verifies balance (50 > 30) - SL
-t1 -> a: XL (Waiting for T2's SL...) {
-    style.stroke-dash: 3
-}
-```
+    ```d2
+    shape: sequence_diagram
+    t1: Withdrawal Transaction 1 (40)
+    a: Account A (50)
+    t2: Withdrawal Transaction 2 (30)
+    t1 -> a: Verifies balance (50 > 40) - SL
+    t2 -> a: Verifies balance (50 > 30) - SL
+    t1 -> a: XL (Waiting for T2's SL...) {
+        style.stroke-dash: 3
+    }
+    ```
 
 3. The second transaction then also attempts to acquire an **XL**,
 and is blocked by the first transaction’s **SL**.
 Now, both are stuck waiting on each other: a classic deadlock.
 
-```d2
-
-shape: sequence_diagram
-t1: Withdrawal Transaction 1 (40)
-a: Account A (50)
-t2: Withdrawal Transaction 2 (30)
-t1 -> a: Verifies balance (50 > 40) - SL
-t2 -> a: Verifies balance (50 > 30) - SL
-t1 -> a: XL (Waiting for T2's SL...)
-t2 -> a: XL (Waiting for T1's SL...)
-t1 <-> t2: Deadlock {
-  class: error-conn
-}
-```
+    ```d2
+    shape: sequence_diagram
+    t1: Withdrawal Transaction 1 (40)
+    a: Account A (50)
+    t2: Withdrawal Transaction 2 (30)
+    t1 -> a: Verifies balance (50 > 40) - SL
+    t2 -> a: Verifies balance (50 > 30) - SL
+    t1 -> a: XL (Waiting for T2's SL...)
+    t2 -> a: XL (Waiting for T1's SL...)
+    t1 <-> t2: Deadlock {
+      class: error-conn
+    }
+    ```
 
 **But why not just release `Shared Locks` immediately after reading?**
 
@@ -642,47 +639,45 @@ Now, under the isolation level, we divide this scenario into two cases:
 
 1. **Transaction 1 encounters an error and rolls back**: In this case, `Transaction 2` can continue without issues.
 
-```d2
-
-shape: sequence_diagram
-t1: Withdrawal Transaction 1 (40)
-a: Account A (50)
-t2: Withdrawal Transaction 2 (30)
-t1 -> a: Verifies the balance (50 > 40) - Read
-t2 -> a: Verifies the balance (50 > 30) - Read
-t1 -> a: Updates the balance (50 - 40 = 10) - Update
-t2 -> a: Wait {
-  style.stroke-dash: 3
-}
-t1 -> t1: Rollback {
-  class: error-conn
-}
-t2 -> a: Updates the balance (50 - 30 = 20) - Update {
-  style.bold: true
-}
-t2 -> t2: Commit
-```
+    ```d2
+    shape: sequence_diagram
+    t1: Withdrawal Transaction 1 (40)
+    a: Account A (50)
+    t2: Withdrawal Transaction 2 (30)
+    t1 -> a: Verifies the balance (50 > 40) - Read
+    t2 -> a: Verifies the balance (50 > 30) - Read
+    t1 -> a: Updates the balance (50 - 40 = 10) - Update
+    t2 -> a: Wait {
+      style.stroke-dash: 3
+    }
+    t1 -> t1: Rollback {
+      class: error-conn
+    }
+    t2 -> a: Updates the balance (50 - 30 = 20) - Update {
+      style.bold: true
+    }
+    t2 -> t2: Commit
+    ```
 
 2. **Transaction 1 successfully commits**:
 Here, `Transaction 2` must roll back because it may have operated on stale data, and applying its changes could result in incorrect outcomes.
 
-```d2
-
-shape: sequence_diagram
-t1: Withdrawal Transaction 1 (40)
-a: Account A (50)
-t2: Withdrawal Transaction 2 (30)
-t1 -> a: Verifies the balance (50 > 40) - Read
-t2 -> a: Verifies the balance (50 > 30) - Read
-t1 -> a: Updates the balance (50 - 40 = 10) - Update
-t2 -> a: Wait {
-    style.stroke-dash: 3
-}
-t1 -> t1: Commit
-t2 -> t2: Rollback {
-    class: error-conn
-}
-```
+    ```d2
+    shape: sequence_diagram
+    t1: Withdrawal Transaction 1 (40)
+    a: Account A (50)
+    t2: Withdrawal Transaction 2 (30)
+    t1 -> a: Verifies the balance (50 > 40) - Read
+    t2 -> a: Verifies the balance (50 > 30) - Read
+    t1 -> a: Updates the balance (50 - 40 = 10) - Update
+    t2 -> a: Wait {
+        style.stroke-dash: 3
+    }
+    t1 -> t1: Commit
+    t2 -> t2: Rollback {
+        class: error-conn
+    }
+    ```
 
 In either case, only one transaction commits, and the other is expected to retry.
 

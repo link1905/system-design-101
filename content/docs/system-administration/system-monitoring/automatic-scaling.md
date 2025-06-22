@@ -115,7 +115,7 @@ The final results should demonstrate the correlations between **Hardware Metrics
 
 For example, a chart might illustrate the relationship between average latency and actual CPU usage.
 
-![](load-testing.png)
+![Load testing illustration](load-testing.png)
 
 Combined with the application's specific requirements (such as those defined in a [Service Level Agreement (SLA)](https://en.wikipedia.org/wiki/Service-level_agreement)),
 this data helps ensure the application's performance targets can be met.
@@ -190,7 +190,7 @@ The specific threshold varies, typically falling between `60% - 80%`:
 An effective scaling strategy, when graphed over time, often resembles a sawtooth pattern,
 characterized by sharp increases in resource allocation to meet rising demand, followed by decreases as demand subsides.
 
-![](scaling-result.png)
+![Scaling result illustration](scaling-result.png)
 
 **Aggregate Scaling** is an adaptive strategy,
 as the system scales in response to actual observed needs.

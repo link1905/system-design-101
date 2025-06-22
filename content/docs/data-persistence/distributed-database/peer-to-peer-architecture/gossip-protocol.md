@@ -80,7 +80,6 @@ The **Gossip Protocol** is akin to how rumors spread in an office.
 A peer starts by sharing a message with a few randomly selected peers.
 These peers then forward the message to others, eventually reaching all nodes in the cluster.
 
-
 For example, `Server 1` first informs `Server 2` and `Server 3` of a piece of information. They then propagate it to `Server 4`.
 Eventually, all servers in the cluster acknowledge the information.
 

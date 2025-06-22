@@ -391,7 +391,7 @@ s: "" {
       width: 200
    }
    r: Retryable Actions {
-      style.fill: ${colors.i3}
+      style.fill: ${colors.e}
       width: 400
    }
 }
@@ -541,17 +541,17 @@ its potential for causing issues makes it safer in the **Retryable** phase.
     This solution is known as the **Pessimistic View**,
     which assumes that actions prone to causing harm are likely to be compensated and should thus be deferred to a later point.
 
-```d2
-shape: sequence_diagram
+    ```d2
+    shape: sequence_diagram
 
-o: Order Service
-v: Voucher Service
-p: Payment Service
+    o: Order Service
+    v: Voucher Service
+    p: Payment Service
 
-o -> o: "1. CreateOrder()"
-o -> p: "2. ProcessPayment()"
-o -> v: "3. CreateVoucher()"
-```
+    o -> o: "1. CreateOrder()"
+    o -> p: "2. ProcessPayment()"
+    o -> v: "3. CreateVoucher()"
+    ```
 
 2. **Lock data**: Employ a flag field that acts as a lock.
 For example, when a new voucher is created, its state is set to `Pending`, marking it as unavailable for use.
@@ -559,30 +559,30 @@ When the saga that created the voucher completes successfully, it changes the st
 
     This solution is called **Semantic Locking**, where application-level locking is implemented to prevent anomalies.
 
-```d2
-shape: sequence_diagram
+    ```d2
+    shape: sequence_diagram
 
-s: Order Service
-v: Voucher Service
-p: Payment Service
-vs: Voucher Usage Saga
+    s: Order Service
+    v: Voucher Service
+    p: Payment Service
+    vs: Voucher Usage Saga
 
-s -> s: "1. CreateOrder()"
-s -> v: "2. CreateVoucher()"
-v {
-    "state = Pending"
-}
-s -> p: "3. ProcessPayment()"
-vs -> v: Fail to use the pending voucher {
-    class: error-conn
-}
-s -> v: "4. ApproveVoucher()" {
-    style.bold: true
-}
-v {
-    "state = Approved"
-}
-```
+    s -> s: "1. CreateOrder()"
+    s -> v: "2. CreateVoucher()"
+    v {
+        "state = Pending"
+    }
+    s -> p: "3. ProcessPayment()"
+    vs -> v: Fail to use the pending voucher {
+        class: error-conn
+    }
+    s -> v: "4. ApproveVoucher()" {
+        style.bold: true
+    }
+    v {
+        "state = Approved"
+    }
+    ```
 
 The second approach may be a bit overhead for this example.
 Let's move to the next anomaly to see its real power.

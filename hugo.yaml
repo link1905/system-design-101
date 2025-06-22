@@ -2,6 +2,7 @@ baseURL: https://example.org/
 languageCode: en-us
 title: System Design 101
 theme: hextra
+timeout: 300s
 
 enableRobotsTXT: true
 # Parse Git commit
@@ -18,20 +19,16 @@ menu:
       weight: 2
       params:
         type: toggle
-    - name: GitHub
+    - name: Star
       weight: 3
-      url: "https://github.com/link1905/system-design-101"
       params:
-        icon: github
-    - name: Author
+        type: star
+        url: "https://github.com/link1905/system-design-101" 
+    - name: Sponsor
       weight: 4
-      url: "https://github.com/link1905"
       params:
-        icon: developer
-
-# services:
-#   googleAnalytics:
-#     ID: G-MEASUREMENT_ID
+        type: sponsor
+        url: "https://github.com/sponsors/link1905" 
 
 defaultContentLanguage: en
 languages:
@@ -73,8 +70,10 @@ params:
     displayToggle: false
 
   footer:
-    enable: false
-
+    enable: true
+    displayCopyright: false
+    displayPoweredBy: true
+    
   # Display the last modification date
   displayUpdatedDate: true
   dateFormat: "January 2, 2006"
@@ -86,11 +85,11 @@ params:
 
     flexsearch:
       index: content
-      tokenize: forward
+      tokenize: full
 
   editURL:
     enable: true
-    base: "https://github.com/link1905/system-design-101/edit/main"
+    base: "https://github.com/link1905/system-design-101/edit/main/content"
 
   highlight:
     copy:
