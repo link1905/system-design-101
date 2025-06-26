@@ -61,7 +61,6 @@ params:
       dark: images/logo-dark.svg
       # width: 40
       # height: 20
-      link: /docs/introduction
     width: wide
 
   page:

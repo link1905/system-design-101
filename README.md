@@ -66,7 +66,7 @@ Refer to the [Hugo documentation](https://gohugo.io/commands/hugo_server/) for a
 
 ### Content Structure
 
-All content files are located in the [docs](/content/docs/) folder.
+All content files are located in the [content](content/) folder.
 
 To ensure clean and readable documentation, please adhere to [common markdown standards](https://github.com/markdownlint/markdownlint)!
 If you're using **VS Code**, consider installing the [Markdownlint extension](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint) to streamline linting.
@@ -77,10 +77,10 @@ This project uses [D2](https://d2lang.com/) to create diagrams such as architect
 
 When creating new diagrams, utilize D2 syntax for better modifiability and maintainability. Use the following syntax to define diagrams as code: ` ```d2 ``` `.
 
-Predefined architectural components can be found in [vars](/data/vars.yaml). To add a new component:
+Predefined architectural components can be found in [vars](data/vars.yaml). To add a new component:
 
-1. Place the image in the [d2-icons](/static/d2-icons/) folder.  
-2. Define a corresponding variable in [vars.yaml](/data/vars.yaml).  
+1. Place the image in the [d2-icons](static/d2-icons/) folder.  
+2. Define a corresponding variable in [vars.yaml](data/vars.yaml).  
 
 ### Embedding Images
 
@@ -90,7 +90,7 @@ For faster loading and to prevent issues, download and use images locally (ensur
   Create a folder specific to the topic and place the image directly within it.
   
 - **For shared/reusable images**:  
-  Place the images in the [images](/static/images/) folder for universal access.
+  Place the images in the [images](static/images/) folder for universal access.
 
 ### Multi-Language Support
 

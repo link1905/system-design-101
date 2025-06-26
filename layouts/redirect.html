@@ -1,8 +1,0 @@
-﻿<!DOCTYPE html>
-<html>
-  <head>
-    {{ $target := site.GetPage .Params.redirect }}
-    <meta http-equiv="refresh" content="0; url={{ $target.RelPermalink }}" />
-    <link rel="canonical" href="{{ $target.RelPermalink }}" />
-  </head>
-</html>
