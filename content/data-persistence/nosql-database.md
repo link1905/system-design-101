@@ -55,7 +55,7 @@ gpa: 3.5
 ### Horizontal Scalability
 
 NoSQL databases are designed for **horizontal scalability**.
-They avoid complex relationships and instead rely on [sharding]({{< ref "peer-to-peer-architecture#shard-replication" >}}) to
+They avoid complex relationships and instead rely on [sharding]({{< ref "peer-to-peer-architecture#sharding" >}}) to
 distribute data across multiple servers.
 
 For example, user records can be split across different servers:

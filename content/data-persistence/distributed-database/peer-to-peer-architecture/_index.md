@@ -12,7 +12,7 @@ By contrast, {{< term p2p >}} **Architecture** adopts a distributed model,
 where the system is operated cooperatively by multiple servers,
 each sharing **equal responsibility**. These servers are referred to as **peers** (or nodes).
 
-## Data Ownership
+## Sharding
 
 Conceptually, the database is divided into multiple **shards**, each managed by a peer.
 

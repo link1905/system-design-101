@@ -391,7 +391,7 @@ s -> m.w2.data
 
 This step begins after the mappers have completed.
 Reducing workers pull data from the mappers,
-using a specific **hash function** (akin to [Data Ownership]({{< ref "distributed-database#data-ownership" >}})) to ensure that data with the same key is processed by the same reducer.
+using a specific **hash function** (akin to [data sharding]({{< ref "distributed-database#data-ownership" >}})) to ensure that data with the same key is processed by the same reducer.
 The final result is calculated by aggregating these intermediate pairs.
 
 ```d2

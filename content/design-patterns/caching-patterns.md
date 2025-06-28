@@ -24,10 +24,14 @@ This is because other instances might not be aware of the cached data, leading t
 s: Service {
     grid-rows: 1
     i1: Instance 1 {
-        "A: 123"
+        c: |||yaml
+        A: 123
+        |||
     }
     i2: Instance 2 {
-        "A: 234"
+        c: |||yaml
+        A: 234
+        |||
     }
 }
 ```
@@ -44,12 +48,39 @@ s: Service {
         class: server
     }
     db: Shared Cache {
-        "A: 123"
+        c: |||yaml
+        A: 123
+        |||
     }
     i1 <-> db
     i2 <-> db
 }
 
+```
+
+### Distributed Cache
+
+Cached data is often self-contained,
+which allows for the creation of a distributed cache by sharding data across multiple servers.
+
+```d2
+Cache Cluster {
+    s1: Cache Server 1 {
+        c: |||yaml
+        A: 123
+        |||
+    }
+    s2: Cache Server 2 {
+        c: |||yaml
+        B: 234
+        |||
+    }
+    s3: Cache Server 3 {
+        c: |||yaml
+        C: 113
+        |||
+    }
+}
 ```
 
 ### Cache Compression
@@ -73,6 +104,77 @@ s -> db: Cache
 s <- db: Retrieve
 s <- s: Decompress data
 ```
+
+### Cache Eviction
+
+Due to the high cost of high-speed memory,
+it's crucial to cache only necessary data.
+This requires a cache eviction policy to remove older data and create space for new entries.
+
+#### Least Recently Used (LRU)
+
+The **Least Recently Used (LRU)** strategy is the most common approach.
+When the cache reaches its capacity, the data that was least recently accessed is discarded.
+
+```d2
+direction: right
+c1: Cache {
+    c: |||yaml
+    A: 
+        value: 123
+        lastAccessed: 00:03
+    B: 
+        value: 234
+        lastAccessed: 00:10
+    |||
+}
+c2: Cache {
+    c: |||yaml
+    B: 
+        value: 234
+        lastAccessed: 00:10
+    |||
+}
+c1 -> c2: Evicted
+```
+
+This method is straightforward and widely used.
+It is most effective when recent access patterns are a reliable indicator of future access.
+
+#### Least Frequently Used (LFU)
+
+**Least Frequently Used (LFU)** is applied when the access frequency is a better indicator of the data's access pattern.
+In this case, the data with the lowest number of accesses is evicted.
+
+```d2
+direction: right
+c1: Cache {
+    c: |||yaml
+    A: 
+        value: 123
+        accessCount: 100
+    B: 
+        value: 234
+        accessCount: 11
+    |||
+}
+c2: Cache {
+    c: |||yaml
+    A: 
+        value: 123
+        accessCount: 100
+    |||
+}
+c1 -> c2: Evicted
+```
+
+From a programming standpoint,
+**LFU** is more challenging and requires more resources to operate.
+Basically, the choice between **LRU** and **LFU** should be based on the specific data access pattern.
+
+---
+
+Next, we will explore common patterns for effectively maintaining caches.
 
 ## Cache-aside (Lazy Loading)
 
