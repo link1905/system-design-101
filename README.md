@@ -1,7 +1,7 @@
 
 # System Design 101
 
-This project is designed to introduce and guide you through the essential concepts needed to become a system designer.
+This repository serves as a comprehensive introduction to the fundamental concepts and best practices required to excel as a system designer.
 
 Explore the official site [at this link](https://link1905.github.io/system-design-101).
 

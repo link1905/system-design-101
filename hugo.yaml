@@ -51,8 +51,9 @@ markup:
 enableInlineShortcodes: true
 
 params:
-  documentName: "System Design 101"
+  description: "This repository serves as a comprehensive introduction to the fundamental concepts and best practices required to excel as a system designer"
   d2RenderURL: http://localhost:8080/render
+
   navbar:
     displayTitle: true
     displayLogo: true
