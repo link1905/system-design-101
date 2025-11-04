@@ -595,7 +595,7 @@ However, once partitions heal, **conflict resolution** becomes necessary.
 
 Two effective approaches to conflict resolution are:
 
-### Last Write Wins (LWW)
+### Last Write Wins
 
 This method uses timestamps to resolve conflicts.
 Each record tracks the latest update time, and the most recent version wins during a merge.

@@ -5,7 +5,7 @@ prev: system-administration
 next: event-driven-architecture
 ---
 
-This final topic explores common patterns for system development across various facets:
+This topic explores common patterns for system development across various facets:
 
 **[1. Event-Driven Architecture]({{< ref "event-driven-architecture" >}})**:
 

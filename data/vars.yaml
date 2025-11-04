@@ -192,4 +192,52 @@ d2Import: >
         shape: image
         icon: ${icons-path}/dev.svg
       }
+      aws-dynamodb {
+        shape: image
+        icon: ${icons-path}/aws-dynamodb.svg
+      }
+      aws-open-search {
+        shape: image
+        icon: ${icons-path}/aws-open-search.svg
+      }
+      aws-ecs {
+        shape: image
+        icon: ${icons-path}/aws-ecs.svg
+      }
+      aws-private-link {
+        shape: image
+        icon: ${icons-path}/aws-private-link.svg
+      }
+      aws-elb {
+        shape: image
+        icon: ${icons-path}/aws-elb.svg
+      }
+      aws-route53 {
+        shape: image
+        icon: ${icons-path}/aws-route53.svg
+      }
+      pipeline {
+        shape: image
+        icon: ${icons-path}/pipeline.svg
+      }
+      aws-media-live {
+        shape: image
+        icon: ${icons-path}/aws-media-live.svg
+      }
+      aws-media-package {
+        shape: image
+        icon: ${icons-path}/aws-media-package.svg
+      }
+      aws-s3 {
+        shape: image
+        icon: ${icons-path}/aws-s3.svg
+      }
+      aws-cloudfront {
+        shape: image
+        icon: ${icons-path}/aws-cloudfront.svg
+      }
+      aws-vpc {
+        shape: image
+        icon: ${icons-path}/aws-vpc.svg
+      }
     }
