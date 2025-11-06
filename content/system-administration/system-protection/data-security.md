@@ -548,6 +548,67 @@ However, this method has drawbacks in terms of performance and availability.
 Cryptographic operations can be resource-intensive,
 so a centralized store handling all requests may become a bottleneck and a {{< term spof >}}.
 
+##### Envelop Encryption
+
+When encrypting large amounts of data, using a single secret key managed by a central keystore can create a performance bottleneck.
+Transferring huge volumes of data back and forth to the keystore for encryption and decryption consumes significant network bandwidth.
+
+A common and more efficient solution to this problem is **Envelope Encryption**.
+This strategy involves using a local, temporary key to encrypt the data itself,
+while the central keystore holds a **master key** only to protect this temporary key.
+
+Here is how the encryption process works:
+
+1. The service requests a new **data key** from the central keystore.
+2. The keystore generates a random data key. It then encrypts this new data key using the **master key**.
+3. The keystore returns two items to the service: the plaintext **data key** and the **encrypted data key**.
+
+    ```d2
+    shape: sequence_diagram
+    s: Service
+    k: Keystore
+    k {
+      m: Private master key {
+        class: pri-key
+      }
+    }
+    s -> k: 1. Requests a data key
+    k -> k: 2. Generates and encrypts a random data key
+    k -> s: 3. Responds keys
+    s {
+      data: "dataKey = 85136c79cbf9fe"
+      enc-data: "encryptedDataKey = bfc4aa58713836"
+    }
+    ```
+
+4. The service now uses the plaintext **data key** to encrypt the large block of data locally. This is fast and avoids sending the large dataset over the network.
+The service then stores the resulting encrypted data alongside the **encrypted data key**. The plaintext data key is discarded.
+
+    ```yaml
+    data:
+      encryptedData: a8f5f167f44f4964e6c998dee827110c
+      encryptedDataKey: bfc4aa58713836
+    ```
+
+To decrypt the data later:
+
+1. The service retrieves the encrypted object and sends *only* the small **encrypted data key** to the keystore, requesting decryption.
+2. The keystore uses its master key to decrypt the encrypted data key, recovering the original plaintext data key.
+3. The service uses the recovered plaintext data key to decrypt the large block of encrypted data locally.
+
+    ```d2
+    shape: sequence_diagram
+    s: Service
+    k: Keystore
+    s -> k: 1. Decrypts encryptedDataKey = bfc4aa58713836
+    k -> s: 2. Responds dataKey = 85136c79cbf9fe
+    s -> s: 3. Decrypts encryptedData
+    ```
+
+This method provides the best of both worlds: the high security of a centralized keystore protecting the master key, combined with the high performance of local encryption.
+
+For further optimization, it's possible for a client to cache and reuse the same data key to encrypt multiple blocks of data, reducing the number of requests to the keystore. However, it's important to note that reusing the same key across different datasets can be a security concern.
+
 #### Key Distribution
 
 For certain cases,
