@@ -240,4 +240,24 @@ d2Import: >
         shape: image
         icon: ${icons-path}/aws-vpc.svg
       }
+      aws-aurora {
+        shape: image
+        icon: ${icons-path}/aws-aurora.svg
+      }
+      aws-sns {
+        shape: image
+        icon: ${icons-path}/aws-sns.svg
+      }
+      aws-sqs {
+        shape: image
+        icon: ${icons-path}/aws-sqs.svg
+      }
+      aws-ec2 {
+        shape: image
+        icon: ${icons-path}/aws-ec2.svg
+      }
+      frame {
+        shape: image
+        icon: ${icons-path}/frame.svg
+      }
     }

@@ -145,15 +145,13 @@ A simple approach is to create duplicated datasets to serve these queries direct
 - `HOTEL_BY_NAME` is partitioned by `name`.
 
 ```d2
+grid-rows: 1
 n: HOTEL_BY_NAME {
   shape: sql_table
   name: VARCHAR {constraint: PARTITION KEY}
   hotel_id: UUID {constraint: SORT KEY}
   city: VARCHAR
 }
-```
-
-```d2
 c: HOTEL_BY_CITY {
   shape: sql_table
   city: VARCHAR {constraint: PARTITION KEY}
@@ -335,11 +333,12 @@ The **Hotel Store** must excel at two primary functions: partitioning data and h
 Several databases, including **MongoDB**, **Cassandra**, and **Amazon DynamoDB**, are capable of meeting these requirements.
 
 While open-source solutions offer flexibility and easier migration to other providers,
-**DynamoDB**—a proprietary, serverless NoSQL database from AWS—provides significant advantages within the AWS ecosystem.
+**DynamoDB**, a proprietary, serverless NoSQL database from AWS,
+providing significant advantages within the AWS ecosystem.
 It reduces operational overhead, simplifies management, and offers seamless integration with other AWS services.
 Given our focus on an AWS implementation, we will use **DynamoDB**.
 
-DynamoDB supports a multi-region setup natively through its [Global Tables](https://aws.amazon.com/dynamodb/global-tables/) feature.
+**DynamoDB** supports a multi-region setup natively through its [Global Tables](https://aws.amazon.com/dynamodb/global-tables/) feature.
 This feature employs an active-active replication model, where writes can occur in any region.
 Conflicts are resolved using a [last writer wins]({{< ref "gossip-protocol#last-write-wins" >}}) strategy.
 
