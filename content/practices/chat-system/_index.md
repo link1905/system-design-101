@@ -27,14 +27,12 @@ This document outlines the design and implementation of a chat application with 
 - **Reliability**: Online users must not miss any messages from their conversations.
 - **Availability**: The application will primarily serve users in **Southeast Asia** and the **United States**.
 
-### System Design Overview
+## System Design Overview
 
 When a user logs into the application, the following interactions occur:
 
 - **Conversation Service**: The user's device fetches historical conversations and messages.
 - **Chat Service**: The user establishes a persistent connection to a realtime server for sending and receiving new messages.
-
-The high-level architecture can be summarized as follows:
 
 ```d2
 grid-rows: 1
@@ -311,6 +309,7 @@ Two approaches can be considered:
 
 The first approach (mapping store) is more suitable for this use case.
 WebSocket connections are long-lived and sticky, meaning a user remains connected to a specific server for their entire session.
+
 The online status of users is unpredictable.
 The hashing technique could lead to poor load distribution; for example, if many online users happen to have odd-numbered IDs, `server_1` could become overloaded while `server_0` remains idle.
 The mapping store approach adapts dynamically to the actual distribution of online users.
@@ -400,7 +399,8 @@ For systems with very large groups and high message frequency, re-querying the d
 When a user connects to the Chat Service, the system would:
 
 1. Query all `conversation_id`s for that user from the `PARTICIPATION` table.
-2. For each `conversation_id`, add the user's `server_id` to a shared set (e.g., **Redis) that tracks the active servers for that conversation. When the user disconnects, the `server_id` would be removed from these sets.
+2. For each `conversation_id`, add the user's `server_id` to a shared set (e.g., **Redis**)
+that tracks the active servers for that conversation. When the user disconnects, the `server_id` would be removed from these sets.
 
     ```bash
     # Redis syntax for each of the user's conversations
@@ -475,7 +475,7 @@ A user connecting or disconnecting triggers a write to the `USER_CONNECTION` tab
 An alternative would be to manage the `USER_CONNECTION` table locally within each region.
 However, this creates a new problem: how does a server in one region route a message to a server in another region if connection data is not globally available?
 The only solution would be to broadcast messages to the other region, hoping a recipient is there.
-This is inefficient, wastes bandwidth, and is operationally complex, as Aurora Global Database does not support excluding specific tables from replication.
+This is inefficient, wastes bandwidth, and we need to run another database as Aurora Global Database does not support excluding specific tables from replication.
 Therefore, **we will not adopt this regional approach** and will accept the cost of replicating connection status globally.
 
 #### Message Store {#infra-message-store}
@@ -563,7 +563,8 @@ us.sns_r -> us.sqs_2
 
 We do not need to enable **SNS/SQS FIFO** options.
 Each chat server can track the `message_number` of the last message it delivered for a conversation.
-If an out-of-order message arrives, the server can either fetch the missing messages from the database (if there's a gap) or simply discard the message (if it's older than the last one sent).
+If an out-of-order message arrives, the server can either fetch the missing messages from the messages store (if there's a gap)
+or simply discard the message (if it's older than the last one sent).
 
 #### Multi-region Deployment
 

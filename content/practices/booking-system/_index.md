@@ -83,7 +83,9 @@ r: ROOM_TYPE {
 r -> h: belongs to
 ```
 
-A key access pattern is that users typically work with only one hotel at a time.
+### NoSQL Consideration
+
+However, a key access pattern is that users typically work with only one hotel at a time.
 This locality allows us to leverage a [NoSQL store]({{< ref "nosql-database" >}}) (such as a **Document Store** or **Column-family Store**) to improve performance and availability.
 We can partition the data by `hotel_id`, ensuring that a hotel and all its associated rooms reside on the same server.
 
@@ -196,15 +198,6 @@ a dedicated **Search Engine** is a better solution.
 
 To provide a rich user experience with features like autocompletion and spell correction,
 we can employ a [Search Engine]({{< ref "nosql-database#search-engine" >}}).
-While powerful, search engines are complex and can be costly to manage.
-
-A significant challenge with search engines is data sharding. There is no simple criterion to distribute full-text terms efficiently.
-This means a single search query often needs to be broadcast to **multiple nodes**, and the results must be aggregated.
-This **scatter-gather** pattern can be problematic, especially for pagination.
-
-For example, to fetch a page of `30 results` from `5 partitioned servers`,
-each server might need to return its top `30 results`.
-The application then has to sort through 150 records to produce the final page.
 
 For this project, we will use a **Search Engine** store to provide a rich experience.
 To keep the search index synchronized with the primary database,
@@ -222,6 +215,17 @@ c -> s: async replicated {
   style.animated: true
 }
 ```
+
+#### Problems
+
+While powerful, search engines are complex and can be costly to manage.
+A significant challenge with search engines is data sharding. There is no simple criterion to distribute full-text terms efficiently.
+This means a single search query often needs to be broadcast to **multiple nodes**, and the results must be aggregated.
+This **scatter-gather** pattern can be problematic, especially for pagination.
+
+For example, to fetch a page of `30 results` from `5 partitioned servers`,
+each server might need to return its top `30 results`.
+The application then has to sort through 150 records to produce the final page.
 
 ## Booking Service
 
@@ -318,8 +322,6 @@ A single-region deployment also introduces a single point of failure; an outage 
 Therefore, we will deploy the system independently in both regions.
 This approach increases cost and complexity, primarily due to the need for an effective data synchronization mechanism between the regions. This consideration will be central to the design of the following components.
 
-In the next sections, we need to take this demand into account.
-
 ### Database Layer
 
 Our design utilizes two distinct data stores:
@@ -336,9 +338,9 @@ While open-source solutions offer flexibility and easier migration to other prov
 **DynamoDB**, a proprietary, serverless NoSQL database from AWS,
 providing significant advantages within the AWS ecosystem.
 It reduces operational overhead, simplifies management, and offers seamless integration with other AWS services.
-Given our focus on an AWS implementation, we will use **DynamoDB**.
+Given our focus on an AWS implementation, we will use DynamoDB.
 
-**DynamoDB** supports a multi-region setup natively through its [Global Tables](https://aws.amazon.com/dynamodb/global-tables/) feature.
+DynamoDB supports a multi-region setup natively through its [Global Tables](https://aws.amazon.com/dynamodb/global-tables/) feature.
 This feature employs an active-active replication model, where writes can occur in any region.
 Conflicts are resolved using a [last writer wins]({{< ref "gossip-protocol#last-write-wins" >}}) strategy.
 
@@ -361,13 +363,13 @@ u.t <-> a.t: active-active replication {
 
 ##### Cross-region Conflicts
 
-While **DynamoDB** supports serializable isolation for transactions within a single region,
+While DynamoDB supports serializable isolation for transactions within a single region,
 this guarantee does not extend to Global Tables due to their asynchronous replication.
 A transaction can complete successfully in one region but be subsequently overwritten by a newer change from another region (due to **last writer wins**), potentially leading to data inconsistencies.
 
 > For more details, refer to the AWS documentation on [transactions in DynamoDB](https://docs.aws.amazon.com/amazonDynamoDB/latest/developerguide/transaction-apis.html).
 
-To prevent this, we must enforce a single-writer principle,
+To prevent this, we need to enforce a single-writer principle,
 ensuring that all modifications to a specific record occur in only one region. There are two primary ways to achieve this:
 
 - **Designate a Primary Region**: Route all write operations to a single primary region (e.g., **us-east-1**),
@@ -461,6 +463,7 @@ b: BOOKING {
 #### Search Store
 
 We will deploy an **Amazon OpenSearch** cluster to serve as our full-text search store.
+
 Data must be replicated from the **Hotel Store** to this one.
 **DynamoDB** facilitates this with **Amazon OpenSearch Ingestion**.
 This service creates a pipeline that pulls new records from **DynamoDB Streams** and automatically flushes them to an **OpenSearch** cluster.

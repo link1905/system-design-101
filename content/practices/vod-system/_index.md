@@ -129,7 +129,7 @@ The upload process is as follows:
 1. The user's client requests a secure, unique upload link from the **Video Service**. This link points to a unique location (like a folder) in the object storage.
 2. The client's browser or application slices the video into fixed-length chunks and uploads these chunks in parallel to the provided link, increasing upload speed and reliability.
 3. Once all chunks have been uploaded, a `COMPLETED` event is triggered.
-4. The **Video Service** listens for this event and initiates the backend processing pipeline (transcoding, segmentation, and packaging).
+4. The **Video Service** listens for this event and initiates the backend encoding pipeline.
 
 ```d2
 shape: sequence_diagram
@@ -151,7 +151,7 @@ u -> s: uploads chunks in parallel {
     style.animated: true
 }
 s -> e: completes uploading
-v <- e: performs transcoding
+v <- e: performs encoding
 ```
 
 ### Adaptive Bitrate Encoding Pipeline
