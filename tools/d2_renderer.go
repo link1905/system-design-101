@@ -109,7 +109,7 @@ func renderText(content string, options map[string]interface{}) ([]byte, error) 
 	command.Stderr = &stderr
 	err = command.Run()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to execute d2 command: %s", stderr.String())
+		return nil, fmt.Errorf("Failed to execute d2 command: %s %s", stderr.String(), content)
 	}
 	output, err := os.ReadFile(outputFile.Name())
 	if err != nil {
