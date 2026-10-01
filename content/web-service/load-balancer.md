@@ -6,18 +6,18 @@ next: api-design
 ---
 
 We previously introduced how to build a cluster of instances in the [Service Cluster]({{< ref "service-cluster" >}}) topic.
-In this lecture, we’ll explore how to expose a service to the outside world.
+In this lecture, we'll explore how to expose a service to the outside world.
 
 ## Load Balancer
 
 ### Reverse Proxy Pattern
 
-When running a cluster of service instances, these instances typically reside on different machines with distinct addresses.
-Moreover, instances can be dynamically added or removed. As a result, it’s impractical for clients to directly communicate with individual service instances.
+When running a cluster of service instances, the instances typically reside on different machines with distinct addresses.
+Moreover, instances can be dynamically added or removed. As a result, it is impractical for clients to communicate directly with individual service instances.
 
-**Reverse Proxy** is a pattern that exposes a system through **a single entry point**, concealing the underlying internal structure.
+A **Reverse Proxy** is a pattern that exposes a system through *a single entry point* while concealing its underlying internal structure.
 Following this pattern, service instances are placed behind a proxy that forwards traffic to them.
-This proxy should be a fixed and discoverable endpoint, often achieved through **DNS**.
+The proxy should have a fixed and discoverable endpoint, often provided through **DNS**.
 
 ```d2
 direction: right
@@ -42,10 +42,10 @@ p -> s.s2
 
 ### Load Balancing
 
-Proxying alone isn’t enough.
-To efficiently utilize resources, we want to **distribute traffic evenly** across the service instances.
+Proxying alone isn't enough.
+To utilize resources efficiently, we want to *distribute traffic evenly* across the service instances.
 
-For example, one instance might be handling `4 requests` while another processes only `1`, clearly an imbalance.
+For example, one instance might be handling `4 requests` while another is processing only `1`, creating a clear imbalance.
 
 ```d2
 direction: right
@@ -82,8 +82,8 @@ p -> s.s1
 p -> s.s2
 ```
 
-To solve this, we add the load balancing capability to the proxy component, which we refer to as a {{< term lb >}}.
-For example, the load balancer evenly distribute traffic across the cluster.
+To solve this problem, we add load balancing capabilities to the proxy component, which we refer to as a {{< term lb >}}.
+For example, the load balancer can distribute traffic evenly across the cluster.
 
 ```d2
 direction: right
@@ -104,6 +104,7 @@ s: Service {
     }
   }
   s2: Instance 2 {
+    grid-rows: 1
     r3: Request 3 {
       class: request
     }
@@ -119,10 +120,10 @@ p -> s.s2
 
 ### Service Discovery
 
-A {{< term lb >}} needs to be aware of the available service instances behind it.
-The most common approach is to implement a central {{< term svd >}} system to track all instances.
+A {{< term lb >}} needs to know which service instances are available behind it.
+The most common approach is to implement a central {{< term svd >}} system that tracks all available instances.
 
-In this setup, service instances must register themselves with the {{< term lb >}}, which otherwise has no inherent knowledge of their existence.
+In this setup, service instances must register themselves with the {{< term lb >}}, which would otherwise have no inherent knowledge of their existence.
 
 ```d2
 direction: right
@@ -149,36 +150,38 @@ s.s2 -> sd.lb: Register
 
 #### Health Check
 
-To ensure only healthy instances receive traffic,
-the {{< term lb >}} periodically performs [health checks]({{< ref "service-cluster#heartbeat-mechanism" >}}) and removes unhealthy ones from the pool.
+To ensure that only healthy instances receive traffic,
+the {{< term lb >}} periodically performs [health checks]({{< ref "service-cluster#heartbeat-mechanism" >}}) and removes unhealthy instances from the pool.
 
 ```d2
 direction: right
-system: System {
-  s: Cluster {
-    lb: Load balancer {
-      lb: "" {
-        class: lb
-      }
-      r: |||yaml
-      Instance 1: 1.1.1.1, Healthy
-      Instance 2: 2.2.2.2, Unhealthy
-      |||
+c: Client {
+  class: client
+}
+s: System {
+  lb: Load balancer {
+    lb: "" {
+      class: lb
     }
-    s1: Instance 1 {
-      class: server
-    }
-    s2: Instance 2 {
-      class: generic-error
-    }
-    lb.lb -> s1: Health check {
-      style.animated: true
-    }
-    lb.lb -> s2: Stop forwarding {
-      class: error-conn
-    }
+    r: |||yaml
+    Instance 1: 1.1.1.1, Healthy
+    Instance 2: 2.2.2.2, Unhealthy
+    |||
+  }
+  s1: Instance 1 {
+    class: server
+  }
+  s2: Instance 2 {
+    class: generic-error
+  }
+  lb.lb -> s1: Health check {
+    style.animated: true
+  }
+  lb.lb -> s2: Stop forwarding {
+    class: error-conn
   }
 }
+c -> s.lb
 ```
 
 ## Load Balancing Algorithms
@@ -187,61 +190,71 @@ Several algorithms can be used to select a service instance from a cluster.
 
 ### Round-robin
 
-The **Round-robin** algorithm is the most common and often the **default option** in many load balancing solutions.
-It cycles through the list of instances in order, assigning each new request to the next instance in sequence.
+The **Round-robin** algorithm is one of the most common algorithms and is often the *default option* in many load balancing solutions.
+It cycles through the list of instances in order, assigning each new request to the next instance in the sequence.
 
 ```d2
-direction: right
 s1: System {
+  grid-rows: 2
   lb: Load Balancer {
     class: lb
   }
-  s1: Instance 1 {
-    class: server
+  i {
+    class: none
+    grid-rows: 1
+
+    s1: Instance 1 {
+      class: server
+    }
+    s2: Instance 2 {
+      class: server
+    }
+    s3: Instance 3 {
+      class: server
+    }
   }
-  s2: Instance 2 {
-    class: server
-  }
-  s3: Instance 3 {
-    class: server
-  }
-  lb -> s1: 1st request
-  lb -> s2: 2nd request
-  lb -> s3: 3rd request
-  lb -> s1: 4th request
+  lb -> i.s1: 1st request
+  lb -> i.s2: 2nd request
+  lb -> i.s3: 3rd request
+  lb -> i.s1: 4th request
 }
 ```
 
-This method works well for **short-lived, similarly sized requests**, such as {{< term http >}} requests.
+This method works well for *short-lived requests of similar size*, such as {{< term http >}} requests.
 
-However, if the workload varies significantly, problems can arise.
-For example, if `Instance 2` is already overwhelmed with ongoing requests, the load balancer will still continue to send it new requests in turn, while other instances may be underutilized.
+However, problems can arise when workloads vary significantly.
+For example, if `Instance 2` is already overwhelmed with ongoing requests, the load balancer will still continue sending it new requests when its turn arrives, even while other instances remain underutilized.
 
 ```d2
-direction: right
+
 s1: System {
+  grid-rows: 2
   lb: Load Balancer {
     class: lb
   }
-  s1: Instance 1 {
-    r: "Request" {
-      class: request
+  i: {
+    class: none
+    grid-rows: 1
+    s1: Instance 1 {
+      r: "Request" {
+        class: request
+      }
+    }
+    s2: Instance 2 {
+      grid-columns: 3
+      r3: "Request" {
+        class: request
+      }
+      r1: "Ongoing Request" {
+        class: request
+      }
+      r2: "Ongoing Request" {
+        class: request
+      }
     }
   }
-  s2: Instance 2 {
-    grid-columns: 3
-    r3: "Request" {
-      class: request
-    }
-    r1: "In-flight Request" {
-      class: request
-    }
-    r2: "In-flight Request" {
-      class: request
-    }
-  }
-  lb -> s1
-  lb -> s2: Send new request orderly {
+  lb -> i.s1.r
+  lb -> i.s2.r3: Send new request orderly {
     class: bold-text
   }
 }
@@ -250,7 +263,7 @@ s1: System {
 ### Least Connections
 
 The **Least Connections** algorithm selects the instance currently handling the fewest active connections.
-This requires the load balancer to track the number of **in-flight requests** on each instance.
+This requires the load balancer to track the number of *in-flight requests* on each instance.
 
 ```d2
 direction: right
@@ -275,20 +288,20 @@ lb.lb -> s.s2: Pick Instance 2
 ```
 
 Is this better than **Round-robin**?
-Not necessarily, because the number of active connections doesn’t always reflect the actual resource consumption.
-For example, `10` requests on `Instance 1` might use just `1 MB` of memory, while `3` requests on `Instance 2` could consume `100 MB`.
+Not necessarily, because the number of active connections does not always reflect actual resource consumption.
+For example, `10` requests on `Instance 1` might use only `1 MB` of memory, while `3` requests on `Instance 2` could consume `100 MB`.
 
-This strategy shines for **long-lived sessions** (like {{< term ws >}}), where client sessions persist on the same server for extended periods.
-In such cases, **Round-robin** can easily lead to imbalance, making **Least Connections** a better choice.
+This strategy is particularly effective for *long-lived sessions*, such as {{< term ws >}}, where client sessions remain connected to the same server for extended periods.
+In such cases, **Round-robin** can easily produce an imbalance, making **Least Connections** a more suitable choice.
 
 ### Session Stickiness
 
-Load balancing algorithms typically decide which server should handle each request. However, this can be overridden with **Session Stickiness**.
+Load balancing algorithms typically determine which server should handle each request. However, this behavior can be overridden using a feature called **Session Stickiness**.
 
 When a client first connects, the load balancer assigns a **stickiness key** and returns it in the response:
 
-1. The client stores this key locally.
-2. For subsequent requests, the client includes the key, ensuring it connects to the same instance.
+1. The client stores the key locally.
+2. For subsequent requests, the client includes the key, ensuring that it connects to the same instance.
 
 ```d2
 shape: sequence_diagram
@@ -310,33 +323,36 @@ c -> lb: '4. Use the key to connect to "I1"'
 lb -> s0
 ```
 
-**Why is this necessary?**
-For [stateful applications]({{< ref "service-cluster#stateful-service" >}}) like multiplayer games or chat services, clients often need to consistently interact with the same server instance.
-For example, reconnecting to the same session after a temporary disconnection.
+**Why is this used?**
 
-However, this comes at a cost.
-Session stickiness can easily lead to uneven load distribution, as it bypasses the load balancer’s configured algorithm in favor of sticking with a specific instance.
+In many load balancing solutions, this feature is disabled by default.
+However, for [stateful applications]({{< ref "service-cluster#stateful-service" >}}), such as multiplayer games or chat services, clients often need to interact consistently with the same server instance.
+One example is reconnecting to the same session after a temporary disconnection.
+
+However, this behavior comes at a cost.
+**Session Stickiness** can easily lead to uneven load distribution because it overrides the load balancer's configured algorithm in favor of routing a client to a specific instance.
 
 ## Load Balancer Types
 
 There are two common types of {{< term lb >}}: {{< term lb4 >}} and {{< term lb7 >}}.
-They define which network layer the load balancing occurs at.
+They differ in the network layer at which load balancing occurs.
 
 ### OSI Review
 
-Briefly, a network message’s journey through a machine can be explained via **7 layers** in the [OSI model](https://www.cloudflare.com/learning/ddos/glossary/open-systems-interconnection-model-osi/).
+A network message's journey through a machine can be described using the **7 layers** of the [OSI model](https://www.cloudflare.com/learning/ddos/glossary/open-systems-interconnection-model-osi/).
+
 ![OSI Model](/images/osi_model_7_layers.png)
 
-This layered design helps separate concerns, each layer has distinct responsibilities, operates independently, and can evolve autonomously.
-In this topic, we’ll focus solely on the **Application**, **Transport**, and **Network** layers.
+This layered design helps separate concerns. Each layer has distinct responsibilities, operates independently, and can evolve autonomously.
+In this topic, we'll focus solely on the **Application**, **Transport**, and **Network** layers.
 
 #### Encapsulation
 
-When a process sends a message to another machine, it gets steadily **encapsulated**, transforming from plain text into a network message:
+When a process sends a message to another machine, the message is progressively **encapsulated**, transforming from application data into a network message:
 
-- **Application Layer (L7)**: the application formats the message using its specific **protocol** (e.g., [HTTP]({{< ref "communication-protocols#http-1-1" >}})).
-- **Transport Layer (L4)**: the machine attaches the **port number** to the message.
-- **Network Layer (L3)**: the machine adds its **address** to the message.
+- **Application Layer (L7)**: The application formats the message according to its specific **protocol**, such as [HTTP]({{< ref "communication-protocols#http-1-1" >}}).
+- **Transport Layer (L4)**: The machine attaches the **port number** to the message.
+- **Network Layer (L3)**: The machine adds its **address** to the message.
 
 ```d2
 
@@ -367,16 +383,16 @@ m: Machine {
 }
 ```
 
-As the message moves down, it’s **enriched** with networking information at each layer.
+As the message moves downward through the layers, it is **enriched** with additional networking information at each stage.
 Notably, lower layers cannot interpret or modify the data encapsulated by higher layers.
 
 #### Decapsulation
 
 On the recipient side, the message undergoes **decapsulation**, moving upward through the layers:
 
-- **Network Layer (L3)**: reads and strips off the **address**.
-- **Transport Layer (L4)**: reads the **port number** and routes to the correct application.
-- **Application Layer (L7)**: interprets and processes the **protocol-specific message**
+- **Network Layer (L3)**: Reads and strips off the **address**.
+- **Transport Layer (L4)**: Reads the **port number** and routes the message to the correct application.
+- **Application Layer (L7)**: Interprets and processes the **protocol-specific message**.
 
 ```d2
 
@@ -410,10 +426,10 @@ m: Machine {
 
 ### Layer 7 Load Balancer
 
-A {{< term lb7 >}} operates at the **Application Layer (L7)** of the OSI model, handling protocols like {{< term http >}} or {{< term ws >}}.
+A {{< term lb7 >}} operates at the **Application Layer (L7)** of the OSI model, handling protocols such as {{< term http >}} and {{< term ws >}}.
 
-This high-level position allows it to inspect **application-specific details**, like HTTP headers, parameters, and message bodies,
-letting it make intelligent routing decisions.
+Operating at this higher layer allows it to inspect *application-specific details*, such as HTTP headers, parameters, and message bodies, enabling more intelligent routing decisions.
+
 Technically, two separate connections are established:
 
 1. Between the client and the load balancer.
@@ -442,46 +458,9 @@ lb <-> s
 
 #### API Gateway Pattern
 
-{{< term apigw >}} is a design pattern providing a **single entry point** for all external clients.
-It acts as a proxy ahead of load balancers:
+{{< term apigw >}} is a design pattern that provides a *single entry point* to a system's public services.
 
-```d2
-direction: right
-g: API Gateway {
-  class: gw
-}
-la: Load Balancer (A) {
-    class: lb
-}
-a: Service A {
-  grid-rows: 1
-  s1: Instance A1 {
-    class: server
-  }
-  s2: Instance A2 {
-    class: server
-  }
-}
-lb: Load Balancer (B) {
-    class: lb
-}
-b: Service B {
-  grid-rows: 1
-  s1: Instance B1 {
-    class: server
-  }
-  s2: Instance B2 {
-    class: server
-  }
-}
-g -> la
-la -> a
-g -> lb
-lb -> b
-```
-
-Operating multiple load balancers increases management complexity.
-A more preferred solution combines the gateway and load balancer, sharing infrastructure and using **routing rules** to direct traffic based on criteria like domain, HTTP path, headers, or query parameters.
+It can also provide load-balancing capabilities, allowing multiple services to share the same infrastructure while using **routing rules** to direct traffic based on criteria such as the domain, HTTP path, headers, or query parameters.
 
 For example:
 
@@ -524,12 +503,13 @@ lb -> user: /b {
 
 #### SSL Termination
 
-A major challenge with {{< term lb7 >}} is handling encrypted traffic via [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security).
-Since {{< term lb7 >}} needs to read application-level data to make decisions, it cannot work directly with **end-to-end encryption**.
+A major challenge with {{< term lb7 >}} is handling traffic encrypted with [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security).
+Because {{< term lb7 >}} needs to inspect application-level data to make routing decisions, it cannot operate directly on **end-to-end encrypted** traffic.
 
 ```d2
 direction: right
 s: System {
+  direction: right
     lb: Load Balancer {
         class: lb
     }
@@ -546,13 +526,11 @@ c -> s.lb: payload=13a8f5f167f4 {
 }
 ```
 
-In other words,
-we can't use {{< term lb7 >}} to ensure complete end-to-end encryption.
-To make it work,
-the **SSL/TLS decryption** must be shifted to the {{< term lb >}} itself.
+In other words, we cannot use a {{< term lb7 >}} while preserving complete end-to-end encryption.
+To make L7 load balancing possible, **SSL/TLS decryption** must instead occur at the {{< term lb >}} itself.
 This process is known as {{< term sslt >}}.
 
-New connections are then established internally to forward plaintext traffic to services
+New connections are then established internally to forward plaintext traffic to the services.
 
 ```d2
 grid-rows: 1
@@ -580,10 +558,10 @@ c -> s.lb: 1. Send payload=a8f5f167f4
 
 ##### Security Concern
 
-This introduces a security risk: decrypted data resides at the load balancer, potentially exposing sensitive information.
+This introduces a security risk because decrypted data resides at the load balancer, potentially exposing sensitive information.
 
 In some compliance and data governance contexts, data must remain encrypted all the way to its destination service.
-Additionally, using an **external** load balancer for {{< term sslt >}} can lead to data leakage outside your trusted environment.
+Additionally, using an *external* load balancing service for {{< term sslt >}} may expose decrypted data outside the trusted environment.
 
 ```d2
 grid-rows: 2
@@ -616,45 +594,48 @@ lbw.lb -> s.sv: 3. Forward
 ### Layer 4 Load Balancer
 
 A {{< term lb4 >}} operates at the **Transport Layer (L4)** of the OSI model.
-It cannot inspect application-level content; routing decisions are based solely on the **destination address and port**.
+It cannot inspect application-level content, so routing decisions are based solely on the *destination address and port*.
 
 Essentially, a {{< term lb4 >}} acts like a network router between clients and services.
-Once a client connects to a server, it keeps communicating with **the same instance** as long as the connection stays open.
+Once a client connects to a server, it continues communicating with *the same instance* for as long as the connection remains open.
+This behavior arises from [packet segmentation](https://en.wikipedia.org/wiki/Packet_segmentation), where large messages are split into multiple network packets, also known as [TCP segments](https://en.wikipedia.org/wiki/Transmission_Control_Protocol).
 
-This problem arises from [packet segmentation](https://en.wikipedia.org/wiki/Packet_segmentation), where large messages are split into multiple network packets (aka [TCP segments](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)).
-
-For example,
-an {{< term http >}} request is split into two network segments.
-A {{< term lb7 >}} can understand protocols like HTTP and reassemble segmented requests before forwarding them.
+For example, an {{< term http >}} request may be split into two network segments.
+A {{< term lb7 >}} understands application protocols such as HTTP and can route requests to the appropriate targets.
 
 ```d2
-direction: right
+grid-columns: 1
 r {
   class: none
+  grid-rows: 1
   h1: HTTP request 1
   h2: HTTP request 2
 }
 s: System {
-    lb: L7 Load Balancer {
-        s1: Segment 1
-        s2: Segment 2
-        s3: Segment 3
-        s4: Segment 4
-        h1: HTTP request 1
-        h2: HTTP request 2
-        s1 -> h1
-        s2 -> h1
-        s3 -> h2
-        s4 -> h2
-    }
+  grid-columns: 1
+  lb: L7 Load Balancer {
+    grid-rows: 1
+    s1: Segment 1
+    s2: Segment 2
+    s3: Segment 3
+    s4: Segment 4
+  }
+  i: {
+    grid-rows: 1
+    class: none
     s1: Instance 1 {
-       class: server
+      class: server
+      h1: HTTP request 1
     }
     s2: Instance 2 {
-       class: server
+      class: server
+      h2: HTTP request 2
     }
-    lb.h1 -> s1: Assemble
-    lb.h2 -> s2: Assemble
+  }
+  lb.s1 -> i.s1.h1: Assemble
+  lb.s2 -> i.s1.h1: Assemble
+  lb.s3 -> i.s2.h2: Assemble
+  lb.s4 -> i.s2.h2: Assemble
 }
 r.h1 -> s.lb.s1
 r.h1 -> s.lb.s2
@@ -662,66 +643,37 @@ r.h2 -> s.lb.s3
 r.h2 -> s.lb.s4
 ```
 
-Conversely, a {{< term lb4 >}} is unaware of application protocols and may accidentally distribute segments of the same request to different servers, leading to errors.
+Conversely, a {{< term lb4 >}} is unaware of application-level protocols and may accidentally distribute segments of the same request across different servers, resulting in errors.
 
 ```d2
-
-direction: right
 s: System {
     lb: L4 Load Balancer {
         s1: Segment 1
         s2: Segment 2
     }
-    s1: Instance 1 {
-       class: server
+    i: {
+      class: none
+      s1: Instance 1 {
+        class: server
+      }
+      s2: Instance 2 {
+        class: server
+      }
     }
-    s2: Instance 2 {
-       class: server
-    }
-    lb.s1 -> s1: Forward
-    lb.s2 -> s2: Forward
+    lb.s1 -> i.s1: Forward
+    lb.s2 -> i.s2: Forward
 }
 c: HTTP request
 c -> s.lb.s1
 c -> s.lb.s2
 ```
 
-The solution is to forward all segments of a connection to the same server until it disconnects.
-
-```d2
-direction: right
-s: System {
-    lb: L7 Load Balancer {
-      s1: Segment 1
-      s2: Segment 2
-      s3: Segment 3
-    }
-    s1: Instance 1 {
-       class: server
-    }
-    s2: Instance 2 {
-       class: server
-    }
-    lb.s1 -> s1
-    lb.s2 -> s1
-    lb.s3 -> s1
-    lb -> s2: Unused {
-      class: error-conn
-    }
-}
-c: Client {
-  class: client
-}
-c -> s.lb.s1
-c -> s.lb.s2
-c -> s.lb.s3
-```
+The solution is to forward all segments belonging to the same connection to the same server until the connection is closed.
 
 Why choose a {{< term lb4 >}} over a {{< term lb7 >}}?
 
-- It avoids {{< term sslt >}}, which can be a security risk.
-- It delivers significantly better performance, since it simply forwards packets without interpreting them.
+- It avoids {{< term sslt >}}, which can introduce security risks.
+- It provides significantly better performance because it can simply forward packets without interpreting application-level content.
 
-However, due to the sticky connection behavior, a {{< term lb4 >}} can easily become **unbalanced**,
-one server might receive a disproportionate load while others stay underutilized.
-Still, it’s a solid choice for **stateful, high-performance services** like multiplayer gaming backends.
+However, because of this connection stickiness, a {{< term lb4 >}} can easily become *unbalanced*: one server might receive a disproportionate amount of traffic while others remain underutilized.
+Still, it is a solid choice for *stateful, high-performance services* such as multiplayer gaming backends.

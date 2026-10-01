@@ -12,26 +12,11 @@ which is a shared contract between processes that defines how they communicate o
 
 For example, consider two processes: `Client` and `Server`.
 
-- When the `Client` sends a command `Hello!`, the `Server` responds with `Hi!` and nothing more.
-
+- When the `Client` sends the command `Hello!`, the `Server` responds with `Hi!` and nothing else.
 - When the `Client` sends `Address?`, the `Server` responds with its `IP address`.
 
-```d2
-shape: sequence_diagram
-s: Server {
-    class: server
-}
-c: Client {
-    class: client
-}
-c -> s: Hello!
-s -> c: Hi!
-c -> s: Address?
-s -> c: 1.2.3.4
-```
-
-The complete set of these commands, together with other rules (such as authorization), constitutes an {{< term api >}}.
-For example, here’s the API definition from the earlier example:
+The complete set of these commands, together with other rules such as authorization, constitutes an {{< term api >}}.
+For example, here is the API definition from the previous example:
 
 ```yaml
 api:
@@ -41,26 +26,26 @@ api:
   response: getAddress()
 ```
 
-In this topic, we’ll explore how to design and document APIs effectively.
+In this topic, we'll explore how to design and document APIs effectively.
 
 ## REST (Representational State Transfer)
 
 **API design** is a crucial part of system design.
-Without a clear, consistent framework, a system with many components can quickly become a [big ball of mud](https://www.geeksforgeeks.org/big-ball-of-mud-anti-pattern/).
+Without a clear and consistent framework, a system with many components can quickly become a [big ball of mud](https://www.geeksforgeeks.org/big-ball-of-mud-anti-pattern/).
 
 {{< term rest >}} (Representational State Transfer)
-is an **architectural style** first introduced by [Roy Fielding](https://en.wikipedia.org/wiki/Roy_Fielding) in 2000.
-It comprises a set of high-level principles promoting scalability, simplicity, and compatibility.
+is an *architectural style* first introduced by [Roy Fielding](https://en.wikipedia.org/wiki/Roy_Fielding) in 2000.
+It consists of a set of high-level principles that promote scalability, simplicity, and compatibility.
 
-It's **not tied** to any specific protocol or framework, such as `HTTP` or `WebSocket`.
-To clarify these principles, we will use [HTTP]({{< ref "communication-protocols" >}}) for the examples
-in the following sections.
+It is *not tied* to any specific protocol or framework, such as `HTTP` or `WebSocket`.
+To illustrate these principles, we will use [HTTP]({{< ref "communication-protocols" >}})
+in the examples throughout the following sections.
 
 ## Resource
 
-A {{< term rest >}} service is made up of resources, which represent the data and services it exposes.
+A {{< term rest >}} service consists of resources that represent the data and services it exposes.
 
-**Resources** represent database records, files, pages, or other internal data structures.
+**Resources** can represent database records, files, pages, or other internal data structures.
 For example:
 
 - The `user` resource comes from the `user` SQL table.
@@ -86,79 +71,28 @@ f <-> s.i
 
 ## 1. Statelessness
 
-The first principle of {{< term rest >}} is [statelessness]({{< ref "service-cluster#stateless-service" >}}).
-This means servers do not retain any session state between requests.
+The first principle of {{< term rest >}} is [Statelessness]({{% ref "service-cluster#stateless-service" %}}).
 
-For example, if a user resource tracks a credit offset between calls, the server would have to maintain local state, making it **stateful**.
-
-```d2
-direction: right
-c: Client {
-    class: client
-}
-u: User Resource {
-    class: server
-}
-s1: |||yaml
-User:
-    Id: 1234
-    Credit: 1000
-|||
-s2: |||yaml
-User:
-    Id: 1234
-    CreditOffset: -200
-|||
-c <- s1: 1st call
-s1 <- u
-c <- s2: 2nd call
-s2 <- u
-```
-
-Instead, a stateless service returns complete records with each request, keeping interactions independent.
-
-```d2
-direction: right
-c: Client {
-    class: client
-}
-u: User Resource {
-    class: server
-}
-s1: |||yaml
-User:
-    Id: 1234
-    Credit: 1000
-|||
-s2: |||yaml
-User:
-    Id: 1234
-    Credit: 800
-|||
-c <- s1: 1st call
-s1 <- u
-c <- s2: 2nd call
-s2 <- u
-```
+{{% include "stateless-service" %}}
 
 ## 2. Uniform Interface
 
 The second principle is **Uniform Interface**.
-{{< term rest >}} services should offer a consistent, standardized way for clients to interact with resources.
+{{< term rest >}} services should provide a consistent, standardized way for clients to interact with resources.
 
 ### Resource Identifier
 
 Each resource is uniquely identified using a **Uniform Resource Identifier (URI)**.
-In general, URIs are **structured hierarchically**, reflecting the relationships between resources, for example:
+In general, URIs are **structured hierarchically** to reflect relationships between resources. For example:
 
 - A collection of resources, e.g., `/users`.
 - A single resource, e.g., `/users/user_1234`.
-- A nesting resource, e.g. `/users/user_1234/orders`.
+- A nested resource, e.g., `/users/user_1234/orders`.
 
 ### Resource Method
 
-Resources allow both data retrieval and manipulation.
-When a client requests a resource, it must include the intended action, known as **method**.
+Resources support both data retrieval and manipulation.
+When a client requests a resource, it must specify the intended action, known as a **method**.
 
 For instance:
 
@@ -170,8 +104,8 @@ REMOVE /users/user_1234
 CHANGE_NAME /users/user_1234
 ```
 
-In {{< term rest >}}, it’s recommended to use **nouns** for URIs, avoiding verbs like `/user/change_name`.
-Actions should be expressed via request methods, not resource URIs.
+In {{< term rest >}}, it is recommended to use *nouns* for URIs and avoid verbs such as `/user/change_name`.
+Actions should be expressed through request methods rather than resource URIs.
 
 #### HTTP Methods
 
@@ -180,16 +114,16 @@ Actions should be expressed via request methods, not resource URIs.
 - **GET**: Retrieve a resource.
 - **POST**: Create a new resource.
 - **DELETE**: Remove a resource.
-- **PUT**: Completely update a resource (the client sends the entire updated resource).
-- **PATCH**: Partially update a resource (the client sends only the fields that need updating).
+- **PUT**: Completely update a resource, with the client sending the entire updated representation.
+- **PATCH**: Partially update a resource, with the client sending only the fields that need to change.
 
 {{< callout type="info" >}}
 You may follow [this link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) to learn more about HTTP methods.
 {{< /callout >}}
 
 Some methods, such as **POST**, **PUT**, and **PATCH**,
-require a payload (or body) to execute.
-For example, a request creating a new user needs to include the user details.
+require a payload, or body, to perform an operation.
+For example, a request that creates a new user needs to include the user's details.
 
 ```http
 POST /users HTTP/1.1
@@ -203,15 +137,15 @@ POST /users HTTP/1.1
 
 #### Partial Update
 
-In practice,
-allowing clients to send a completely updated version of a resource by **PUT**
-can be bandwidth-wasteful and potentially unsafe.
+In practice, allowing clients to send a completely updated representation of a resource using **PUT**
+can consume unnecessary bandwidth and may introduce additional risks.
 
-In many cases, updates are only limited to specific parts of a resource.
-Two effective approaches for handling this are:
+In many cases, an update affects only specific parts of a resource.
+Two effective approaches for handling partial updates are:
 
 1. [HTTP PATCH](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PATCH):
-   Using **PATCH**, clients can update only the included fields. This is both efficient and simple:
+   With **PATCH**, clients can update only the fields included in the request.
+   This approach is both simple and efficient:
 
     ```http
     PATCH /users/1234 HTTP/1.1
@@ -221,10 +155,10 @@ Two effective approaches for handling this are:
     }
     ```
 
-2. **Sub resource**: For more complex logic, e.g.,
-   *a user can only change their name after a specific time period*.
-   It’s better to separate the field as a new resource,
-   this allows for finer control and more specific validation:
+2. **Subresource**: For more complex logic, such as when
+   *a user can change their name only after a specific period*,
+   it may be better to model the field as a separate resource.
+   This approach allows finer control and more specific validation:
 
     ```http
     PUT /users/1234/name HTTP/1.1
@@ -234,13 +168,13 @@ Two effective approaches for handling this are:
 
 #### Request Idempotency
 
-Before wrapping this section, let's discuss a critical characteristic of requests - **Idempotency**.
+Before concluding this section, let's discuss an important characteristic of requests: **Idempotency**.
 
-1. **Idempotent**: A request is idempotent if perform it multiple times
-   leaves the system unchanged after the first request, including:
-    - **Read**: Does not manipulate resources, only retrieves data.
-    - **Delete** and **Update**: Once a resource is deleted or updated, the following requests result in nothing.
-      For example, a resource remains unchanged with the second update.
+1. **Idempotent**: A request is idempotent if performing it multiple times
+   leaves the system in the same state as performing it once. Examples include:
+    - **Read**: Does not modify resources and only retrieves data.
+    - **Delete** and **Update**: Once a resource has been deleted or updated, repeating the same operation does not further change the resulting state.
+    - For example, updating a user's name to `Doe` a second time produces the same state as the first update.
 
     ```d2
     shape: sequence_diagram
@@ -268,8 +202,9 @@ Before wrapping this section, let's discuss a critical characteristic of request
     }
     ```
 
-2. **Non-idempotent** requests result in different system states when they're made multiple times.
-    - **Create**: Repeatedly creating a resource generates new and distinct data records.
+2. **Non-idempotent** requests can result in different system states when they are performed multiple times.
+    - **Create**: Repeatedly creating a resource can generate new and distinct records.
+    - For example, creating a new user named `Johnny` twice results in two separate records.
 
     ```d2
     shape: sequence_diagram
@@ -288,12 +223,12 @@ Before wrapping this section, let's discuss a critical characteristic of request
     }
     ```
 
-Identifying the idempotency of a request is crucial for ensuring **request safety**.
+Understanding whether a request is idempotent is crucial for ensuring **request safety**.
 
-- **Non-idempotent requests** can often be retried freely, as repeating them does not compromise the system.
-- **Idempotent requests**, on the other hand, should be safeguarded using a **deduplication mechanism** to avoid unintended consequences.
+- **Idempotent requests** can often be retried freely because repeating them does not compromise the system.
+- **Non-idempotent requests**, on the other hand, should be protected with a *deduplication mechanism* to avoid unintended consequences.
 
-For example, in a payment request, a unique key is used to identify a transaction.
+For example, in a payment request, a unique key can be used to identify a transaction.
 Even if the user retries the payment multiple times, only the first attempt is processed.
 
 ```d2
@@ -306,7 +241,7 @@ c -> p: 1. Initiate a transaction
 p {
     "Tran123: New"
 }
-p -> c: "Tran123" {
+p -> c: "Return unique id Tran123" {
     style.bold: true
 }
 c -> p: "2. Process 'Tran123'"
@@ -317,23 +252,25 @@ p -> p: Processing...
 c -> p: 3. Process the transaction again (duplication) {
     style.bold: true
 }
+p -> p: "Tran123 is in-process"
 c <- p: Failed because the transaction is being processed {
     class: error-conn
 }
 ```
 
-The idempotency of a request depends on its **effect**, not just the method.
-For example, an `update` request that cancels a `payment` might also create a new `payment cancellation` record. In this case, the overall action is no longer idempotent, since repeating the same request would generate additional resources.
+The idempotency of a request depends on its *effect*, not merely on the method used.
+For example, an `update` request that cancels a `payment` might also create a new `payment cancellation` record.
+In this case, the overall action is no longer idempotent because repeating the same request would generate additional resources.
 
-By carefully understanding and designing for idempotency, we can build robust APIs that handle retries and duplicate requests gracefully, improving both reliability and client experience.
+By carefully understanding and designing for idempotency, we can build robust APIs that handle retries and duplicate requests gracefully, improving both reliability and the client experience.
 
 ## 3. Self-descriptive Message
 
-**Self-descriptive Message** is a key principle in {{< term rest >}},
-ensuring that all messages (both requests and responses) contain enough information to interpret and use their content.
+A **Self-descriptive Message** is a key principle of {{< term rest >}},
+ensuring that every message, whether a request or response, contains enough information to interpret and process its content.
 
 For example, a message representing a user might look like this.
-The plain-text indicator guides how to read the **JSON** payload.
+The plain-text indicator specifies how the **JSON** payload should be interpreted.
 
 ```text
 // Indicator
@@ -348,16 +285,17 @@ TYPE: JSON
 
 ### Content Negotiation
 
-**Content Negotiation** is a mechanism that allows the client and server side to agree on the format of a resource.
-It enables the server to serve different representations of the same resource,
-while clients can favor their preferred format.
+**Content Negotiation** is a mechanism that allows the client and server to agree on the representation format of a resource.
+It enables the server to provide multiple representations of the same resource
+while allowing clients to indicate their preferred format.
 
-{{< term http >}} frameworks process content negotiation through:
+{{< term http >}} frameworks commonly implement content negotiation through:
 
-- **Accept** header in requests: Clients indicate their preferred formats.
-- **Content-Type** header in responses: Specifies how to process the response.
+- **Accept** header in requests: Clients indicate their preferred response formats.
+- **Content-Type** header in responses: Specifies the format of the returned content and how it should be interpreted.
 
-For example, a `user` resource can conveniently be served as either **JSON** or **XML** data.
+For example, a `user` resource can be served as either **JSON** or **XML**
+based on the client's preference.
 
 ```d2
 shape: sequence_diagram
@@ -383,14 +321,14 @@ xc {
 ```
 
 {{< callout type="info" >}}
-**application/json** (JSON) or **text/xml** (XML) are HTTP conventions.
+**application/json** (JSON) and **text/xml** (XML) are HTTP media types.
 You may follow [this link](https://developer.mozilla.org/en-US/docs/Web/HTTP/MIME_types) to learn more about HTTP media types.
 {{< /callout >}}
 
-In a more complex use case, the `user` resource can be retrieved as:
+In a more complex use case, the `user` resource might be retrieved in different representations:
 
-- A simple version with minimal information to reduce computation and network bandwidth.
-- A full representation with the most recent orders.
+- A simple representation containing minimal information to reduce computation and network bandwidth.
+- A full representation containing additional information, such as the user's most recent orders.
 
 ```d2
 shape: sequence_diagram
@@ -416,25 +354,25 @@ fc {
 ```
 
 {{< callout type="info" >}}
-**application/vnd** stands for a vendor-specific prefix in HTTP.
-In practice, you may name whatever you like, but it should be consistent across resources.
+**application/vnd** is commonly used as a prefix for vendor-specific media types in HTTP.
+In practice, you may define your own media types, but their naming should remain consistent across resources.
 {{< /callout >}}
 
-Conveniently, we don’t need to create multiple resources for different shapes,
-as it can make the server unnecessarily complex.
-This capability can be also leveraged for [API Versioning](#api-versioning) in a later section.
+This approach conveniently avoids the need to create separate resources for different representations,
+which could otherwise make the server unnecessarily complex.
+The same capability can also be leveraged for [API Versioning](#api-versioning), discussed later.
 
 ## 4. Hypermedia As The Engine of Application State (HATEOAS)
 
 {{< term hate >}} is a key principle of {{< term rest >}}.
-Initially, the client needs minimal knowledge about the server,
-{{< term hate >}} suggests that the server can dynamically guide clients move between related
-resources based on the **hypermedia links** included in responses.
+Initially, the client needs only minimal knowledge of the server.
+{{< term hate >}} proposes that the server dynamically guides clients between related
+resources through **hypermedia links** included in responses.
 
-### Hypermedia links
+### Hypermedia Links
 
-For example, a user's orders might only contain the total number of orders with a link.
-The user can then follow the link to retrieve the actual orders.
+For example, a user's representation might include only the total number of orders and a link to them.
+The client can then follow that link to retrieve the actual orders.
 
 **GET /users/1234**:
 
@@ -453,8 +391,8 @@ The user can then follow the link to retrieve the actual orders.
 }
 ```
 
-Accessing orders at `/users/1/orders`, each order contains additional information to further navigate the client to
-get the detailed information.
+When accessing the orders at `/users/1/orders`, each order can contain additional links
+that guide the client toward more detailed information or available actions.
 
 **GET /user/1234/orders**:
 
@@ -479,59 +417,72 @@ get the detailed information.
 ]
 ```
 
-Resources contain hypermedia links that can be followed to transition the application **from state to state**.
-{{< term hate >}} makes the system more robust and self-discoverable,
-meaning clients don't need to hardcode knowledge of available endpoints;
-they are steadily guided by the backend.
+Resources contain hypermedia links that clients can follow to transition the application *from state to state*.
+{{< term hate >}} makes a system more self-discoverable and can improve its adaptability,
+because clients do not need to hardcode knowledge of every available endpoint;
+instead, they are progressively guided by the backend.
 
 ### HATEOAS Or Not?
 
-{{< term hate >}} is often considered the most challenging aspect of {{< term rest >}}.
-Many systems choose to **hardcode** links on the client side to simplify development, viewing {{< term hate >}} as unnecessary overhead. Additionally, hypermedia links can noticeably increase the bandwidth consumption of responses.
+{{< term hate >}} is often considered one of the most challenging aspects of {{< term rest >}}.
 
-Personally, I’ve rarely implemented {{< term hate >}}, except for certain convenient scenarios like pagination or linking to a detailed version of a resource.
+{{< term hate >}} can work naturally in **Server-side Rendering (SSR)** scenarios,
+where the server controls and returns complete views, such as {{< term html >}} pages,
+and users navigate between them by following links.
 
-For example, suppose we have a service providing `order` resource at `/users/{userId}/orders`.
-If one day, the resource is moved to `/orders/{userId}`, a client relying on response-provided links would remain unaffected,
-this is where {{< term hate >}} can help prevent disruptions.
+Outside browser environments built around **JavaScript** and **HTML**,
+such as backend services, mobile applications, and desktop applications,
+consuming HATEOAS-style resources can be less natural and more difficult to implement.
 
-However, this approach raises some concerns:
-
-- If the server changes the structure of a resource, the client might still break and require adjustments.
-- How do clients directly access a specific resource?
-  Imagine creating an entry endpoint (e.g. `/index`) listing all available interfaces.
-  If a client needs to reach a sub-resource, how would it determine its parent?
-  It would be inefficient to traverse multiple layers and handle several responses just to reach a single resource.
-
-Ultimately, I still rely on having a documented, up-to-date description of the active APIs.
-For this reason, I’ve rarely witnessed the practical benefits of {{< term hate >}} and often choose to ignore it.
-
-{{< term hate >}} may make sense in **Server-side Rendering (SSR)** scenarios, where the server fully controls and returns complete views (like {{< term html >}} pages).
-But this tightly couples the server and client, which can become problematic when the backend needs to serve different types of clients.
+Additionally, hypermedia links can noticeably increase response sizes and network bandwidth consumption.
+For these reasons, clients often choose to *hardcode* API paths to simplify development
+and instead rely on accurate, up-to-date API documentation.
 
 ## API Versioning
 
 {{< term apiv >}} is the practice of managing changes to an API without breaking existing clients.
-Clients can choose the version that suits them, enabling the server to evolve independently.
+Clients can choose the version that suits their requirements, allowing the server to evolve independently.
 
-Generally, a new version should be introduced if:
+Generally, a new version should be introduced when:
 
-- Functionality is removed, breaking compatibility.
-- Response or request structures are changed.
-- Integrity mechanisms are modified, e.g., authentication or authorization.
+- Functionality is removed in a way that breaks compatibility.
+- Request or response structures change incompatibly.
+- Integrity mechanisms, such as authentication or authorization, are modified in incompatible ways.
 
 There are several ways to version an API:
 
-1. Modifying {{< term uri >}} directly, e.g., `v1/users`, `v2/users`.
-   This approach brings about visibility in the URL, making it easy to use and debug.
-   However, it conceptually violates {{< term rest >}} principles since versions are not resources and should not be part of the {{< term uri >}}.
-2. Inserting directly versions into requests, e.g., through the `Accept` header.
-   This results in a clear and stable API hierarchy but more complex to implement and document.
+1. Modifying the {{< term uri >}} directly, e.g., `v1/users` and `v2/users`.
+   This approach is widely used because the version is clearly visible in the URL,
+   making the API straightforward to use, inspect, and debug.
+   However, it can be viewed as conceptually inconsistent with {{< term rest >}} principles,
+   since versions are not resources and therefore do not naturally belong in the {{< term uri >}}.
 
-### Version Deprecation
+2. Specifying the version within the request, e.g., through the `Accept` header.
+   This approach preserves a clean and stable resource hierarchy,
+   but it can be more complex to implement, use, and document.
 
-Managing multiple versions (`v1`, `v2`, `v3`, etc.) is challenging.
-It is crucial to ensure **backward capability** and enforce all versions to produce consistent results.
-Moreover, it makes the codebase grow dramatically.
-Therefore, we should announce deprecated versions and encourage consumers to upgrade to latest versions,
-including **deprecated points** (when to completely remove) and **migration guides**.
+### Version Upgrading
+
+Managing multiple versions such as `v1`, `v2`, and `v3` is challenging.
+When releasing a new version, we need to maintain *backward compatibility*,
+meaning the new service must continue supporting all versions that remain active.
+
+```d2
+direction: right
+v1: API v1 {
+    v1: "/v1"
+}
+v2: API v2 {
+    grid-rows: 1
+    v1: "/v1"
+    v2: "/v2"
+}
+v1 -> v2: Upgraded
+```
+
+This can be difficult because all supported versions must continue producing consistent results.
+Moreover, maintaining several versions can significantly increase the size and complexity of the codebase.
+
+Therefore, deprecated versions should be announced clearly, and consumers should be encouraged to migrate to newer versions.
+A deprecation plan should include *deprecation deadlines*, indicating when support will be removed,
+and *migration guides*, explaining how consumers can upgrade.

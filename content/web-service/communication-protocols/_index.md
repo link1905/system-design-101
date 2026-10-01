@@ -5,19 +5,19 @@ prev: service-cluster
 next: streaming-protocols
 ---
 
-The communication protocol fundamentally shapes the way a service is built.
-With so many types available, selecting the right one requires a thorough understanding of their workflows.
+The communication protocol fundamentally shapes how a service is designed and implemented.
+With so many options available, selecting the right one requires a thorough understanding of how each protocol works.
 
 ## Hypertext Transfer Protocol (HTTP)
 
 **Hypertext Transfer Protocol (HTTP)** is built on top of **Transmission Control Protocol (TCP)**
-and is widely regarded as the most common solution in many systems.
+and is one of the most widely used communication protocols in modern systems.
 
-The concept is simple: clients send a request and receive an associated response immediately.
+The concept is straightforward: a client sends a request and receives the corresponding response.
 
 ### HTTP/1.0
 
-The initial version of {{< term http  >}} establishes a separate {{< term tcp >}} connection for each request.
+The initial version of {{< term http >}} establishes a separate {{< term tcp >}} connection for each request.
 
 ```d2
 shape: sequence_diagram
@@ -37,16 +37,16 @@ c <-> s: Close the connection {
 }
 ```
 
-Creating a {{< term tcp >}} connection is **resource-intensive**,
+Establishing a {{< term tcp >}} connection is *resource-intensive*,
 especially when using [SSL/TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security).
-This becomes inefficient when clients need to make multiple requests simultaneously,
-as numerous connections will be established as a result.
+This becomes inefficient when clients need to make multiple requests,
+as a large number of connections must be established.
 
 ### HTTP/1.1
 
-{{< term http1 >}} introduced an improvement by keeping a connection open for a short duration before disposing of it.
+{{< term http1 >}} improved efficiency by keeping a connection open for a short period before closing it.
 This behavior is controlled by the [Keep-Alive](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive)
-header, which specifies the connection's lifespan.
+header, which determines how long the connection remains active.
 
 ```d2
 shape: sequence_diagram
@@ -67,18 +67,17 @@ c <-> s: ...
 c <-> s: Close the connection after 10 seconds {
   style.bold: true
 }
-
 ```
 
-{{< term http  >}} has some potential drawbacks:
+{{< term http >}} has several potential drawbacks:
 
-- **Synchronous limitation**: {{< term http  >}} requires waiting for the request to complete,
-  which is inefficient for long-running tasks better suited to the **asynchronous manner**.
-- **One-way communication**: Requests always originate from the client side,
-  with no mechanism for the server to actively send messages back.
+- **Synchronous limitation**: {{< term http >}} generally requires the client to wait for a request to complete,
+  making it inefficient for long-running tasks that are better handled *asynchronously*.
+- **One-way initiation**: Requests always originate from the client,
+  so the server cannot independently initiate communication with the client.
 
-However, the simplicity and lightweight make it beneficial in many scenarios.
-This protocol is ideal for **simplifying communication** between the client and server sides, such as in:
+However, its simplicity and lightweight nature make it highly effective in many scenarios.
+This protocol is particularly useful for **simplifying communication** between clients and servers, such as:
 
 - Client-facing services.
 - Public APIs exposed to external systems.
@@ -87,11 +86,10 @@ This protocol is ideal for **simplifying communication** between the client and 
 
 ### Short Polling
 
-To enable **bidirectional** communication with {{< term http  >}},
-a naive approach involves having clients continuously request to the server side to pull new notifications.
+To approximate **bidirectional** communication using {{< term http >}},
+a naive approach is to have clients continuously send requests to the server to check for new notifications.
 
 ```d2
-
 shape: sequence_diagram
 c: Client {
     class: client
@@ -107,16 +105,15 @@ c <- s: Yes, abc123 has sent you a message
 
 This approach is known as {{< term spoll >}}.
 It is highly inefficient in terms of bandwidth,
-hundreds of requests might be made just to retrieve a single notification.
+as hundreds of requests may be sent just to retrieve a single notification.
 
 ### Long Polling
 
-To improve efficiency, the server side should hold requests for a **short duration** before responding,
-this brief retention significantly reduces the number of unnecessary requests.
+To improve efficiency, the server can hold a request for a *short period* before responding.
+This brief delay significantly reduces the number of unnecessary requests.
 This pattern is known as {{< term lpoll >}}.
 
 ```d2
-
 shape: sequence_diagram
 c: Client {
     class: client
@@ -144,25 +141,23 @@ c <- s: Respond to the client immediately {
 }
 ```
 
-{{< term lpoll >}} is a traditional method for real-time notifications from the server side.
-Since requests originate from the client side, {{< term lpoll >}} is well-suited for:
+{{< term lpoll >}} is a traditional technique for delivering near-real-time notifications from the server.
+Because requests still originate from clients, {{< term lpoll >}} is well-suited for:
 
-- **Decoupling** the server from the client side and increasing its availability.
-- **Back pressure-aware clients**,
-  allowing them to control their polling behavior autonomously,
-  such as setting delays between polls or specifying the number of messages per poll.
+- **Decoupling** the server from the client. Clients determine when to retrieve messages,
+  so the server does not need to "seek" active client connections within the system.
+- **Backpressure-aware clients**,
+  allowing clients to control their polling behavior independently,
+  such as introducing delays between polls or specifying how many messages to retrieve per request.
 
-{{< term lpoll >}} is best implemented as a **stateless** service.
-Connections are short-lived; clients can conveniently switch to any server to crawl data from a shared store.
+{{< term lpoll >}} is best implemented using a *stateless service*.
+Because connections are short-lived, clients can easily switch between service instances and retrieve data from a shared store.
 
-For example, the instances of a stateless service share and poll the same store.
+For example, instances of a stateless service can share and poll the same store.
 
 ```d2
-grid-rows: 2
-
 s: Service {
-  grid-rows: 1
-  horizontal-gap: 150
+  vertical-gap: 100
   i1: Instance 1 {
     class: server
   }
@@ -172,41 +167,33 @@ s: Service {
   i2: Instance 2 {
     class: server
   }
-  i1 <- s: 3. Pull
+  i1 <- s: Pull {
+    style.animated: true
+  }
   i2 -> s: 2. Update
 }
-c: "" {
-  class: none
-  grid-rows: 1
-  horizontal-gap: 200
-  c: Client {
-    class: client
-  }
-  o: Another service {
-    class: server
-  }
+c: Client {
+  class: client
 }
-
-c.c <- s.i1: Periodically pull {
+o: Another service {
+  class: server
+}
+c <- s.i1: Pull {
   style.animated: true
 }
-c.o -> s.i2: 1. Send message to the client
+o -> s.i2: 1. Send message to the client
 ```
 
-Despite being more efficient than {{< term spoll >}}, {{< term lpoll >}} remains **resource-intensive**,
-often generating many redundant requests before retrieving any actual piece of data.
-
-Furthermore, it doesn't fully provide the **real-time capability**.
-Since clients decide when to pull data, making messages can’t be transmitted immediately after their creations.
+However, this model does not provide true *real-time communication*.
+Because clients determine when to retrieve data, messages cannot necessarily be delivered immediately after they are created.
 
 ## WebSocket
 
-This is a more modern technology than {{< term lpoll >}}.
-In short, a {{< term ws >}} server maintains **long-lived connections**,
-allowing both sides to actively exchange messages through these connections.
+{{< term ws >}} is a newer technology than {{< term lpoll >}}.
+In short, a {{< term ws >}} server maintains *long-lived connections*,
+allowing *both sides* to actively exchange messages over the same connection.
 
 ```d2
-
 shape: sequence_diagram
 c: Client {
     class: client
@@ -215,26 +202,27 @@ s: WebSocket {
     class: server
 }
 c <-> s: Establish a connection
-s --> c: Server send message
-c --> s: Client send message
-c <-> s: "...More actions on the connection..."
+s --> c: Server sends message
+c --> s: Client sends message
+c <-> s: "...More actions on the connection..." {
+  style.animated: true
+}
 ```
 
-Basically, {{< term ws >}} offers better performance than {{< term lpoll >}} by exchanging messages only when necessary,
-resulting in lower latency and reduced bandwidth usage.
-It's excellent for bidirectional and low-latency communication, e.g., gaming service, chat service.
+In general, {{< term ws >}} provides lower latency than {{< term lpoll >}} because the connection is already established and ready for communication.
+It is particularly well-suited for bidirectional, low-latency applications such as gaming and chat services.
 
-Some critical drawbacks of {{< term ws >}} include:
+Some important drawbacks of {{< term ws >}} include:
 
-- **Availability**: the server side depends on the client side and worsens its availability.
-- **Resource utilization**: a {{< term ws >}} connection is long-lived and tied to a specific server,
-  making it bad for resource utilization.
-  For example, a client relentlessly interacts with a fixed server,
-  making others slack;
-  although it's better to distribute and share the load among them.
+- **Availability and routing complexity**: When a service cluster distributes client connections across multiple instances,
+  an instance receiving a message may need to locate and forward it to the instance holding the target client's connection.
+  This additional coordination increases system complexity and can affect availability.
+- **Resource utilization**: A {{< term ws >}} connection is long-lived and remains tied to a specific server,
+  which can lead to uneven resource utilization.
+  For example, one client may continuously interact with a single server while other instances remain underutilized,
+  even though distributing the workload across instances would be more efficient.
 
 ```d2
-
 c1: Client 1 {
     class: client
 }
@@ -257,13 +245,14 @@ c1 -> s.i1: Tied to {
 
 ### Stateful Misconception
 
-Do you think maintaining long-lived connections makes a service stateful?
-The answer is no!
+Does maintaining long-lived connections automatically make a service stateful?
+The answer is no.
 
-The communication protocol doesn't represent this property,
-{{< term sf >}} or {{< term sl >}} is actually based on **how we implement** the service.
-Get back to the chat example in the [previous topic]({{< ref "service-cluster#stateful-service" >}}),
-we've mentioned it as a stateful service due to keeping user connections on different servers.
+The communication protocol itself does not determine whether a service is {{< term sf >}} or {{< term sl >}}.
+That property depends on *how the service is implemented*.
+
+Returning to the chat example in the [previous topic]({{< ref "service-cluster#stateful-service" >}}),
+we described it as a stateful service because user connections were maintained by specific servers.
 
 ```d2
 direction: right
@@ -292,12 +281,13 @@ c.ca <-> system.s1: Connecting
 c.cb <-> system.s2: Connecting
 ```
 
-Let's approach from a different angle.
-Instead of sending messages directly between instances,
-we let them periodically pull from a shared store.
-Now, it's stateless!
-All instances perform the same;
-it doesn't matter which one a client connects to.
+Now, consider a different approach.
+Instead of forwarding messages directly between instances,
+each instance periodically retrieves messages from a shared store.
+
+The service can now be stateless.
+Every instance behaves identically,
+so it does not matter which instance a client connects to.
 
 ```d2
 direction: left
@@ -315,10 +305,10 @@ s: Service {
   i2: Instance 2 {
     class: server
   }
-  i1 <- s: Pull {
+  i1 <- s {
     style.animated: true
   }
-  i2 <- s: Pull {
+  i2 <- s {
     style.animated: true
   }
 }
@@ -329,22 +319,20 @@ c1 <- s.i1
 c2 <- s.i2
 ```
 
-### Use Cases
+In practice,
+{{< term ws >}} services are often implemented as stateful services
+because WebSocket is frequently used for *real-time communication*,
+where messages should be delivered immediately after they are created.
 
-In fact, people tend to use {{< term ws >}} for **real-time notification**,
-when messages are delivered immediately after their creation.
-An indirect paradigm (e.g., polling) is impossible for
-the task as it creates brief delays;
-a direct and stateful model is mandatory.
+A polling-based approach is less suitable for such workloads because it introduces delays, even if those delays are brief.
+For strict real-time delivery, maintaining connection-related state is often necessary.
 
 ## Server-Sent Events
 
-As the name suggests, **Server-Sent Events (SSE)** is a **half-duplex** protocol,
-that means it maintains **long-lived connections** yet
-only allowing data to be sent from the server side.
+As the name suggests, **Server-Sent Events (SSE)** provides *unidirectional* communication.
+It maintains a *long-lived connection* while allowing data to flow only from the server to the client.
 
 ```d2
-
 shape: sequence_diagram
 c: Client {
     class: client
@@ -357,40 +345,42 @@ s --> c: Send message
 s --> c: Send message
 ```
 
-Behind the scenes, {{< term sse >}} is built on top of the {{< term http  >}} protocol.
-Thus, developing and maintaining an SSE application is simpler than {{< term ws >}},
-as it can leverage existing {{< term http  >}} tools, such as connection management and caching.
+Behind the scenes, {{< term sse >}} is built on top of the {{< term http >}} protocol.
+As a result, developing and maintaining an SSE application is generally simpler than using {{< term ws >}},
+because it can leverage existing {{< term http >}} infrastructure and tooling.
 
-Additionally, a unidirectional connection incurs **less overhead** than a full-duplex connection.
-{{< term sse >}} is recommended if the application only needs to send data from the server side,
-e.g., live scores, news websites.
+Additionally, unidirectional communication typically incurs less overhead than full-duplex communication.
+{{< term sse >}} is therefore a good choice when an application only needs to push data from the server to the client,
+such as for live scores or news feeds.
 
-Similar to {{< term ws >}} (maintaining long-lived connections),
-{{< term sse >}} also introduces the same problems about coupling and resource balancing.
+Similar to {{< term ws >}}, {{< term sse >}} maintains long-lived connections
+and therefore introduces similar challenges related to connection affinity and resource balancing.
 
 ## Google Remote Procedure Call (gRPC)
 
-{{< term grpc >}} is a modern technology developed by `Google`,
-enabling both bidirectional and unidirectional
-communication over **Remote Procedure Call (RPC)** and {{< term http2 >}} protocol.
+{{< term grpc >}} is a modern technology developed by `Google`
+that supports both bidirectional and unidirectional communication
+using **Remote Procedure Call (RPC)** over the {{< term http2 >}} protocol.
 
 ### Remote Procedure Call (RPC)
 
-Normally, to call an {{< term http >}} endpoint,
-an application must handle various details, such as the URI, headers, and parameters to construct a proper **request string**.
-While this approach offers flexibility, it can also be complex and prone to errors.
+When calling a conventional {{< term http >}} endpoint,
+an application must typically handle several details, such as the URI, headers, and parameters,
+to construct a valid request.
+Although this approach provides flexibility, it can also introduce complexity and increase the likelihood of errors.
 
 ```http
 GET /docs?name=README&team=dev HTTP/2
 ```
 
-In contrast, {{< term rpc >}} is more structured,
-requiring both the client and server to agree on a **shared contract** representing exposed endpoints.
-This contract is usually built as a shared library,
-making the interaction convenient, like working with local functions.
+In contrast, {{< term rpc >}} provides a more structured communication model,
+requiring both the client and server to agree on a *shared contract* that defines the exposed operations.
 
-For example, the `Chat Service` exposes a `Chat` function;
-This exposure is wrapped as a shared library for consumers.
+This contract is typically used to generate client and server code,
+making remote interactions resemble calls to local functions.
+
+For example, suppose the `Chat Service` exposes a `Chat` function.
+The service contract can define the function and its request and response types for consumers.
 
 ```proto
 // Exchange schema
@@ -411,30 +401,28 @@ var chatService = new ChatService();
 var chatResponse = chatService.Chat(new ChatRequest("Hello Bro!"));
 ```
 
-Another advantage of {{< term rpc >}} is **fast serialization**.
-Typically, {{< term json >}} and {{< term xml >}} are commonly used to exchange data due to
-their versatility across many use cases,
-but their serialization process is slow because they are text-based and unstructured.
-With a prepared definition, {{< term rpc >}} can optimize by pre-generating
-a byte-based efficient serializer, such as [Protocol Buffers](https://protobuf.dev/overview/).
+Another advantage of {{< term rpc >}} is efficient serialization.
+Formats such as {{< term json >}} and {{< term xml >}} are commonly used for data exchange because of their flexibility and broad compatibility,
+but text-based representations are generally larger and more expensive to process than compact binary formats.
+With a predefined schema, {{< term rpc >}} frameworks can generate efficient binary serializers,
+such as [Protocol Buffers](https://protobuf.dev/overview/).
 
-One drawback of {{< term rpc >}} is the **coupling** it creates between the server and client sides.
-Any change in the contract requires redeployment on both ends.
-Therefore, {{< term grpc >}} is rarely used for public-facing applications,
-when a server may serve multiple types of clients.
+One drawback of {{< term rpc >}} is its reliance on shared contracts and strict schemas, which can create friction for clients we don't control.
+For this reason, {{< term grpc >}} is more commonly used for controlled service-to-service communication than for public-facing services.
 
 ### HTTP/2
 
-{{< term http1 >}} establishes a connection between the server and client,
-with all data transferred **in order** through this pipeline.
-To enhance, {{< term http2 >}} divides a connection into **independent streams**,
-allowing multiple requests and responses to be sent concurrently.
+{{< term http1 >}} uses a connection between the client and server,
+with requests and responses transferred through that connection.
+
+{{< term http2 >}} improves this model by dividing a connection into *independent streams*,
+allowing multiple requests and responses to be transmitted concurrently.
+
 For example:
 
-- In the {{< term http1 >}} context, `dog.png` is only downloaded after `index.html` has been fetched.
-
-- In the {{< term http2 >}} context, the requests are sent simultaneously through `Stream 1` and `Stream 2`,
-and the resources can be downloaded together.
+- In the {{< term http1 >}} example, `dog.png` is requested only after `index.html` has been fetched.
+- In the {{< term http2 >}} example, both requests can be transmitted concurrently through `Stream 1` and `Stream 2`,
+  allowing the resources to be downloaded in parallel.
 
 ```d2
 "HTTP/1.1" {
@@ -469,34 +457,40 @@ http2: "HTTP/2" {
 }
 ```
 
-Behind the scenes, it still uses a single {{< term tcp >}} connection, with each message tagged by a **Stream ID**.
-Messages with the same **Stream ID** are reassembled together, allowing multiple streams to run in parallel over one connection.
+Behind the scenes, {{< term http2 >}} still uses a single {{< term tcp >}} connection,
+with frames associated with individual **Stream IDs**.
+Frames belonging to the same stream can be reassembled independently,
+allowing multiple logical streams to share a single connection concurrently.
 
 ### Use Cases {id="grpc_use_cases"}
 
-Back to {{< term grpc >}}, it's a protocol built on top of {{< term http2 >}} and {{< term rpc >}},
-making it highly efficient for transmitting **parallel requests** simultaneously.
+Returning to {{< term grpc >}},
+it is built on top of {{< term http2 >}} and {{< term rpc >}},
+making it highly effective for handling multiple concurrent requests and streams.
 
-Similar to {{< term ws >}} and {{< term sse >}}, {{< term grpc >}} also maintains **long-lived connections**.
-However, the more complex the network connection is, the more resources it consumes.
-{{< term grpc >}} generally requires more computing power to manage parallel transmissions and assemble responses.
-If the service doesn't require parallelism but valuing in-ordered actions,
-consider using {{< term ws >}} or {{< term sse >}} instead.
+Similar to {{< term ws >}} and {{< term sse >}},
+{{< term grpc >}} can also maintain *long-lived connections*.
+
+However, more sophisticated communication patterns generally require additional processing and connection management.
+{{< term grpc >}} may therefore consume more computational resources when handling large numbers of concurrent streams and messages.
+
+If a service does not require RPC semantics or multiplexed request-response streams
+and instead primarily needs ordered message exchange,
+{{< term ws >}} or {{< term sse >}} may provide a simpler communication model, depending on whether communication needs to be bidirectional or server-to-client only.
 
 ## Webhook
 
-{{< term wh >}} is an effective protocol for handling **long-running requests**.
-Its concept is similar to a function pointer in programming.
+{{< term wh >}} is an effective mechanism for handling *long-running or asynchronous operations*.
+Conceptually, it resembles a callback function in programming.
 
-The client side registers callbacks (usually a {{< term url >}}) with the server,
-later invoked to notify responses.
+The client registers a callback endpoint, usually a {{< term url >}}, with the server.
+The server can later invoke that endpoint when an event occurs or a result becomes available.
 
-For example, a client registers with an address.
+For example, a client may register a callback address.
 Whenever the server needs to notify the client,
-it will request to `site.com/callback`.
+it sends a request to `site.com/callback`.
 
 ```d2
-
 shape: sequence_diagram
 c: Client {
     class: client
@@ -512,25 +506,78 @@ s --> s: The client has a new notification
 s --> cb: "/callback"
 ```
 
-This approach is ideal for tasks with **unpredictable execution time**,
-helping avoid resource waste due to long waits.
-For example, in payment processing,
-when a client pays,
-it may pass through multiple banking systems (possibly different countries),
-and that can take a long time to complete.
+This approach is particularly useful for tasks with *unpredictable execution times*,
+because it avoids wasting resources while clients wait for completion.
 
-{{< term wh >}} is an elegant protocol.
-It's highly efficient for real-time notification by reducing server load,
-as data is sent only when events occur,
-without the need for long-lived connections or polling mechanisms.
+For example, during payment processing,
+a transaction may pass through multiple banking systems, potentially across different countries,
+and may therefore take an unpredictable amount of time to complete.
 
 ### Use Cases {id="webhook_use_cases"}
 
-Miserably, this is impractical for serving end users,
-as they typically don't have a **public address** for the callback purpose.
-Furthermore, in this model,
-the server side becomes the originator, and its availability is negatively impacted.
+{{< term wh >}} provides an efficient event-driven communication model.
+Data is transmitted only when an event occurs,
+eliminating the need for continuous polling or long-lived client connections.
 
-In practice, this protocol is often used to support external services, like **Stripe Payments**,
-where the system interacts with numerous uncontrolled clients.
-In such cases, solutions like a live {{< term ws >}} server or {{< term lpoll >}} would consume significant resources.
+This approach is commonly used by intermediary systems that communicate with numerous trusted external clients,
+such as **Stripe Payments**.
+
+However, webhooks are generally impractical for directly serving end users,
+because end-user devices typically do not expose a stable *publicly reachable address* that can receive callbacks.
+
+Furthermore, because the server initiates requests to client-provided endpoints,
+webhook systems must carefully address security concerns such as authentication, endpoint validation, and request verification.
+
+## HTTP Live Streaming (HLS) {id=hls}
+
+We've highlighted some of the most popular protocols in the previous sections.
+While they are versatile and suitable for a wide range of use cases, they aren't specifically optimized for streaming media such as video and audio.
+
+{{< term hls >}} is a media streaming protocol developed by **Apple** for efficiently delivering video and audio content.
+Unlike protocols such as {{< term ws >}}, which typically rely on a persistent connection between the client and a server, {{< term hls >}} delivers media as a sequence of independent files over HTTP.
+This design makes it well suited for distributed delivery through web servers and CDNs.
+
+HLS works through **segmentation**, splitting audio or video into small, independent segments, typically a few seconds long.
+
+- These segments can be stored independently and distributed across multiple servers.
+- A **playlist**, usually an `.m3u8` file, describes the available segments and their locations.
+
+```d2
+grid-rows: 2
+m: Playlist {
+  grid-rows: 1
+  grid-gap: 0
+  s1: "Segment 1 (Length = 5s)"
+  s2: "Segment 2 (Length = 5s)"
+  s3: "Segment 3 (Length = 3s)"
+}
+s: Storage {
+  grid-rows: 1
+  s1: Server 1 {
+    grid-rows: 1
+    s1: "Segment_1.mp4" {
+        class: file
+    }
+    s2: "Segment_2.mp4" {
+        class: file
+    }
+  }
+  s2: Server 2 {
+    s3: "Segment_3.mp4" {
+        class: file
+    }
+  }
+}
+
+m.s1 -> s.s1.s1
+m.s2 -> s.s1.s2
+m.s3 -> s.s2.s3
+```
+
+To play a video, the client first **fetches the playlist** to determine which media segments are available and where to retrieve them.
+When seeking to a specific point in the video, the client can request the segment containing that point instead of downloading the entire media file.
+
+For example, with the segments shown above, seeking to the `11th` second would require `Segment_3.mp4`, since the first two segments cover the first 10 seconds.
+In practice, clients usually buffer several sequential segments in advance to provide smooth, uninterrupted playback.
+
+We'll discuss the storage aspect in more detail in a [later topic]({{< ref "media-storage" >}}).

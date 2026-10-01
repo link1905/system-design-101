@@ -88,7 +88,7 @@ dc: Database cluster {
 
 However, this paradigm does not enhance write throughput.
 Every write operation must still be synchronized across all nodes in the cluster.
-This contrasts with read replicas, where each read request can be independently handled by a single replica.
+This contrasts with read replicas, where each read request can be independently handled by a single or some replicas.
 
 The key advantage of a **Multi-Master** setup lies in higher availability.
 If one master fails, others can continue to process writes, avoiding downtime.
