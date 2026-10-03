@@ -4,16 +4,16 @@ weight: 20
 next: caching-patterns
 ---
 
-This section delves into simpler protocols that operate abstractly,
+This section explores simpler protocols that operate at a higher level of abstraction,
 without relying on low-level concepts.
 
-In essence, **Compensation Protocols** enable transactions to commit data in a **reversible** manner.
+**Compensation Protocols** enable transactions to commit data in a **reversible** manner.
 If an issue arises later, these transactions can roll back the system by compensating for the previously committed changes.
 
 Designing these protocols is challenging because they don't inherently meet the **Isolation** requirement.
 The **Commit** and **Compensate** phases often behave as if they are parts of **separate transactions**.
 If the design is flawed, other operations might update data before the **Compensate** phase.
-This can lead to the use of skewed data and the generation of inconsistencies.
+This can lead to operations using inconsistent data and producing further inconsistencies.
 Furthermore, this separation makes it impossible to provide **Strong Consistency**,
 a strict requirement in some critical systems.
 
@@ -23,12 +23,12 @@ a strict requirement in some critical systems.
 It also involves two phases coordinated by a central entity:
 
 1. **Try**: The coordinator instructs participants to perform **tentative** actions, such as reserving resources.
-It's important to note that data is **actually committed** during this phase, not merely marked as dirty data.
+Data is **actually committed** during this phase, not merely marked as dirty data.
 
 2. **Confirm or Cancel**:
 
     - **Confirm**: If all participants successfully complete their **Try** actions,
-    the coordinator requests them to confirm, thereby finalizing the rest of the operations.
+    the coordinator asks them to confirm and finalize the remaining operations.
     - **Cancel**: If any participant fails to prepare, other participants will revert their changes.
 
 Consider a transaction transferring money between accounts located on different servers:
@@ -40,7 +40,7 @@ Consider a transaction transferring money between accounts located on different 
 During the **Try** phase, the coordinator initiates the transaction by sending `Try` requests to all participating services (in this case, both banks).
 
 - `Account A`'s balance is decreased by the transaction amount.
-- The system verifies if `Account B` is valid and can receive funds.
+- The system verifies that `Account B` is valid and can receive funds.
 
 ```d2
 shape: sequence_diagram
@@ -63,10 +63,10 @@ s2: Server B (Account B) {
 
 ### Confirm Phase
 
-If all participants successfully complete their `Try` operations.
-It sends `Confirm` requests to all participants to finalize the transaction.
+If all participants successfully complete their `Try` operations,
+the coordinator sends `Confirm` requests to all participants to finalize the transaction.
 
-In this example, `Account B` will now definitively increase its balance by the amount debited from Account A.
+In this example, `Account B`'s balance increases by the amount debited from `Account A`.
 The transaction is considered successful and complete.
 
 ```d2
@@ -121,7 +121,7 @@ s2: Server B (Account B) {
 
 "2. Cancel (If any no)" {
     s1 -> c: Yes
-    s2 -> c: No (B is being blocked by the bank){
+    s2 -> c: No (B is blocked by the bank) {
         class: error-conn
     }
     c -> s1: Compensate balance = balance + amount {
@@ -133,15 +133,15 @@ s2: Server B (Account B) {
 {{% /steps %}}
 
 You might wonder why Account A's balance is updated in the **Try** phase, but Account B's is not.
-The **Try** phase must not introduce harmful effects to the system.
+The **Try** phase must not introduce harmful effects into the system.
 It would be a poor design to increase Account B's balance initially,
-as this temporary increment shouldn't be usable until it's validated.
+as these temporarily credited funds shouldn't be available for use until the transaction is validated.
 
 Similar to **2PC**,
 the primary advantage of **TCC** is its support for parallel processing,
 allowing steps to be performed simultaneously.
-However, **TCC** creates tight couplings between services because they need to expose low-level **Try-Confirm-Cancel** interfaces.
-This necessitates a deep understanding of the participating services.
+However, **TCC** creates tight coupling between services because they need to expose low-level **Try-Confirm-Cancel** interfaces.
+This requires a deep understanding of the participating services.
 
 ## Saga Pattern
 
@@ -152,18 +152,18 @@ If any step fails, the process moves backward to compensate for the preceding su
 For instance, imagine an e-commerce system with three services. When a user places an order with the `Order Service`:
 
 1. The `Order Service` creates the order record.
-2. The `Stock Service` reduces the quantity of the ordered items.
+2. The `Stock Service` reduces the available stock of the ordered items.
 3. The `Payment Service` completes the payment.
 
-There are two primary ways to implement this request using **Saga**:
+There are two primary ways to implement this workflow using **Saga**:
 
 ### Orchestration Saga
 
 In this approach, a central coordinator is established, much like in **TCC** or **2PC**.
 The coordinator executes the actions in sequence.
-If any action fails, it orchestrates the backward compensation of previous actions.
+If any action fails, it coordinates compensation for previous actions in reverse order.
 
-When everything proceeds smoothly, the process might look like this:
+When all steps succeed, the process might look like this:
 
 ```d2
 shape: sequence_diagram
@@ -221,17 +221,17 @@ o -> o: "InvalidateOrder()" {
 This seems straightforward, as it mirrors real-life sequential processes without partial operations or locking.
 
 Again, why is the payment processed last?
-Payment features are often implemented via third-party solutions.
+Payment processing often relies on third-party solutions.
 Executing the payment earlier would make compensation more difficult.
 Therefore, internal tasks are typically completed first.
 
-However, this sequential nature means the **Saga** pattern, does not inherently support **parallelism**.
-A transaction's operations must be performed in order, even if some could be productively parallelized.
+However, this sequential nature means the **Saga** pattern does not inherently support **parallelism**.
+A transaction's operations must be performed in order, even if some could benefit from parallel execution.
 
 ### Choreography Saga
 
 **Choreography Saga** implements the pattern asynchronously.
-A transaction is completed through the collaboration of relevant events exchanged along the way.
+A transaction is completed as services react to events exchanged throughout the workflow.
 
 Continuing with the e-commerce example, services communicate implicitly through an event stream:
 
@@ -312,7 +312,7 @@ potentially making the source code difficult to understand and maintain.
 Although **Choreography** can enhance availability and decouple the system,
 its complexity can be overwhelming and may outweigh the benefits.
 Moreover, **Saga** is inherently slower due to its sequential nature,
-and the **Choreography** approach can exacerbate this with its indirect communication paradigm.
+and the **Choreography** approach can increase this overhead through indirect communication.
 
 ## Saga Modelling
 
@@ -320,25 +320,25 @@ As stated earlier, **Saga** is a compensation protocol and does not offer the **
 Before compensation occurs, dirty data can create vulnerabilities in the system.
 Therefore, the most critical aspect of **Saga** is defining a safe and reliable workflow.
 
-1. First and foremost, it's crucial to adopt the mindset that any step can **fail** occasionally.
+1. First, assume that any step can **fail**.
 When a step fails, we must ensure it doesn't jeopardize the system.
 
 2. Second, not every step in a workflow can be compensated, especially when external factors are involved.
 Imagine a step that transfers money to a user's bank account.
 Reverting this step would require retrieving the amount from the bank,
-which is nearly impossible as a bank typically won’t permit withdrawals without user consent.
+which is nearly impossible as a bank typically won't permit withdrawals without user consent.
 
-Hence, in a saga, actions should be categorized into three groups:
+In a saga, actions should be categorized into three groups:
 
 1. **Compensable Action**: Can be rolled back using a corresponding compensation action if necessary.
-These are usually internal workloads that can readily invalidate previous actions.
+These are usually internal operations whose effects can readily be reversed.
 2. **Pivot Action**: Represents a **point of no return** in a workflow. Once it succeeds,
 all subsequent actions must be completed, and **no compensation** can be applied.
 It's typically the last **Compensable** action in a sequence.
 3. **Retryable Action**: Can be safely retried multiple times without causing inconsistencies.
 This action is irreversible and is expected to be **retried** until successful.
 
-Essentially, Saga workflows are designed as follows.
+Saga workflows are designed as follows:
 After the pivot step is completed, compensation is no longer an option.
 
 ```d2
@@ -397,12 +397,12 @@ s: "" {
 }
 ```
 
-Back to the e-commerce example, we'll sort the transactions as follows
+Returning to the e-commerce example, we'll arrange the steps as follows:
 
-1. The `Order Service` makes an order `CreateOrder()`.
-2. The `Stock Service` reserves the number of ordered items `ReserveItem()`.
-3. The `Payment Service` processes the payment `ProcessPayment()`.
-4. Finally, the `Delivery Service` creates a request `CreateDeliveryRequest()`.
+1. The `Order Service` creates an order using `CreateOrder()`.
+2. The `Stock Service` reserves the ordered items using `ReserveItems()`.
+3. The `Payment Service` processes the payment using `ProcessPayment()`.
+4. Finally, the `Delivery Service` creates a delivery request using `CreateDeliveryRequest()`.
 
 ```d2
 grid-rows: 2
@@ -472,19 +472,19 @@ s: Saga {
 }
 ```
 
-The first two steps are internal processes, they're safe to compensate.
-Payment and delivery requirements usually depend on third-party solutions,
-it may be not feasible to revert them.
-After the payment step is finished, we have to guarantee the completion of the final step.
+The first two steps are internal processes, so they are safe to compensate.
+Payment and delivery operations usually depend on third-party solutions,
+so it may not be feasible to reverse them.
+After the payment step succeeds, we must guarantee completion of the final step.
 
 However, this workflow varies based on the system.
-If the delivery task is a part of the system, we may place it before the payment step.
+If the delivery task is handled internally, we may place it before the payment step.
 
 ### Saga Serialization Anomalies
 
-Normally, multiple sagas can be executed concurrently and modify the same data.
-That easily leads to serialization anomalies,
-like what we've discussed in the [Concurrency Control]({{< ref "concurrency-control" >}}) topic.
+Multiple sagas can execute concurrently and modify the same data.
+This can lead to serialization anomalies,
+like those discussed in the [Concurrency Control]({{< ref "concurrency-control" >}}) topic.
 
 We'll briefly consider some common anomalies and how to resolve them.
 
@@ -494,7 +494,7 @@ The first anomaly is **Dirty Read**.
 Similar to a rollback,
 the compensation phase can cause data to become **dirty** for transactions that read it before compensation.
 
-Let's consider an example: When a user places a large order, a discount voucher is issued to them.
+Consider an example: when a user places a large order, they receive a discount voucher.
 
 ```d2
 shape: sequence_diagram
@@ -535,7 +535,7 @@ o -> v: "DeleteVoucher()" {
 The result is unexpected because an invalid voucher was used. There are several ways to resolve this:
 
 1. **Rearrange the flow**: Move the voucher creation to the **Retryable** phase.
-Although it's an internal and compensable workload,
+Although it's an internal and compensable operation,
 its potential for causing issues makes it safer in the **Retryable** phase.
 
     This solution is known as the **Pessimistic View**,
@@ -553,9 +553,9 @@ its potential for causing issues makes it safer in the **Retryable** phase.
     o -> v: "3. CreateVoucher()"
     ```
 
-2. **Lock data**: Employ a flag field that acts as a lock.
+2. **Lock data**: Use a status field that acts as a lock.
 For example, when a new voucher is created, its state is set to `Pending`, marking it as unavailable for use.
-When the saga that created the voucher completes successfully, it changes the state to `Approved`, allowing usage.
+When the saga that created the voucher completes successfully, it changes the state to `Completed`, allowing the voucher to be used.
 
     This solution is called **Semantic Locking**, where application-level locking is implemented to prevent anomalies.
 
@@ -580,21 +580,20 @@ When the saga that created the voucher completes successfully, it changes the st
         style.bold: true
     }
     v {
-        "state = Approved"
+        "state = Completed"
     }
     ```
 
-The second approach may be a bit overhead for this example.
-Let's move to the next anomaly to see its real power.
+The second approach may add unnecessary overhead in this example.
+The next anomaly illustrates its benefits more clearly.
 
 #### Lost Update
 
-The next anomaly is **Lost Update**.
-This is a specific case of [Write Skew]({{< ref "concurrency-control#write-skew" >}}),
+The next anomaly is **Lost Update**,
 where updates are unexpectedly overwritten by other concurrent operations.
 
-For example, the `OrderService` creates an order, which is marked `Approved` at the end of its saga.
-However, in the interim, a `CancelOrder Saga` executes and sets the order's state to `Cancelled`.
+For example, the `OrderService` creates an order, which is marked `Completed` at the end of its saga.
+However, in the meantime, a `CancelOrder Saga` executes and sets the order's state to `Cancelled`.
 Consequently, the `CreateOrder Saga` might overwrite the change from the `CancelOrder` saga,
 resulting in a cancelled order still being processed by the system.
 
@@ -633,7 +632,7 @@ o {
    "state = Pending"
 }
 o -> p: "2. ProcessPayment()"
-c -> o: "Fails to set state = Cancelled of a pending order" {
+c -> o: "Cannot set a pending order's state to Cancelled" {
     class: error-conn
 }
 o -> o: "3. CompleteOrder()" {
@@ -644,9 +643,9 @@ o {
 }
 ```
 
-**Semantic Locking** is nothing but a distributed lock,
-reducing parallelism and negatively affecting the performance.
-In the first place, we should design a reliable flow and limit locking instead.
+**Semantic Locking** is nothing but a lock,
+reducing parallelism and negatively affecting performance.
+We should prioritize designing a reliable workflow and minimizing locking.
 
 ## Saga Transaction Recovery
 
@@ -656,7 +655,7 @@ Both the coordinator and participating services can crash at any time.
 Therefore, they must persist the state of transactions to enable retries if necessary.
 
 Making transactions **idempotent** (where each transaction is marked with a **unique identifier**)
-is an effective way to prevent duplications and aid in transaction recovery upon failure.
+is an effective way to prevent duplicate processing and support transaction recovery after a failure.
 
 ### Coordinator Recovery
 
@@ -734,7 +733,7 @@ The **Consume-Process-Produce Pipeline** is applicable when a service's changes 
 ```d2
 shape: sequence_diagram
 
-c: Coordinator {
+c: Order Service {
     class: server
 }
 sp: Event Stream {
@@ -749,7 +748,7 @@ c -> sp: Commit
 
 #### Transactional Outbox Pattern
 
-Another challenge with **Choreography Saga** is ensuring that database changes are effectively published as events.
+Another challenge with **Choreography Saga** is ensuring that database changes are reliably published as events.
 For example, when a transaction is executed in an internal data store,
 we want to publish an associated event indicating its completion.
 
@@ -772,7 +771,7 @@ s -> e: Publish event
 The **Transactional Outbox Pattern** addresses this by storing external calls (event publications) as part of the internal database transaction.
 
 For example, the transaction that creates an order also creates an associated record in the **Outbox** table,
-instead of immediately firing the event.
+instead of immediately publishing the event.
 
 ```d2
 s: Order Service {
@@ -826,4 +825,4 @@ s -> store.e: 3. Set State = Complete {
 ```
 
 If the relay process crashes before updating the outbox record in the third step, it might publish the event **twice**.
-Fortunately, consumers can use an idempotency key (e.g., `OrderId`) to check for and ignore duplicated events.
+Fortunately, consumers can use an idempotency key (e.g., `OrderId`) to detect and ignore duplicate events.

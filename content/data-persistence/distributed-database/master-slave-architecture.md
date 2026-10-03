@@ -10,7 +10,7 @@ To meet this demand,
 we can design a database architecture with a single writer (**Primary**) and multiple readers (**Replicas**).
 
 - The writer propagates changes to the replicas.
-- The replicas can serve read requests independently, offloading the primary and improving read scalability.
+- The replicas can serve read requests independently, reducing the load on the primary and improving read scalability.
 
 ```d2
 grid-rows: 1
@@ -45,7 +45,7 @@ r -> dc.r1: Read
 r -> dc.r2: Read
 ```
 
-This setup is commonly known as the {{< term maSl >}} **Architecture** (good name 🧐).
+This setup is commonly known as the {{< term maSl >}} **architecture** (good name 🧐).
 
 ## Multi-master
 
@@ -85,27 +85,19 @@ dc: Database cluster {
 }
 ```
 
-The most widely adopted form of the {{< term maSl >}} model is {{< term sql >}} databases,
+The {{< term maSl >}} model is most widely adopted in {{< term sql >}} databases,
 as a single writer makes it easier to maintain strong consistency for [ACID transactions]({{< ref "concurrency-control#acid" >}}).
 
-Because of this, **Multi-Master** setups are rarely used in this case:
+Because of this, **multi-master** setups are rarely used in this context:
 
-- They can not asynchronously replicate as risking violating {{< term acid >}} principles.
-- In the other hands, if the masters continuously collaborate to maintain {{< term acid >}},
-they must compromise availability and actions spanning on many nodes will be extremely complex.
-
-## Standby Promotion
-
-Back to the {{< term maSl >}} model, the master handles all updates, becoming a {{< term spof >}} that can affect system availability.
-To mitigate the impact of master failure, we can introduce a [Standby Server]({{< ref "distributed-database#standby-server" >}})
-that is synchronously replicated from the master.
-In the event of a failure, we can quickly **promote** the standby to become the new master.
+- They cannot replicate asynchronously without risking violations of {{< term acid >}} principles.
+- On the other hand, if the masters continuously coordinate to maintain {{< term acid >}},
+they must compromise availability, and operations spanning multiple nodes become extremely complex.
 
 ## Centralized Cluster
 
 The {{< term maSl >}} model is often deployed with a centralized registry,
-typically a [KV store]({{< ref "nosql-database#key-value-store" >}}),
-holding and intermediating members information within the cluster.
+that stores and facilitates the exchange of cluster membership information.
 
 ```d2
 direction: right
@@ -120,7 +112,7 @@ db: Database cluster {
     class: server
   }
   r: Registry {
-    class: server
+    class: db
   }
   s1 <-> r
   s2 <-> r
@@ -128,18 +120,18 @@ db: Database cluster {
 }
 ```
 
-The master can be chosen by several ways:
+The master can be selected in several ways:
 
-- Manually affiliated by administrators.
-- Or voting process:
-members can communicate through the store to obtain agreements.
+- Through manual assignment by administrators.
+- Through a voting process:
+members can communicate through the store to reach agreement.
 
-Selecting the one has most up-to-date data is a common strategy.
+Selecting the node with the most up-to-date data is a common strategy.
 For example:
 
-- When the **Master** node becomes unresponsive.
-- Other replicas promote itself to the registry to become the new master.
-- `Replica 2` then becomes the new master as it holds newer data then `Replica 1`.
+- The **master** node becomes unresponsive.
+- The replicas put themselves forward through the registry to become the new master.
+- `Replica 2` then becomes the new master because it holds newer data than `Replica 1`.
 
 ```d2
 direction: right
@@ -154,9 +146,9 @@ db: Database cluster {
     class: server
   }
   r: Registry {
-    class: server
+    class: db
   }
-  s1 <-> r {
+  s1 <-> r: Down {
     class: error-conn
   }
   s2 -> r: "Last record at 00:10"
@@ -164,10 +156,10 @@ db: Database cluster {
 }
 
 db-pro: Database cluster {
-  s2: New master (from Replica 1) {
+  s2: "New master (from Replica 2)" {
     class: server
   }
-  s3: Replica 2 {
+  s3: Replica 1 {
     class: server
   }
   r: Registry {
@@ -181,13 +173,13 @@ db -> db-pro
 
 ### Reverse Proxy
 
-Letting clients contact with all of servers does not make scene,
-instead,
-we should build a [reverse proxy]({{< ref "load-balancer#reverse-proxy-pattern" >}}) before them.
+Having clients connect directly to all servers does not make sense.
+Instead,
+we should place a [reverse proxy]({{< ref "load-balancer#reverse-proxy-pattern" >}}) in front of them.
 Since each server has a predefined role (master or replica), the proxy can:
 
 - Route write requests to the master.
-- Distribute (aka load balancing) read requests across replicas.
+- Distribute read requests across replicas to balance the load.
 
 ```d2
 direction: right
@@ -219,16 +211,16 @@ s -> db.c
 
 The {{< term maSl >}} model is simple and intuitive.
 Each component has a well-defined role,
-and the direct communication between nodes results in **low latency** and **fast responses**.
+and the direct communication between nodes results in low latency.
 
-However, this simplicity conceals several **critical issues**,
+However, this simplicity conceals several issues,
 most of which stem from the centralized control of the master server:
 
 - The master becomes the {{< term spof >}}.
-Its failure halts **all write operations**,
+Its failure halts all write operations;
 therefore, the {{< term maSl >}} model does not guarantee {{< term ha >}}.
 
-- The master quickly becomes a **performance bottleneck**, especially in write-heavy applications.
+- The master quickly becomes a performance bottleneck, especially in write-heavy applications.
 
 In the next section,
-we'll dig deeper into this challenge and explore a decentralized approach to building robust database clusters.
+we'll examine this challenge in more detail and explore a decentralized approach to building robust database clusters.

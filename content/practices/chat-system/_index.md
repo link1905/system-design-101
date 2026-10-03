@@ -13,7 +13,7 @@ This document outlines the design and implementation of a chat application with 
 **Conversations**:
 
 - Users can engage in direct (one-to-one) chats.
-- Users can participate in group conversations. Groups can have a maximum of 10,000 members.
+- Users can participate in group conversations.
 
 **Messaging**:
 
@@ -23,7 +23,7 @@ This document outlines the design and implementation of a chat application with 
 
 ### Non-functional Requirements
 
-- **Real-time Delivery**: Messages must be delivered in real-time with low latency.
+- **Real-time Delivery**: Messages must be delivered in real time with low latency.
 - **Reliability**: Online users must not miss any messages from their conversations.
 - **Availability**: The application will primarily serve users in **Southeast Asia** and the **United States**.
 
@@ -32,7 +32,7 @@ This document outlines the design and implementation of a chat application with 
 When a user logs into the application, the following interactions occur:
 
 - **Conversation Service**: The user's device fetches historical conversations and messages.
-- **Chat Service**: The user establishes a persistent connection to a realtime server for sending and receiving new messages.
+- **Chat Service**: The user's device establishes a persistent connection to a real-time server to send and receive new messages.
 
 ```d2
 grid-rows: 1
@@ -68,8 +68,8 @@ This is particularly important for users who are coming online or switching devi
 Since messages must be rendered in chronological order,
 a database that natively supports sorted data is ideal, as it eliminates the need for secondary indexes.
 
-- **Relational databases**, such as MySQL, are effective as they can physically arrange data in sorted order.
-- **NoSQL Column-family stores** (e.g., Cassandra, Amazon DynamoDB) are also strong candidates.
+- **Relational databases**, such as MySQL, are effective because they can physically arrange data in sorted order.
+- **NoSQL column-family stores** (e.g., Cassandra, Amazon DynamoDB) are also strong candidates.
 They are often implemented using a **Log-structured Merge Tree (LSMT)**, a data structure that is highly efficient for handling sorted data.
 
 > Refer to this post to learn more about [NoSQL Stores]({{< ref "nosql-database" >}}).
@@ -83,14 +83,14 @@ This simple query pattern is well-suited for a distributed NoSQL database.
 The basic schema for our messages will be:
 
 - A `conversation_id` uniquely identifies each one-to-one or group chat.
-- Messages within a conversation have incrementally increasing `message_number`s.
+- Messages within a conversation have progressively increasing `message_number` values, such as UUIDv7 identifiers.
 - A message is therefore uniquely identified by the composite key `(conversation_id, message_number)`.
 
 ```d2
 MESSAGE {
     shape: sql_table
     conversation_id: UUID {constraint: Partition Key}
-    message_number: INT {constraint: Sort Key}
+    message_number: UUID {constraint: Sort Key}
     sender_id: UUID
     content: VARCHAR
     created_at: TIMESTAMP
@@ -169,7 +169,7 @@ By denormalizing (replicating) the `updated_at` field from the `CONVERSATION` ta
 fetching a user's conversations would be a highly efficient single-node operation.
 
 ```d2
-direction: right
+grid-rows: 1
 CONVERSATION {
     shape: sql_table
     conversation_id: UUID {constraint: Primary Key}
@@ -193,12 +193,12 @@ Therefore, we will stick with a relational database for storing conversation met
 
 #### Self-contained Conversations
 
-So far, our design uses two separate databases: a **Column-family store** for messages and a **SQL database** for conversation metadata. This leads to a common performance issue known as the **N+1 query problem**.
+So far, our design uses two separate databases: a **column-family store** for messages and a **SQL database** for conversation metadata. This leads to a common performance issue known as the **N+1 query problem**.
 
 When a user fetches a page of their conversations, the following happens:
 
-1. One query fetches a page of `conversation_id`s from the conversations store.
-2. For each `conversation_id` returned, a separate query must be executed against the messages store to fetch the latest message details (e.g., sender info, content snippet) needed to render the conversation list item.
+1. One query fetches a page of `conversation_id` values from the conversation store.
+2. For each `conversation_id` returned, a separate query must be executed against the message store to fetch the latest message details (e.g., sender information and a content snippet) needed to render the conversation list item.
 
 > ![chat example](chat_example.png)
 > Source: [pixsellz.io](https://www.figma.com/community/file/874577850804632750)
@@ -207,11 +207,11 @@ To solve this, we will denormalize the data by duplicating the latest message in
 When a new message is sent, we will update both the message store and the corresponding `CONVERSATION` record.
 
 ```d2
-direction: right
+grid-rows: 1
 MESSAGE {
     shape: sql_table
     conversation_id: UUID {constraint: Partition Key}
-    message_number: INT {constraint: Sort Key}
+    message_number: UUID {constraint: Sort Key}
     sender_id: UUID
     content: VARCHAR
     created_at: TIMESTAMP
@@ -229,7 +229,7 @@ MESSAGE -> CONVERSATION: synced {
 }
 ```
 
-> Please note that this diagram is for demonstration; these datasets actually exist in **different stores**.
+> This diagram is illustrative; these datasets reside in **different stores**.
 
 With this enhancement, conversation pages become self-contained, and all the necessary data can be fetched in a single, efficient request, eliminating the problem at the cost of increased complexity to maintain data synchronization.
 
@@ -239,8 +239,8 @@ This section focuses on the real-time delivery of messages to online users.
 
 ### Real-time Cluster
 
-The primary challenge is to transfer messages in real-time.
-Among various messaging protocols like **Long Polling**, **Server-Sent Events (SSE)**, and **WebSocket**, we will use the **WebSocket** protocol.
+The primary challenge is to transfer messages in real time.
+Among communication mechanisms such as **Long Polling**, **Server-Sent Events (SSE)**, and **WebSocket**, we will use the **WebSocket** protocol.
 Its support for persistent, **two-way communication** makes it ideal for **immediate message delivery**.
 
 > For more information, refer to this article on [communication protocols]({{< ref "communication-protocols" >}}).
@@ -339,9 +339,10 @@ s0 -> s2
 s0 -> s3
 ```
 
-A more scalable and manageable solution is to introduce an intermediate fan-out channel (e.g., a message broker like **RabbitMQ** or a pub/sub service like **Amazon SNS**).
+A more scalable and manageable solution is to introduce an intermediate fan-out channel,
+e.g., **Redis Pub/Sub**.
 When a server sends a message, it publishes it to this central channel.
-The channel is then responsible for fanning out the message to all the relevant destination servers. We can use the destination `server_id`s as [routing keys](https://www.rabbitmq.com/tutorials/amqp-concepts#exchange-topic) to ensure the message is delivered only to the necessary servers.
+The channel is then responsible for fanning out the message to all relevant destination servers. We can use the destination `server_id` values as [channel names](https://redis.io/docs/latest/commands/pubsub-channels/) to ensure the message is delivered only to the necessary servers.
 
 ```d2
 direction: right
@@ -360,7 +361,7 @@ s2: server_2 {
 s3: server_3 {
     class: server
 }
-s0 -> c: "routing keys = [1,2,3]" {
+s0 -> c: "channel = [1,2,3]" {
     class: bold-text
 }
 c -> s1
@@ -370,12 +371,13 @@ c -> s3
 
 #### Identifying Target Servers
 
-The next question is: how does the sending server determine which `server_id`s to use as routing keys?
+The next question is: *how does the sending server determine which `server_id`s to use as routing keys?*
 In other words, how do we find all the servers that have active connections for a given conversation?
 
 A simple way is to maintain a connection table that tracks the server for each active user device.
 
 ```d2
+grid-rows: 1
 USER_CONNECTION {
     shape: sql_table
     user_id: UUID {constraint: Primary Key}
@@ -390,16 +392,15 @@ PARTICIPATION {
 ```
 
 To find the target servers for a conversation, we can perform a `JOIN` between the `PARTICIPATION` and `USER_CONNECTION` tables on `user_id`.
-Because user connection status is highly volatile (users connect and disconnect frequently), the results of this query should not be cached, as the cache would become stale very quickly.
 
-#### Alternative: Actively Tracking Connections
+#### Active Tracking
 
-For systems with very large groups and high message frequency, re-querying the database for every message could become a bottleneck. An alternative approach is to actively track the set of target servers for each conversation in a fast in-memory store like Redis.
+For systems with very large groups and high message frequency, re-querying the database for every message could become a bottleneck. An alternative approach is to actively track the set of target servers for each conversation in a fast in-memory store like **Redis**.
 
 When a user connects to the Chat Service, the system would:
 
-1. Query all `conversation_id`s for that user from the `PARTICIPATION` table.
-2. For each `conversation_id`, add the user's `server_id` to a shared set (e.g., **Redis**)
+1. Query all `conversation_id` values for that user from the `PARTICIPATION` table.
+2. For each `conversation_id`, add the user's `server_id` to a shared set
 that tracks the active servers for that conversation. When the user disconnects, the `server_id` would be removed from these sets.
 
     ```bash
@@ -407,12 +408,15 @@ that tracks the active servers for that conversation. When the user disconnects,
     SADD conversations:{conversation_id}:servers {server_id}
     ```
 
-The major drawback of this approach is the high number of updates required for users who are part of many conversations.
-If a user is in hundreds of groups, their connection or disconnection would trigger hundreds of Redis updates.
-This can lead to a **thundering herd** problem of updates and creates significant complexity in keeping the cache perfectly synchronized with the actual connection state.
+3. Use these sets to quickly identify the target channels for broadcasting messages in any conversation.
 
-Given the requirement of up to 10,000 members per group, the on-demand querying approach is deemed sufficient and less complex.
-Therefore, **we will skip the active tracking solution** in this project to avoid its complexity and potential for error.
+The major drawback of this approach is the high number of updates required for users who are part of many conversations.
+If a user is in hundreds of groups, their connection or disconnection may trigger hundreds of Redis updates.
+
+Therefore, we will use a hybrid approach:
+
+- We actively track target servers for recent conversations, e.g., those active within the past week.
+- For older conversations, we query and cache target servers only when new messages arrive.
 
 ## Implementation
 
@@ -425,11 +429,11 @@ The database architecture consists of two distinct stores, as previously discuss
 
 #### Conversation Store {#infra-conversation-store}
 
-The core relational database, which stores conversation metadata and user connection status, has the following schema:
+The core `Conversation` relational database, which stores conversation and connection metadata, has the following schema:
 
 ```d2
 direction: right
-USER_CONNECTION: {
+u: USER_CONNECTION: {
     shape: sql_table
     user_id: UUID {constraint: Primary Key}
     device_id: UUID {constraint: Primary Key}
@@ -468,16 +472,6 @@ s -> p: Forward writes {
 }
 ```
 
-#### Regional Connections Consideration
-
-A user connecting or disconnecting triggers a write to the `USER_CONNECTION` table. Since users connect and disconnect frequently, this would result in a high volume of cross-region write forwards, incurring significant costs.
-
-An alternative would be to manage the `USER_CONNECTION` table locally within each region.
-However, this creates a new problem: how does a server in one region route a message to a server in another region if connection data is not globally available?
-The only solution would be to broadcast messages to the other region, hoping a recipient is there.
-This is inefficient, wastes bandwidth, and we need to run another database as Aurora Global Database does not support excluding specific tables from replication.
-Therefore, **we will not adopt this regional approach** and will accept the cost of replicating connection status globally.
-
 #### Message Store {#infra-message-store}
 
 The message data itself is stored in a column-family table.
@@ -486,17 +480,18 @@ The message data itself is stored in a column-family table.
 MESSAGE {
     shape: sql_table
     conversation_id: UUID {constraint: Partition Key}
-    message_number: INT {constraint: Sort Key}
+    message_number: UUID {constraint: Sort Key}
     sender_id: UUID
     content: VARCHAR
     created_at: TIMESTAMP
 }
 ```
 
-We will use **Amazon DynamoDB**, which natively supports multi-region deployments with its **Global Tables** feature. Unlike Aurora, DynamoDB Global Tables use an **active-active** replication strategy, where writes can occur in any region. Conflicts are resolved using a [last writer wins]({{< ref "gossip-protocol#last-write-wins" >}}) mechanism.
+We will use **Amazon DynamoDB**, which natively supports multi-region deployments with its **Global Tables** feature. Unlike Aurora, DynamoDB Global Tables use an **active-active** replication strategy, where writes can occur in any region.
 
 ```d2
-direction: right
+grid-rows: 1
+horizontal-gap: 100
 u: us-east-1 {
   t: DynamoDB Table {
     class: aws-dynamodb
@@ -516,9 +511,7 @@ u.t <-> a.t: active-active replication {
 
 #### Fan-out Pattern Implementation
 
-The fan-out pattern for real-time message delivery will be implemented using **Amazon SNS (Simple Notification Service)** and **SQS (Simple Queue Service)**. These serverless services reduce management overhead and handle AWS-native workloads like cross-region data transfer efficiently.
-
-For each chat server instance, we will create a dedicated SQS queue. The server will publish messages to a regional SNS topic. SNS will then use message attributes (e.g., `target_server_id`) to route the message to the correct SQS queues.
+The fan-out pattern can be implemented using **Amazon SNS (Simple Notification Service)** and **SQS (Simple Queue Service)**. These serverless services reduce management overhead and handle AWS-native workloads like cross-region data transfer efficiently.
 
 ```d2
 direction: right
@@ -535,99 +528,103 @@ sqs_1 -> s1
 sqs_2 -> s2
 ```
 
-Using SQS queues as a buffer between SNS and the consumer servers is crucial for two reasons:
+This combination can be excellent for handling business events.
+However, these services do not offer extremely **low latency** and can be costly for a large volume of messages.
+Therefore, maintaining a **Redis Pub/Sub** service is a better fit in this situation.
 
-- **Scalability**: SQS provides a backpressure buffer, preventing consumer servers from being overwhelmed by sudden spikes in traffic.
-- **Resilience**: If a server becomes temporarily unavailable, messages are held reliably in its queue until the server can process them.
-
-To optimize for multi-region cost, when a server determines that a message has recipients in another region, it will publish that message directly to the **SNS topic in the target region**. This avoids having one message cross the regional boundary multiple times (once for each recipient queue).
+For each chat server instance, we will create a dedicated pub/sub channel.
+The server will publish messages to the appropriate channels based on the tracked target servers.
 
 ```d2
-direction: right
-ap: "ap-southeast-1" {
-  direction: right
-  prod: "Server 0 (Producer)" {class: aws-ecs}
-  sns: "SNS Regional Topic" {class: aws-sns}
-}
-us: "us-east-1" {
-  direction: right
-  sns_r: "SNS Regional Topic" {class: aws-sns}
-  sqs_1: "SQS Queue 1" {class: aws-sqs}
-  sqs_2: "SQS Queue 2" {class: aws-sqs}
-}
-ap.prod -> ap.sns
-ap.prod -> us.sns_r
-us.sns_r -> us.sqs_1
-us.sns_r -> us.sqs_2
+cache: Track {
+    class: cache
+    "conversations:10:servers [server_1,server_2]"
+} 
+s0: "Server 0" {class: aws-ec2}
+re: "Redis Pub/Sub" {class: cache }
+re -> s1: "channel=server_1"
+re -> s2: "channel=server_2"
+s1: "Server 1" {class: aws-ec2}
+s2: "Server 2" {class: aws-ec2}
+s0 <- cache: "Reads channels"
+s0 -> re: "Publishes"
 ```
 
-We do not need to enable **SNS/SQS FIFO** options.
-Each chat server can track the `message_number` of the last message it delivered for a conversation.
-If an out-of-order message arrives, the server can either fetch the missing messages from the messages store (if there's a gap)
-or simply discard the message (if it's older than the last one sent).
+#### Regional Tracking
 
-#### Multi-region Deployment
+As discussed earlier, we need to build a **Redis** service to track target servers for recent conversations.
+We should deploy this service in each region:
 
-We will build two distinct services:
-
-- **Conversation Service**: A stateless **HTTP** API that serves data from the relational store.
-We will use a **Round-robin** load balancing strategy, as requests are short-lived.
-- **Chat Service**: A stateful service managing long-lived WebSocket connections. We will use a **Least Connections** load balancing strategy to distribute users evenly across available servers.
-
-> Refer to this article for more information about [Load Balancing]({{< ref "load-balancer" >}}) algorithms.
-
-The infrastructure will be built using the following AWS services:
-
-- **Amazon ECS (Elastic Container Service)** for running our containerized services.
-- **Application Load Balancer (ALB)** configured with listener rules for both Round-robin (HTTP) and Least Connections (WebSocket) traffic.
-- **Amazon Route 53** with **Latency-based routing** to direct users to the nearest regional deployment.
-- **VPC Endpoints** (**Gateway** for DynamoDB; **Interface** for SQS/SNS) to ensure secure, private communication between our services and other AWS services.
-
-The final architecture for a single region is as follows:
+- Its primary purpose is to support real-time servers in that region.
+- Since users connect and disconnect frequently, regional deployment would reduce the number of updates forwarded across regions.
 
 ```d2
 direction: right
-r: Route53 {
-  class: aws-route53
+us-east-1 {
+    cache: Track {
+        class: cache
+        "conversations:10:servers [server_4]"
+    } 
 }
+ap-southeast-1 {
+    cache: Track {
+        class: cache
+        "conversations:10:servers [server_1,server_2]"
+    } 
+}
+```
+
+#### Router Service
+
+This creates a problem.
+If a message does not reach all intended recipients in the local region,
+it needs to be broadcast to the other region, where additional recipients may be connected.
+
+To implement this, we need to build a `Router Service` in each region
+to receive messages from the other region.
+Its logic is similar to the `Chat Service`,
+finding target servers and publishing messages to the appropriate channels.
+We also need a **Load Balancer** and **VPC Peering**
+for cross-region communication.
+
+For example,
+the `Chat Service` in `us-east-1` needs to forward messages to the other region.
+
+```d2
+direction: right
 u: us-east-1 {
-    grid-columns: 1
+    cache: Track {
+        class: cache
+        "conversations:10:servers [server_4]"
+    }
     v: VPC {
-        direction: right
-        lb: "Load Balancer" {class: aws-elb}
-        api: "Conversation Service" {class: aws-ecs}
-        chat: "Chat Service" {class: aws-ecs}
-        lb -> api: Round-robin
-        lb -> chat: Least-connections
-        a: Conversation Store {
-            class: aws-aurora
+        c: Chat Service {
+            class: aws-ec2
         }
     }
-    a: AWS Managed {
-        grid-rows: 1
-        horizontal-gap: 150
-        t: Message Store {
-            class: aws-dynamodb
-        }
-        sqs: SQS Queues {
-            class: aws-sqs
-        }
-        sns: Regional SNS Topic {
-            class: aws-sns
-        }
-        sns -> sqs: fan-out
-    }
-    v.api <-> v.a: manipulates
-    v.chat <-> a.t: manipulates
-    v.chat <- a.sqs: pulls
-    v.chat -> a.sns: publishes
 }
 a: ap-southeast-1 {
-    class: aws-vpc
+    cache: Track {
+        class: cache
+        "conversations:10:servers [server_1]"
+    } 
+    v: VPC {
+        l: Load Balancer {
+            class: aws-elb
+        }
+        r: Router Service {
+            class: aws-ec2
+        }
+        re: "Redis Pub/Sub" {class: cache }
+        l -> r
+        r -> re: Publishes
+    }
 }
-r -> u.v
-r -> a
+u.v <-> a.v: Peering {
+    style.animated: true
+}
+u.v.c -> a.v.l: Forwards
 ```
 
-While this architecture may seem complex, it is a realistic representation of what is required to build a scalable, available, and performant chat application in a multi-region environment.
-The trade-off for this complexity is a robust system that avoids the bottlenecks and single points of failure inherent in simpler, direct communication models.
+However, this will occasionally waste resources (especially cross-region data transfer costs)
+when the target region has no recipients.

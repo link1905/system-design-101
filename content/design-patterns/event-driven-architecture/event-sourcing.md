@@ -9,14 +9,14 @@ next: distributed-transaction
 You may review the concept of an [Event Streaming Platform]({{< ref "event-streaming-platform" >}}) if necessary.
 {{< /callout >}}
 
-In this topic, we will explore a common pattern utilized in **EDA** systems:
+In this topic, we will explore a common pattern used in **EDA** systems:
 **Event Sourcing**. This pattern facilitates data sharing between teams by relying on a single source of truth.
 
 ## Data Coupling
 
 **Data Coupling** is one of the most significant challenges in **EDA**.
 Events rarely contain all the information consumers need to process them,
-forcing consumers to seek additional data from other data sources.
+requiring consumers to retrieve additional data from other sources.
 
 For instance, after receiving an `AccountBalanceChanged` event,
 the `Notification Service` must fetch user information from the `User Service` to send an email.
@@ -37,14 +37,14 @@ n <- u: 2. Fetch the user information
 ```
 
 Certain datasets are central to the business (e.g., common user information) and are widely accessed by numerous services.
-While we can decouple infrastructure, codebase, and workforce, data is inherently generated in specific locations.
+While we can decouple infrastructure, codebases, and teams, data is inherently generated in specific locations.
 Although the goal is to make the system as loosely coupled as possible, some degree of data coupling is inevitable.
 
 ### Service Interface
 
-The most common method for sharing data is by directly using service interfaces.
+The most common method for sharing data is to use service interfaces directly.
 When a piece of information is needed, a call is made to the service that owns the data.
-This is what occurred in the previous example: a call is made to the `UserService` for every `AccountBalanceChanged` event.
+This is what happens in the previous example: a call is made to the `UserService` for every `AccountBalanceChanged` event.
 
 ```d2
 direction: right
@@ -61,13 +61,13 @@ n <- m: 1. Consume
 n <- u: 2. Fetch the user information
 ```
 
-Along with its simplicity, this approach offers **strong consistency** because it interacts with a single data source.
+In addition to its simplicity, this approach offers **strong consistency** because it interacts with a single data source.
 However, a clear disadvantage is that services become tightly coupled and more difficult to evolve.
 
 #### Data Dichotomy
 
 {{< callout type="info" >}}
-I found the term in this useful [Confluent blog post](https://www.confluent.io/blog/data-dichotomy-rethinking-the-way-we-treat-data-and-services/) that you might want to review.
+I found this term in a useful [Confluent blog post](https://www.confluent.io/blog/data-dichotomy-rethinking-the-way-we-treat-data-and-services/) that you might want to review.
 {{< /callout >}}
 
 In principle, a service aims to encapsulate its data and **minimize sharing**, exposing only necessary interfaces.
@@ -75,37 +75,24 @@ Conversely, a database is designed to **share** its data as widely as possible.
 In other words, placing a database behind a service creates a data dichotomy.
 
 ```d2
-grid-columns: 1
-vertical-gap: 100
 d: Database {
     class: db
 }
-d1: Internal data {
-    width: 700
+d1: "Internal data" {
+    width: 400
 }
 s: Service {
     class: server
 }
-d2: "" {
-    class: none
-    e1: "" {
-        class: none
-        width: 250
-    }
-    "Exposed data" {
-        width: 200
-    }
-    e2: "" {
-        class: none
-        width: 250
-    }
+d2: "Exposed data" {
+    width: 200
 }
 d -- d1
 d1 -> s: Share
 s -> d2: Encapsulate
 ```
 
-As a service grows, it will encompass more data, requiring additional contact points.
+As a service grows, it encompasses more data and requires additional access points.
 The service gradually deviates from its original objectives and starts behaving more **like a database**.
 
 ```yaml
@@ -116,8 +103,8 @@ UserService:
 ```
 
 Moreover, since businesses often have core data,
-it's easy to fall into the problematic practice of creating a **God Service** (a service with a multitude of consumers).
-Maintaining a god service is challenging; it becomes highly restricted, and any modifications can necessitate collaboration with many teams.
+it's easy to fall into the problematic practice of creating a **God Service** (a service with many consumers).
+Maintaining a god service is challenging; its evolution becomes constrained, and changes may require coordination with many teams.
 
 ```d2
 g: God Service (Core data) {
@@ -144,7 +131,7 @@ s4 <- g
 Therefore, sharing data through service interfaces is not a flexible approach.
 However, it can be useful when the level of coupling between services is minimal and manageable.
 
-### Data Moving
+### Data Movement
 
 Another sharing strategy involves moving data from an owner service to consumers,
 allowing them to keep and process it **locally**.
@@ -164,20 +151,20 @@ n: NotificationService {
 n.db <- u.db: Cloned
 ```
 
-Now, consumer services can operate autonomously with copied data fragments,
+Now, consumer services can operate autonomously with local copies of relevant data,
 which can enhance performance and availability.
 
-This pattern makes the interaction between services become complex.
-Data must be fetched from the owner service and kept **in-sync** using a synchronization mechanism.
+This pattern makes interactions between services more complex.
+Data must be fetched from the owner service and kept **in sync** using a synchronization mechanism.
 Fortunately, an **Event Stream** can help address this problem elegantly.
 
-#### Data Moving With Event Streaming
+#### Data Movement With Event Streaming
 
 An **Event Stream** acts as a reliable event store,
 reducing reliance on service interfaces.
-It can be used to move data between services due to its capabilities of:
+It can move data between services through two capabilities:
 
-1. **Event Durability**: Services depend on existing events to initially build their local datastores.
+1. **Event Durability**: Services use existing events to build their initial local datastores.
 2. **Streaming**: Services continuously capture changes to modify their local datastores.
 
 ```d2
@@ -204,15 +191,15 @@ which we will examine in depth in the next section.
 ### Event
 
 We are quite familiar with this term.
-An **event** signifies a fact that occurred in the past, such as `AccountBalanceChanged` or `AccountTransferred`.
+An **event** represents a fact that occurred in the past, such as `AccountBalanceChanged` or `AccountTransferred`.
 
 Events are primarily triggered by internal components.
-Their main responsibility is **notification**,
+Their main purpose is **notification**;
 an event typically does not require a response or any further information.
 
 ### Reproducibility
 
-**Event Sourcing** is a pattern that advocates for **logging all events** within the system.
+**Event Sourcing** is a pattern that calls for **logging all events** within the system.
 Based on this log, we can **reproduce** the system's state at any given moment.
 
 For example, consider the event log for a bank account:
@@ -225,7 +212,7 @@ Account A:
 ```
 
 While storing only the current balance might seem insufficient,
-services can browse through the produced events to display the balance at any point in time.
+services can review the recorded events to display the balance at any point in time.
 
 ```d2
 direction: right
@@ -233,7 +220,7 @@ e: Event Source {
     log: |||yaml
     Account A:
       1-Deposit: "50 -> Balance = 50"
-      2-Withdrawal: "20 -> Balance = 30 (50 - 30)"
+      2-Withdrawal: "20 -> Balance = 30 (50 - 20)"
       3-Withdrawal: "20 -> Balance = 10 (30 - 20)"
     |||
 }
@@ -243,7 +230,7 @@ s1: Account Service {
 s1 <- e: Aggregate
 ```
 
-This characteristic is essential for critical systems, especially in finance, where it's necessary to show how critical values **vary over time**.
+This characteristic is essential for critical systems, especially in finance, where it's necessary to show how key values **vary over time**.
 Additionally, it helps prove the system's **reliability** across multiple versions,
 as log entries can be replayed with different versions to ensure identical results.
 
@@ -253,7 +240,7 @@ e: Event Source {
     log: |||yaml
     Account A:
       1-Deposit: "50 -> Balance = 50"
-      2-Withdrawal: "20 -> Balance = 30 (50 - 30)"
+      2-Withdrawal: "20 -> Balance = 30 (50 - 20)"
       3-Withdrawal: "20 -> Balance = 10 (30 - 20)"
     |||
 }
@@ -271,13 +258,13 @@ Two common challenges arise with this pattern:
 
 - **Storage Growth**: A business operation can generate multiple events.
 If every event in the system is logged, the event log can grow dramatically.
-- **Increased Complexity**: Events continuously evolve alongside business transformations.
-Crucially, it's necessary to ensure that events can be **seamlessly consumed** and integrated with system components.
+- **Increased Complexity**: Events evolve as business requirements change.
+It's necessary to ensure that system components can **consume events seamlessly** and integrate their data.
 
 ## Storage Strategies
 
 **Event Sourcing** can lead to an extremely high data volume,
-which is daunting in terms of storage costs and potential performance degradation.
+which can increase storage costs and degrade performance.
 
 ### Snapshotting
 
@@ -295,20 +282,20 @@ Account A:
     4-Deposit: 10 (Balance = 20)
 ```
 
-The retention duration for old events varies based on business requirements:
+The retention period for old events varies according to business requirements:
 
 - Some businesses may only require retention for a few days or weeks.
-- More critical systems might need longer durations, such as several months or years.
+- More critical systems might need longer retention periods, such as several months or years.
 
 ### Cold Storage
 
 For certain critical events, it may be necessary to retain them **indefinitely**.
 
-However, in practice, a significant percentage of queries tend to focus on the most recent data.
-Consequently, maintaining all events in the same high-performance storage may be redundant if older pieces are rarely accessed.
+However, in practice, a large proportion of queries focus on the most recent data.
+Consequently, maintaining all events in the same high-performance storage may be unnecessary if older events are rarely accessed.
 
-A productive approach is to migrate old events to **much cheaper** storage (such as that built on inexpensive **HDD drives**).
-If necessary, historical events can be accessed through this cheaper storage rather than the fast stream.
+A practical approach is to migrate old events to **much cheaper** storage (such as that built on inexpensive **hard disk drives (HDDs)**).
+If necessary, historical events can be retrieved from this cheaper storage rather than the fast stream.
 
 ```d2
 e: Event Source {
@@ -326,18 +313,18 @@ e <- c: Old events
 
 ## Event Evolution
 
-**Events** need to transform and adapt quickly to business changes.
-A flexible system not only evolves its events confidently but also guarantees the compatibility of its event handlers.
+**Events** need to evolve quickly as business requirements change.
+A flexible system supports event evolution while ensuring compatibility with its event handlers.
 
 ### Single Writer
 
 The **Single Writer** principle recommends that events belonging to a specific **topic** should only originate from a single writer (service).
-This allows a topic to be autonomously managed by one team, which can then decide when to roll out changes.
-If multiple services can publish to the same event topic, ensuring independent evolution becomes exceedingly challenging.
+This allows a topic to be managed independently by one team, which can then decide when to roll out changes.
+If multiple services can publish to the same event topic, ensuring independent evolution becomes very challenging.
 
 ### Additive Changes
 
-The primary approach for evolving events is by only **adding** new fields to the schema.
+The primary approach to evolving events is to **add** new fields to the schema.
 Modifying or deleting existing fields is prohibited to ensure the compatibility of existing events with older handlers.
 
 ```d2
@@ -369,10 +356,10 @@ v1 -> v2
 v2 -> v3
 ```
 
-This approach works well for supplementary changes that complete event schemas.
-However, business transformation is unpredictable, and the immutability constraint can make events unmanageable.
+This approach works well for incremental additions to event schemas.
+However, changes in business requirements are unpredictable, and the immutability constraint can make events unmanageable.
 
-For instance, if an event modifies a field multiple times, it can grow unnecessarily large and gradually become nonsensical.
+For instance, if a field is revised multiple times, it can grow unnecessarily large and gradually become difficult to understand.
 
 ```yaml
 AccountUpdated:
@@ -393,9 +380,9 @@ AccountUpdated:
 ### Event Versioning
 
 A more reasonable approach is **Event Versioning**.
-In short, an event can exist in different versions simultaneously.
+An event can exist in multiple versions simultaneously.
 The publisher is required to emit different versions,
-and dependent services can freely pick their compatible version to operate.
+and dependent services can choose a compatible version to consume.
 
 ```d2
 grid-rows: 1
@@ -438,8 +425,8 @@ e.v1 -> c.s1
 e.v2 -> c.s2
 ```
 
-Despite different release milestones, it's necessary to ensure all versions maintain the same historical data.
-For example, if the `v2` topic is introduced after the creation of the record `user1234`,
+Despite differences in release timing, it's necessary to ensure all versions maintain the same historical data.
+For example, if the `v2` topic is introduced after the creation of the `user1234` record,
 it must still include this historical record, as shown below:
 
 ```yaml
@@ -468,27 +455,27 @@ Account Topic - v2:
         number: 1235
 ```
 
-However, this situation should not be maintained indefinitely,
+However, maintaining multiple versions should be temporary,
 as managing multiple versions simultaneously is cumbersome and error-prone.
-The publisher needs to set a timeline before completely deprecating old versions,
+The publisher needs to set a timeline for retiring old versions,
 giving consumers adequate time to prepare for migration.
 
 ## Command Query Responsibility Segregation (CQRS)
 
 **Event Sourcing** alone is extremely inefficient for querying data,
 as it requires aggregating all events to retrieve any piece of data.
-We will now discuss a pattern that regularly accompanies Event Sourcing to make it truly powerful: **Command Query Responsibility Segregation (CQRS)**.
+We will now discuss a pattern that regularly accompanies Event Sourcing to improve query efficiency: **Command Query Responsibility Segregation (CQRS)**.
 
 ### Command And Query
 
 #### Command
 
 A **command** is a request intended to change the system's state.
-A command is typically synchronous and has a clear result (e.g., `Transfer(toAccount, amount) -> result (failed or success)`).
-You can think of it as a normal function or API call.
+A command is typically synchronous and has a clear result (e.g., `Transfer(toAccount, amount) -> result (failure or success)`).
+You can think of it as a regular function or API call.
 
-Commands originate from an actor, such as an end-user, staff member, or a third-party application.
-They are usually the root cause of many subsequent **events**.
+Commands originate from an actor, such as an end user, a staff member, or a third-party application.
+They usually trigger subsequent **events**.
 
 ```d2
 direction: right
@@ -517,11 +504,11 @@ In other words, a query will not update the system state (e.g., `getTransaction(
 #### Command Query Segregation
 
 Essentially, an application supports **Commands** (read-write operations) and **Queries** (read-only operations).
-While **Commands** align with business logic, **Queries** typically vary based on different purposes.
+While **Commands** align with business logic, **Queries** typically vary according to their purpose.
 
 For example, bank account transactions can be viewed differently depending on the perspective:
 
-- `End-users` typically need only the most recent transactions.
+- `End users` typically need only the most recent transactions.
 
 ```yaml
 AccountNumber: 1234567890
@@ -531,7 +518,7 @@ RecentTransactions:
   Amount: 50.00
 ```
 
-- `Analytical department staff` might require all transactions from the last quarter.
+- `Analytics department staff` might require all transactions from the last quarter.
 
 ```yaml
 AccountNumber: 1234567890
@@ -555,10 +542,9 @@ Different views might require **dedicated techniques** (e.g., indexes, materiali
 
 **Command Query Responsibility Segregation (CQRS)** is a pattern that separates the **Command** side (writes) from the **Query** side (reads).
 
-For example, imagine maintaining an **SQL** database for banking accounts and transactions.
+For example, imagine maintaining a **SQL** database for bank accounts and transactions.
 
-- For `end-users`, we need to provide the most recent transactions.
-However, pagination tasks are not performed well in SQL (as explained in the [API Design]({{< ref "api-pagination#rowset-pagination" >}}) topic).
+- For `end users`, we need to provide the most recent transactions.
 Therefore, we can build a **Key-value Store** that caches recent transactions by capturing newly created transactions from the primary database.
 
 ```d2
@@ -576,7 +562,7 @@ main -> balance: Sync recent transactions {
 }
 ```
 
-- The `analytical department` may want to run advanced search algorithms,
+- The `analytics department` may want to run advanced search algorithms,
 so we might build a separate **Search Engine Store** for them.
 
 ```d2
@@ -636,7 +622,7 @@ We can see that how data is read is irrelevant to how it was written; this is th
 This pattern is most effective in an **eventual consistency** model, offering:
 
 - **Scalability**: The **Command** and **Query** sides are placed in different stores and can be scaled independently.
-- **Performance**: Varied views with different schemas or technologies can efficiently serve specific purposes.
+- **Performance**: Different views, schemas, or technologies can efficiently serve specific purposes.
 
 ### CQRS And Event Sourcing
 
@@ -645,7 +631,7 @@ When combined with **Event Sourcing**:
 - An event source is used for the **Command** side.
 - The **Query** stores capture events to independently manage their current state.
 
-For example, an `Account Query` store infers a user's balance from its transactions and updates this value by consuming new transaction events.
+For example, an `Account Query` store calculates a user's balance from its transactions and updates this value by consuming new transaction events.
 
 ```d2
 direction: right
@@ -676,10 +662,10 @@ q -> qs: 3. Build based on events
 ```
 
 To improve this, the **Query** side should periodically take snapshots.
-Then, during recovery or initialization processes,
+Then, during recovery or initialization,
 it can reproduce events from the latest snapshot instead of processing every single event from the beginning.
 
-However, **CQRS** can make an application overwhelmingly intricate.
-For small systems, the cost of development and maintenance might outweigh the anticipated advantages.
+However, **CQRS** can make an application very complex.
+For small systems, the cost of development and maintenance might outweigh the expected benefits.
 Furthermore, this combination does not provide strong consistency;
 **Command** and **Query** must communicate through an asynchronous channel.

@@ -36,7 +36,7 @@ There are two common strategies for delivering messages to consumers:
 #### Streaming
 
 **Streaming** means messages are consumed one by one, immediately after being produced.
-This approach enables systems to react and process events as soon as they occur.
+This approach enables systems to react to and process events as soon as they occur.
 
 ```d2
 direction: right
@@ -87,7 +87,7 @@ Another critical aspect is **message retention**, which describes how messages a
 
 #### Message Queuing
 
-The first approach uses a message **queue**, usually based on the classic first-in, first-out ([Queue Data Structure](https://www.geeksforgeeks.org/queue-data-structure/)).
+The first approach uses a message **queue**, usually based on the classic first-in, first-out principle ([Queue Data Structure](https://www.geeksforgeeks.org/queue-data-structure/)).
 Messages are temporarily stored and removed once they are consumed. For instance, messages can be sequentially consumed by services as shown below:
 
 ```d2
@@ -153,17 +153,17 @@ m3 {
 }
 ```
 
-While this is efficient in terms of resource usage, it isn’t suitable for systems that require high reliability or audit trails.
+While this is efficient in terms of resource usage, it isn't suitable for systems that require high reliability or audit trails.
 In those scenarios, messages are often considered valuable records of what occurred within the system.
 
 #### Message Durability
 
-To address this, more robust solutions persist messages the physical storage,
+To address this, more robust solutions persist messages to physical storage,
 ensuring they are retained even after being consumed.
 A key feature is that a single message can be consumed many times by multiple consumers.
 
 ```d2
-grid-columns: 1
+grid-columns: 2
 m1: {
   class: none
   grid-rows: 2
@@ -223,17 +223,17 @@ m2 {
 An {{< term esp >}} is a distributed implementation of {{< term msg >}},
 designed to offer high availability and fault tolerance.
 
-Before diving deeper, let’s first clarify the concept of an **Event**.
+Before exploring further, let's clarify the concept of an **Event**.
 
 ### Event
 
 The term **Message** broadly refers to any piece of information exchanged within a system.
 Messages generally fall into two main categories:
 
-1. **Command** – A directive sent to the system, requesting it to perform a specific action.
-2. **Event** – A record of something that has already occurred.
+1. **Command**: A directive sent to the system, requesting it to perform a specific action.
+2. **Event**: A record of something that has already occurred.
 
-Let’s consider a payment transaction as an example:
+Let's consider a payment transaction as an example:
 
 - **Command**: The client begins the transaction by issuing a command such as `InitiateTransaction`.
 - **Event**: As the system processes the transaction, it generates events like `AccountBalanceChanged`, `TransactionCompleted`, or `TransactionFailed`.
@@ -266,23 +266,17 @@ s -> m3
 {{% callout type="info" %}}
 Many architectures prioritize durable storage of events and may even bypass persistent storage of commands entirely.
 This explains why the term **Event** is often preferred over **Message**.
-We’ll delve deeper into this in the [Event-driven Architecture]({{< ref "event-driven-architecture" >}}) topic.
+We'll explore this further in the [Event-driven Architecture]({{< ref "event-driven-architecture" >}}) topic.
 {{% /callout %}}
 
 ### Streaming Platform
 
-Briefly,
-{{< term esp >}} is a messaging system that combines two key features:
+An {{< term esp >}} is a messaging system that combines two key features:
 
-- **Streaming:** messages are delivered and consumed immediately after they’re produced, enabling near-realtime processing.
-- **Durability:** messages are durably stored in the underlying storage layer, allowing for replay.
+- **Streaming:** Messages are delivered and consumed immediately after they're produced, enabling near real-time processing.
+- **Durability:** Messages are durably stored in the underlying storage layer, allowing for replay.
 
-Let’s explore how to build an {{< term esp >}}.
-
-{{< callout type="info" >}}
-In the following section, we’ll focus on core concepts popularized by **Apache Kafka**,
-the industry’s most widely adopted solution today.
-{{< /callout >}}
+Let's explore how to build an {{< term esp >}}.
 
 ## Event Streaming Cluster
 
@@ -303,7 +297,7 @@ b3: Broker 3 {
 b1 <-> b2 <-> b3 <-> b1
 ```
 
-For example, {{< term kk >}} prioritizes consistency over availability.
+For example, we'll prioritize consistency over availability.
 One broker is elected as the **Controller** node using the [Raft algorithm]({{< ref "consensus-protocol" >}}).
 
 ```d2
@@ -462,6 +456,7 @@ db: Topic {
 }
 
 peer: Cluster {
+  grid-rows: 1
   s1: "Broker 1" {
     grid-gap: 50
     grid-columns: 1
@@ -497,7 +492,7 @@ db.p3 -> peer.s3.p1
 
 ## Producing
 
-Producing simply means **appending events** to the primary partition and subsequently synchronizing it to the replicas.
+Producing means **appending events** to the primary partition and subsequently synchronizing those events with the replicas.
 
 ```d2
 direction: right
@@ -516,25 +511,23 @@ mq.b1 -> mq.b2: 2. Replicate {
 
 ### In-Sync Replica (ISR)
 
-Replicas periodically fetch and compare data from the primary partition.
+Replicas also periodically fetch and compare data from the primary partition.
 This ensures that any newly added or previously corrupted replicas can catch up with the latest data.
 
 **In-Sync Replicas (ISR)** are those replicas currently in sync with the primary partition.
-This is governed by a configurable time **threshold**. If a replica's last fetch exceeds the threshold, it is considered **out-of-sync**.
+This is governed by a configurable time **threshold**. If the time since a replica's last fetch exceeds the threshold, it is considered **out of sync**.
 
 For example, with an ISR threshold of `2 seconds`,
-a replica that fetched data last at `00:02` while the primary is at `00:05` is **out-of-sync**.
+a replica that last fetched data at `00:02`, when the current time at the primary is `00:05`, is **out of sync**.
 
 ```d2
-grid-rows: 1
-horizontal-gap: 150
 l: "Primary (Time = 00:05, ISR Threshold = 2s)" {
   class: server
 }
 b: "Replica 1 (LastFetch = 00:04)" {
   class: server
 }
-c: "Replica 2 (LastFetch = 00:02)" {
+c: "Replica 2 (LastFetch = 00:02, Out-of-sync)" {
   class: generic-error
 }
 ```
@@ -543,7 +536,7 @@ c: "Replica 2 (LastFetch = 00:02)" {
 
 Similar to [Quorum-based Consistency]({{< ref "distributed-database#quorum-based-consistency" >}}),
 a produce request includes an acknowledgement (**ACK**) setting.
-This determines how many in-sync replicas (including the primary partition) must successfully save the event before the producer receives a response.
+This determines how many **in-sync replicas** (including the primary partition) must successfully save the event before the producer receives a response.
 
 There are three **ACK** levels:
 
@@ -615,11 +608,11 @@ p -> p: 5. Crash here but no data loss {
 Using **ISRs** (in-sync replicas) instead of all replicas is important
 because out-of-sync replicas might be slow or unavailable due to crashes or partitioning.
 Waiting for all replicas can degrade performance or block the partition entirely.
-Once a replica becomes in-sync again, it will fetch any missed events from the primary partition.
+Once a replica is in sync again, it will fetch any missed events from the primary partition.
 
 {{< callout type="info" >}}
-Please keep the **ACK** settings in mind,
-this mechanism is crucial for understanding [Delivery Semantics]({{< ref "delivery-semantics" >}}).
+Keep the **ACK** settings in mind.
+This mechanism is crucial for understanding [Delivery Semantics]({{< ref "delivery-semantics" >}}).
 {{< /callout >}}
 
 ## Consuming
@@ -629,10 +622,11 @@ This approach decouples producers and consumers, improving system availability.
 
 ### Commit Offset
 
-In streaming systems, **Offset** refers to the sequential position of an event in an append-only log.
-Please note that event offsets are managed at the partition level, not globally across the entire topic.
+In streaming systems, an **offset** refers to the sequential position of an event in an append-only log.
+Event offsets are managed at the partition level, not globally across the entire topic.
 
 ```d2
+grid-rows: 1
 p1: Partition 1 {
     f1: "AccountCreated.Events file" {
       c: |||yaml
@@ -659,7 +653,7 @@ p2: Partition 2 {
 }
 ```
 
-To prevent duplicate processing, each partition keeps track of the last consumed offset for each consumer.
+To prevent duplicate processing, each partition keeps track of the last consumed offset **for each consumer**.
 
 ```d2
 p1: Partition 1 {
@@ -705,7 +699,7 @@ p2: Partition 2 {
 ```
 
 Consumers periodically fetch new events from partitions (those with offsets greater than the last one they processed).
-After handling these events, consumers commit or advance their offsets to ensure they do not reprocess the same data in future cycles.
+After handling these events, consumers commit their offsets (that is, advance them) to ensure they do not reprocess the same data in subsequent cycles.
 
 ```d2
 shape: sequence_diagram
@@ -723,89 +717,62 @@ c -> q: 4. Commit offset (offset = offset + 1)
 
 ### Consumer Group
 
-A topic can have multiple partitions, making it inefficient for a single consumer to handle all alone.
+A topic can have multiple partitions, making it inefficient for a single consumer to handle them all on its own.
 Instead, a **consumer group** allows multiple consumers to read different partitions in parallel.
 
-All consumers in a group share the same name and commit offset collectively,
+All consumers in a group share the same group name and collectively commit their offsets,
 ensuring each event is processed only **once by the group**.
 
 For example:
 
 - The `AccountCreated` topic is divided into two partitions, and each partition keeps track of its own consumer offsets.
-- In `Group A`, each consumer is assigned to a different partition.
 - In `Group B`, there is only one consumer, so it processes all partitions.
 - In `Group C`, there are three consumers, which is more than the number of partitions, so one consumer remains idle.
 
 ```d2
 grid-rows: 2
 t1: AccountCreated {
+  grid-rows: 1
     p1: Partition 1 {
       c: "Offsets" {
           c: |||yaml
-          consumerGroupA:
-              lastOffset: 1
           consumerGroupB:
               lastOffset: 2
           consumerGroupC:
               lastOffset: 2
           |||
-      }
-      f1: "AccountCreated.Events file" {
-        c: |||yaml
-        event1:
-          offset: 1
-          accountId: acc1
-        event3:
-          offset: 2
-          accountId: acc3
-        |||
       }
     }
     p2: Partition 2 {
       c: "Offsets" {
           c: |||yaml
-          consumerGroupA:
-              lastOffset: 2
           consumerGroupB:
               lastOffset: 1
           consumerGroupC:
               lastOffset: 2
           |||
       }
-      f1: "AccountCreated.Events file" {
-        c: |||yaml
-        event2:
-          offset: 1
-          accountId: acc2
-        event4:
-          offset: 2
-          accountId: acc4
-        |||
-      }
     }
 }
 c: Consumers {
-    cg1: Consumer Group A {
-        c1: Consumer 1
-        c2: Consumer 2
-    }
-    cg2: Consumer Group B {
-        c1: Consumer 1
-    }
-    cg3: Consumer Group C {
-        c1: Consumer 1
-        c2: Consumer 2
-        c3: Consumer 3
-    }
+  grid-rows: 1
+  cg2: Consumer Group B {
+      c1: Consumer 1
+  }
+  cg3: Consumer Group C {
+      c1: Consumer 1
+      c2: Consumer 2
+      c3: Consumer 3 {
+        style.bold: true
+      }
+  }
 }
-t1.p1 -> c.cg1.c1
-t1.p2 -> c.cg1.c2
 t1.p1 -> c.cg2.c1
 t1.p2 -> c.cg2.c1
 t1.p1 -> c.cg3.c1
 t1.p2 -> c.cg3.c2
 ```
 
-Partition replicas serve solely for backup and recovery purposes, consumers must always read from the primary broker.
+Partition replicas serve solely for backup and recovery purposes; consumers must always read from the primary broker.
 Unlike traditional databases, where read operations do not alter the state of the system,
-in {{< term esp >}}, consumption is [non-idempotent]({{< ref "api-design#request-idempotency" >}}) because each read updates the consumer’s offset.
+in an {{< term esp >}}, consumption is [non-idempotent]({{< ref "api-design#request-idempotency" >}}) because each read updates the consumer's offset.

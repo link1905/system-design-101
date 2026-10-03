@@ -5,8 +5,8 @@ prev: event-streaming-platform
 next: system-administration
 ---
 
-Numerous challenges arise when committing changes to both {{< term esp >}}
-and other data sources simultaneously.
+Several challenges arise when committing changes to both {{< term esp >}}
+and other data stores simultaneously.
 These two steps are independent, and failures between them can lead to inconsistencies.
 
 For example, a consumer might successfully process an event and apply changes to another data store but crash before committing the event offset.
@@ -25,7 +25,7 @@ e: Partition {
 }
 c <- e: Pull an event
 c -> d: Make and commit changes
-c -> c: Crash and cannot commit offset {
+c -> c: Crash before committing the offset {
   class: error-conn
 }
 c -- e {
@@ -38,20 +38,19 @@ c <- e: Pull and process the event again {
 ```
 
 **Delivery semantics** define the guarantees provided for event delivery during production and consumption.
-There are three main types, each offering different trade-offs between latency, durability and reliability.
+There are three main types, each offering different trade-offs between latency, durability, and reliability.
 
 ## At-most-once Delivery
 
-This delivery model ensures that an event is delivered **zero or one time**.
+This delivery model ensures that an event is delivered **zero times or once**.
 
 ### Producer {id="prod_amo"}
 
 The **producer** sends events with **ACK=0** to achieve the lowest latency.
-Even if a request fails, it won't be retried to avoid duplication.
+To avoid duplication, failed requests are not retried.
 
-For example,
-if the producer doesn’t receive a response from the broker due to a network error and retries the operation,
-duplicated events may occur.
+For example, if the producer doesn't receive a response from the broker due to a network error and retries the operation,
+duplicate events may occur.
 
 ```d2
 shape: sequence_diagram
@@ -62,11 +61,11 @@ q: Partition {
   class: mq
 }
 p -> q: Produce an event
-q -> p: Respond but the producer cannot receive {
+q -> p: Send a response that the producer does not receive {
   class: error-conn
 }
 p -> p: Timeout
-p -> q: Retry to produce the event again {
+p -> q: Retry producing the event {
   class: error-conn
 }
 ```
@@ -82,19 +81,19 @@ q: Partition {
   class: mq
 }
 p -> q: Produce an event
-q -> p: Respond but the producer cannot receive {
+q -> p: Send a response that the producer does not receive {
   class: error-conn
 }
-p -> p: Continue without retry {
+p -> p: Continue without retrying {
   style.bold: true
 }
 ```
 
 ### Consumer {id="con_amo"}
 
-The **consumer** commits the event **before** handling it. This approach ensures the event won't be processed more than once if the consumer crashes before committing.
+The **consumer** commits the event offset **before** handling the event. This approach ensures the event won't be processed more than once if the consumer crashes before committing.
 
-For instance, if a consumer processes an event successfully but crashes before committing, and the commit is delayed, the event will be reprocessed after recovery.
+For instance, if a consumer processes an event successfully but crashes before committing the offset, the event will be reprocessed after recovery.
 
 ```d2
 shape: sequence_diagram
@@ -106,7 +105,7 @@ q: Partition {
 }
 c <- q: Consume an event
 c -> c: Handle the event
-c -> c: Crash and fail to commit offset {
+c -> c: Crash before committing the offset {
   class: error-conn
 }
 c -- q {
@@ -118,7 +117,7 @@ c <- q: Consume the event again {
 }
 ```
 
-Therefore, events must be committed **before** they are processed.
+Therefore, event offsets must be committed **before** the events are processed.
 As a result, if the consumer fails to process an event, it will not attempt to consume that event again.
 
 ```d2
@@ -130,7 +129,7 @@ q: Partition {
     class: mq
 }
 c <- q: Consume an event
-c -> q: Commit offset immediately {
+c -> q: Commit the offset immediately {
     style.bold: true
 }
 c -> c: Handle the event
@@ -141,12 +140,12 @@ It is suitable for scenarios where **data loss is acceptable**, such as metrics 
 
 ## At-least-once Delivery
 
-This model guarantees that every event is delivered **at least once**, possibly more.
+This model guarantees that every event is delivered **at least once**, and possibly multiple times.
 
 ### Producer {id="prod_alo"}
 
 The **producer** uses **ACK=1 or ALL** and enables retries on failure to ensure event persistence.
-Clearly, enabling retries can lead to duplicate events.
+Enabling retries can lead to duplicate events.
 
 ```d2
 shape: sequence_diagram
@@ -157,11 +156,11 @@ q: Partition {
     class: mq
 }
 p -> q: Produce an event
-q -> p: Respond but the producer cannot receive {
+q -> p: Send a response that the producer does not receive {
     class: error-conn
 }
 p -> p: Timeout
-p --> q: Retry to produce the event (duplicated) {
+p --> q: Retry producing the event (duplicate) {
   style.bold: true
 }
 ```
@@ -180,10 +179,10 @@ e: Partition {
 }
 c <- e: Consume an event
 c -> c: Process the event
-c -> e: Commit offset
+c -> e: Commit the offset
 ```
 
-If it crashes before committing, the event may be reprocessed.
+If the consumer crashes before committing the offset, the event may be reprocessed.
 
 ```d2
 shape: sequence_diagram
@@ -195,7 +194,7 @@ e: Partition {
 }
 c <- e: Consume an event
 c -> c: Process the event
-c -> c: Crash and cannot commit offset {
+c -> c: Crash before committing the offset {
     class: error-conn
 }
 c -- e {
@@ -217,12 +216,12 @@ This is the most reliable but also the most complex delivery model, ensuring eac
 
 ### Exactly-once Producer
 
-The producer functions similarly to the **at-least-once** model, allowing retries on failures and using **ACK=ALL** for durability.
+The producer functions similarly to the **at-least-once** model, allowing retries after failures and using **ACK=ALL** for durability.
 
 To prevent duplication, it uses idempotency keys.
 Each producer is assigned a **PID (producer ID)** and a **seq (sequence number)**, which it increments locally after receiving an acknowledgment.
 
-Example:
+For example:
 
 ```d2
 shape: sequence_diagram
@@ -248,7 +247,7 @@ p {
 The partition ignores any events with outdated sequence numbers, effectively preventing duplicates.
 
 For example, if `P1` sends an event but fails to receive an acknowledgment, it will resend the event.
-Because the event’s sequence number is outdated, the partition ignores it, avoiding duplication.
+Because the event's sequence number is outdated, the partition ignores it, avoiding duplication.
 
 ```d2
 shape: sequence_diagram
@@ -264,22 +263,19 @@ p -> sp: Produce an event (seq = 1)
 sp {
   "PID = P1, seq = 1 -> 2"
 }
-sp -> p: Fail to receive the acknowledgement {
+sp -> p: Fail to receive the acknowledgment {
   class: error-conn
 }
 p -> p: Timeout
-p -> sp: Retry to produce the event (seq = 1)
+p -> sp: Retry producing the event (seq = 1)
 sp -> p: Ignore (producer seq = 2 > event seq = 1) {
   style.bold: true
-}
-p {
-  "seq = 1 -> 2"
 }
 ```
 
 ### Exactly-once Consumer
 
-{{< term esp >}} cannot tell whether a consumer has processed an event or not.
+{{< term esp >}} cannot tell whether a consumer has processed an event.
 To achieve exactly-once semantics, we must introduce one of the following approaches:
 
 #### Consume–Process–Produce Pipeline
@@ -313,7 +309,7 @@ e.t -> p
 
 ##### Transactional Commit
 
-To support this, **Transactional Commit** is implemented, ensuring that consumers can only see committed events.
+To support this, **transactional commit** is implemented, ensuring that consumers can only see committed events.
 If a failure occurs during processing, the transaction is aborted and all uncommitted changes are discarded.
 
 ```d2
@@ -327,9 +323,9 @@ q: Partition {
 c -> q: 1. Begin a transaction {
     style.bold: true
 }
-q -> c: 2. Consume an event (Uncommitted)
+q -> c: 2. Consume an event (uncommitted)
 c -> c: 3. Handle the event
-c -> q: 4. Produce a new event (Uncommitted)
+c -> q: 4. Produce a new event (uncommitted)
 c -> q: 5. Commit the transaction {
     style.bold: true
 }
@@ -396,7 +392,7 @@ q -> c: Consume "event-1"
 c -> d: Handle and save "event-1" {
     style.bold: true
 }
-c -- c: The consumer crashes, offset not committed {
+c -- c: The consumer crashes before committing the offset {
     class: error-conn
 }
 c -> c: Recover {
@@ -404,7 +400,7 @@ c -> c: Recover {
 }
 q -> c: Consume "event-1" again
 c -> d: Check and find "event-1" already stored
-c -> q: Commit the event {
+c -> q: Commit the offset {
     style.bold: true
 }
 ```
@@ -413,8 +409,8 @@ This approach is usually preferred over {{< term 2pc >}} due to its simplicity a
 It is commonly used in combination with the [Saga]({{< ref "compensation-protocols#saga" >}})
 pattern to manage long-running, distributed operations.
 
-However, this method does not provide strong consistency across the system,
-there can be consistency drift between the streaming platform and the external data store.
-We’ll explore this limitation in more detail in the [Distributed Transaction]({{< ref "distributed-transaction" >}}) topic.
+However, this method does not provide strong consistency across the system.
+The streaming platform and the external data store can become inconsistent.
+We'll explore this limitation in more detail in the [Distributed Transaction]({{< ref "distributed-transaction" >}}) topic.
 
 Ultimately, **exactly-once** delivery requires additional mechanisms and is best suited for **mission-critical systems** where both data loss and duplication are unacceptable (e.g., banking platforms).

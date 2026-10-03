@@ -5,14 +5,14 @@ prev: design-patterns
 next: event-sourcing
 ---
 
-## Service-oriented Architecture (SOA)
+## Service-Oriented Architecture (SOA)
 
-**Service-Oriented Architecture (SOA)** is an architectural style centered around discrete services.
+**Service-Oriented Architecture (SOA)** is an architectural style centered on discrete services.
 In this approach, a system is viewed as a collaboration of well-defined services.
 
 Consider a user management system as an example.
 Initially, an `Account Service` is responsible for creating new accounts.
-Subsequently, a `User Service` provides an interface for adding corresponding user records.
+A `User Service` then provides an interface for adding the corresponding user records.
 
 ```d2
 direction: right
@@ -41,19 +41,19 @@ a -> s
 ```
 
 The system evolves as its services expand and take on more responsibilities.
-This demonstrates how services are central to building the system in an **SOA**.
+This demonstrates how services are central to building a system using **SOA**.
 
 ## Event-Driven Architecture (EDA)
 
-An **event** signifies a business fact occurring within the system,
+An **event** represents a business fact that has occurred within the system,
 such as `an order was created` or `an order was cancelled`.
-Theoretically, the progression of events reflects the development of a business.
+In theory, the sequence of events reflects how a business evolves.
 
-From this perspective, **Event-Driven Architecture (EDA)** advocates for evolving a system around its events.
+From this perspective, **Event-Driven Architecture (EDA)** advocates evolving a system around its events.
 
 In our user management example,
 a `UserCreated` event is triggered when a user registers an account.
-A `UserCreated Handler` then captures this event and adds a user record accordingly.
+A `UserCreated Handler` then handles this event and adds the corresponding user record.
 
 ```d2
 direction: right
@@ -70,8 +70,8 @@ h -> h: Add a user record
 ```
 
 When the ability to delete users is introduced,
-an `UserDeleted` event is created for this requirement.
-A new `UserDeleted Handler` is then developed to adapt to this event.
+a `UserDeleted` event is introduced to support this requirement.
+A new `UserDeleted Handler` is then developed to handle this event.
 
 ```d2
 direction: right
@@ -101,8 +101,8 @@ d -> h2
 ```
 
 Events are at the core of an **EDA** system.
-The business is conceptualized as events and their transformations;
-the system, comprising consumers and producers, is then developed to handle and adapt to these events.
+The business is modeled as events and their transformations;
+the system, comprising consumers and producers, is then developed to produce and handle these events.
 
 ## Event Collaboration
 
@@ -115,7 +115,7 @@ For instance, when a new account is registered in the `Account Service`:
 ### Orchestration
 
 The first approach involves introducing an **orchestrator service**,
-like the `Account Service`, which performs these tasks sequentially.
+such as the `Account Service`, which performs these tasks sequentially.
 
 ```d2
 shape: sequence_diagram
@@ -139,15 +139,15 @@ a -> n: "SendEmail(email)"
 Because everything is centralized and clearly defined in one place,
 this approach is easier to understand and control,
 particularly for managing complex interactions.
-However, the orchestrator introduces distinct interdependencies and becomes a {{< term spof >}},
+However, the orchestrator introduces dependencies between services and becomes a {{< term spof >}},
 potentially reducing overall system availability and fault tolerance.
 
 ### Choreography
 
-Conversely, **Choreography** is an approach that relies purely on events:
+Conversely, **choreography** is an approach that relies purely on events:
 
 1. The `Account Service` emits `AccountCreated` events.
-2. The `User Service` captures these events and, in turn, produces new `UserCreated` events.
+2. The `User Service` consumes these events and, in turn, produces new `UserCreated` events.
 3. The `Notification Service` then consumes `UserCreated` events to send welcome emails.
 
 ```d2
@@ -170,19 +170,19 @@ n: NotificationService {
 a -> ac -> u -> uc -> n
 ```
 
-In an **EDA** system, communication through an asynchronous channel is preferred.
+In an **EDA** system, asynchronous communication is preferred.
 This enables different parts of the system to react to events independently,
 promoting loose coupling and fault tolerance.
 
-However, this approach can become problematic when dealing with intricate workflows.
+However, this approach can become difficult to manage in complex workflows.
 This complexity is the most significant challenge of **EDA**.
-A single business operation might involve a chain of numerous events,
-generated and causing effects in many different places.
-This makes it hard for developers to fully grasp the business process and develop the system effectively.
+A single business operation might involve a long chain of events,
+produced and handled in many different parts of the system.
+This makes it difficult for developers to fully understand the business process and develop the system effectively.
 The complexity is particularly pronounced in large systems,
 which may handle a vast number of events (potentially hundreds or even thousands).
 
 {{< callout type="info" >}}
-This is just an introduction of [Saga]({{< ref "distributed-transaction#saga" >}}).
-We will discuss it more in the appropriate section.
+This is a brief introduction to [Saga]({{< ref "distributed-transaction#saga" >}}).
+We will discuss it in more detail in the corresponding section.
 {{< /callout >}}

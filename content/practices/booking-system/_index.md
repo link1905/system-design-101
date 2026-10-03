@@ -12,13 +12,13 @@ This document outlines the system design for a simple online hotel reservation p
 ### Functional Requirements
 
 - **Hotel Management**: Hoteliers must be able to manage their properties, including details and room information.
-- **Searching**: Users must be able to search for hotels by **city** or **name**. Clicking a search result should navigate to the hotel's detailed page.
+- **Searching**: Users must be able to search for hotels by **city** or **name**. Clicking a search result should navigate to the hotel's details page.
 - **Booking**: Users must be able to book one or more available rooms of a specific type at a hotel.
 
 ### Non-functional Requirements
 
 - **Consistency**: The system must prevent booking conflicts, such as the same room being booked twice for overlapping dates.
-- **Availability**: The application will primarily serve two regions: **Southeast Asia** and the **United States**.
+- The application will primarily serve two regions: **Southeast Asia** and the **United States**.
 
 ## System Overview
 
@@ -86,7 +86,7 @@ r -> h: belongs to
 ### NoSQL Consideration
 
 However, a key access pattern is that users typically work with only one hotel at a time.
-This locality allows us to leverage a [NoSQL store]({{< ref "nosql-database" >}}) (such as a **Document Store** or **Column-family Store**) to improve performance and availability.
+This locality allows us to use a [NoSQL store]({{< ref "nosql-database" >}}) (such as a **Document Store** or **Column-family Store**) to improve performance and availability.
 We can partition the data by `hotel_id`, ensuring that a hotel and all its associated rooms reside on the same server.
 
 ```d2
@@ -130,7 +130,7 @@ s1: server_1 {
 ```
 
 Furthermore, **NoSQL** stores often provide a schemaless design,
-which is beneficial in the hospitality industry where properties can have a wide variety of attributes.
+which is beneficial in the hospitality industry where properties can have a wide range of attributes.
 
 ![Room example](room_example.png)
 
@@ -141,7 +141,7 @@ However, our primary data store is partitioned by `hotel_id`, which is not effic
 
 ### Complete Search
 
-A simple approach is to create duplicated datasets to serve these queries directly. We would create two new tables:
+A simple approach is to create duplicate datasets to serve these queries directly. We would create two new tables:
 
 - `HOTEL_BY_CITY` is partitioned by `city`.
 - `HOTEL_BY_NAME` is partitioned by `name`.
@@ -163,7 +163,7 @@ c: HOTEL_BY_CITY {
 ```
 
 With this design, a search query can be directed to the exact data partition, significantly improving performance.
-However, this comes at the cost of increased storage, as each hotel record is now replicated three times.
+However, this comes at the cost of increased storage, as each hotel record is now stored in three places.
 A major drawback is the poor user experience, as it requires users to type the exact hotel or city name.
 
 ### Prefix Search
@@ -172,9 +172,10 @@ To support a better **search-as-you-type** experience, we need to handle prefix 
 Partitioning by the full name is insufficient for this.
 Instead, we can distribute data based on the leading characters of names or cities.
 
-For instance, names starting with `A-B` go to `server_0`, `C-D` go to `server_1`, and so on.
+For instance, names beginning with A or B go to `server_0`, names beginning with C or D go to `server_1`, and so on.
 
 ```d2
+grid-rows: 1
 s0: server_0 {
   c: |||yaml
   A Hotel: hotel_1
@@ -197,9 +198,9 @@ a dedicated **Search Engine** is a better solution.
 ### Full-text Search
 
 To provide a rich user experience with features like autocompletion and spell correction,
-we can employ a [Search Engine]({{< ref "nosql-database#search-engine" >}}).
+we can use a [Search Engine]({{< ref "nosql-database#search-engine" >}}).
 
-For this project, we will use a **Search Engine** store to provide a rich experience.
+For this project, we will use a **Search Engine** store to provide these features.
 To keep the search index synchronized with the primary database,
 data will be asynchronously replicated from the **Hotel Store**.
 
@@ -211,7 +212,7 @@ c: Hotel Store {
 s: Search Engine Store {
   class: se
 }
-c -> s: async replicated {
+c -> s: asynchronously replicates data {
   style.animated: true
 }
 ```
@@ -232,6 +233,7 @@ The application then has to sort through 150 records to produce the final page.
 To handle bookings, we first need a table to store booking information.
 
 ```d2
+grid-rows: 1
 r: ROOM_TYPE {
   shape: sql_table
   hotel_id: UUID {constraint: PARTITION KEY}
@@ -259,7 +261,7 @@ s: Booking Service {
 r: ROOM_TYPE
 b: BOOKING
 s <- r: checks available >= booked
-s -> r: deduces available -= booked
+s -> r: decrements available -= booked
 s -> b: inserts a new record
 ```
 
@@ -276,8 +278,8 @@ This sequence, however, introduces potential concurrency conflicts when multiple
     u2: User 2 (booked = 1)
     u1 -> r: checks: available (3) >= booked (3)
     u2 -> r: checks: available (3) >= booked (1)
-    u1 -> r: deduces: available = 3 - 3 = 0
-    u2 -> r: deduces: available = 0 - 1 = -1 {
+    u1 -> r: decrements: available = 3 - 3 = 0
+    u2 -> r: decrements: available = 0 - 1 = -1 {
       class: error-conn
     }
     ```
@@ -300,7 +302,7 @@ This sequence, however, introduces potential concurrency conflicts when multiple
 
 In traditional relational databases, the **Serializable** isolation level is typically required to prevent phantom reads.
 However, in this specific scenario, the **Unrepeatable Read** conflict occurs first;
-By resolving it, we consequently prevent the phantom read from happening.
+by resolving it, we also prevent the phantom read from occurring.
 Therefore, the **Repeatable Read** (or **Snapshot Isolation**) level is sufficient.
 
 This brings us to our NoSQL implementation.
@@ -310,7 +312,7 @@ allowing us to prevent these concurrency issues effectively.
 
 ## Implementation
 
-This section details how to deploy the designed booking system within the **AWS** environment.
+This section details how to deploy the designed booking system on **AWS**.
 
 ### Multi-region Setup
 
@@ -324,7 +326,7 @@ This approach increases cost and complexity, primarily due to the need for an ef
 
 ### Database Layer
 
-Our design utilizes two distinct data stores:
+Our design uses two distinct data stores:
 
 - A **Hotel Store** for managing hotel properties and processing bookings.
 - A **Search Store** for enabling full-text searches on hotel names and cities.
@@ -336,7 +338,7 @@ Several databases, including **MongoDB**, **Cassandra**, and **Amazon DynamoDB**
 
 While open-source solutions offer flexibility and easier migration to other providers,
 **DynamoDB**, a proprietary, serverless NoSQL database from AWS,
-providing significant advantages within the AWS ecosystem.
+offers significant advantages within the AWS ecosystem.
 It reduces operational overhead, simplifies management, and offers seamless integration with other AWS services.
 Given our focus on an AWS implementation, we will use DynamoDB.
 
@@ -345,7 +347,8 @@ This feature employs an active-active replication model, where writes can occur 
 Conflicts are resolved using a [last writer wins]({{< ref "gossip-protocol#last-write-wins" >}}) strategy.
 
 ```d2
-direction: right
+grid-rows: 1
+horizontal-gap: 100
 u: us-east-1 {
   t: DynamoDB Table {
     class: aws-dynamodb
@@ -428,14 +431,15 @@ while **ap-southeast-1** handles writes for hotels in eastern countries.
         style.animated: true
       }
     }
-    s <-> db.u.t: books western hotels
-    s <- db.a.t: books eastern hotels
+    s -> db.u.t: books western hotels
+    s -> db.a.t: books eastern hotels
     ```
 
 To implement the second, preferred approach, we add a `managed_in` field to our schema to control routing for booking operations.
 The final data model for the **Hotel Store** looks like this:
 
 ```d2
+grid-rows: 1
 h: HOTEL {
   shape: sql_table
   hotel_id: UUID {constraint: PARTITION KEY}
@@ -464,16 +468,16 @@ b: BOOKING {
 
 We will deploy an **Amazon OpenSearch** cluster to serve as our full-text search store.
 
-Data must be replicated from the **Hotel Store** to this one.
+Data must be replicated from the **Hotel Store** to the **Search Store**.
 **DynamoDB** facilitates this with **Amazon OpenSearch Ingestion**.
-This service creates a pipeline that pulls new records from **DynamoDB Streams** and automatically flushes them to an **OpenSearch** cluster.
+This service creates a pipeline that pulls new records from **DynamoDB Streams** and automatically writes them to an **OpenSearch** cluster.
 
 ```d2
 direction: right
 t: DynamoDB Streams {
   class: aws-dynamodb
 }
-p: OpenSearch Integration pipeline {
+p: OpenSearch Ingestion pipeline {
   class: pipeline
 }
 s: OpenSearch Cluster {
@@ -489,11 +493,10 @@ p -> s {
 
 Since **OpenSearch** does not natively support a multi-region active-active setup,
 we will maintain two separate search clusters, one in each region.
-Each cluster will be replicated from its respective regional **DynamoDB** table.
+Each cluster will receive replicated data from its respective regional **DynamoDB** table.
 
 ```d2
 grid-rows: 1
-horizontal-gap: 250
 u: us-east-1 {
   t: DynamoDB table {
     class: aws-dynamodb
@@ -523,7 +526,7 @@ u.t <-> a.t: active-active replication {
 
 ### Web Service Layer
 
-We will build two separate, stateless services, **Hotel Service** and the **Search Service**,
+We will build two separate, stateless services, the **Hotel Service** and the **Search Service**,
 to manage the data stores, allowing them to scale independently. These can be quickly deployed using the following AWS services:
 
 - **Amazon Elastic Container Service (ECS)**: To run the services as containerized applications.
@@ -573,7 +576,7 @@ r -> u.vpc.lb
 r -> a.vpc.lb
 ```
 
-#### Internal Accessing
+#### Internal Access
 
 To ensure secure and efficient communication between our services and the AWS-managed data stores, we will use **AWS PrivateLink**.
 
@@ -588,12 +591,8 @@ vpc: VPC {
   grid-columns: 1
   t {
     class: none
-    grid-rows: 1
     hs: Hotel Service (ECS) {
       class: aws-ecs
-    }
-    c: {
-      class: none
     }
     endpoint: Gateway Endpoint {
       class: aws-private-link
@@ -602,7 +601,6 @@ vpc: VPC {
   }
   b {
     class: none
-    grid-rows: 1
     ss: Search Service (ECS) {
       class: aws-ecs
     }
@@ -618,13 +616,11 @@ vpc: VPC {
 }
 a: AWS Managed {
   grid-columns: 1
+  vertical-gap: 100
   t: Hotel store (DynamoDB) {
     class: aws-dynamodb
   }
-  c: {
-    class: none
-  }
-  p: Pipeline (OpenSearch Integration) {
+  p: Pipeline (OpenSearch Ingestion) {
     class: pipeline
   }
 }
@@ -642,7 +638,7 @@ booking requests for a hotel must be processed in its designated region.
 When a user sends a booking request to the closest (lowest-latency) region,
 the service must check if it is the correct region to handle the write. If not, there are two ways to proceed:
 
-1. **Server-Side Cross-Region Request**: The receiving server performs a cross-region request on behalf of the user to the correct region's service.
+1. **Server-Side Cross-Region Request**: The receiving server forwards the request to the correct region's service on behalf of the user.
 This can be implemented using **VPC Peering** and an **Interface Endpoint** (as **Gateway Endpoints** do not support communication outside a VPC).
 This approach minimizes user-perceived latency but incurs additional costs for cross-region data transfer and the **Interface Endpoint**.
 
@@ -691,4 +687,6 @@ This increases latency because the second request must travel over the public in
     c -> u: 3. retries the request
     ```
 
-To prioritize a seamless user experience, we will use the first approach (server-side cross-region request).
+We will favor the second approach,
+as booking requests may not require low latency,
+and proxying requests complicates the infrastructure and incurs additional charges.

@@ -5,15 +5,14 @@ prev: system-monitoring
 next: system-recovery
 ---
 
-Discussions regarding scaling models have been touched upon previously
+Scaling models were previously discussed
 in the [Microservice]({{< ref "microservice" >}}) topic.
 
 This section aims to further clarify these concepts.
 Manually scaling large systems,
-which can sometimes encompass hundreds of machines and thousands of containers,
+which can sometimes encompass hundreds of machines and thousands of processes,
 is an extremely demanding task.
-This section introduces a mindset for automatic scaling,
-leveraging [Containerization]({{< ref "containerization" >}}) to ensure that the system adapts rapidly to changing demands while remaining cost-effective.
+This topic introduces an approach to automatic scaling.
 
 ## Vertical Scaling
 
@@ -36,79 +35,45 @@ server2: Scaled Server {
 server1 -> server2: Add 4 CPU cores
 ```
 
-This philosophy is known as **Vertical Scaling**,
-where the primary focus is on enhancing the **hardware** capabilities.
+This approach is known as **Vertical Scaling**,
+where the primary focus is on enhancing **hardware** capabilities.
 When the system requires scaling,
-hardware components are treated as the units of increment,
-for example, *adding 4 cores* or *decreasing 1GB memory*.
+hardware resources are treated as the units of adjustment,
+for example, **adding 4 cores** or **reducing memory by 1 GB**.
 
 ## Horizontal Scaling
 
-[Containerization]({{< ref "containerization" >}}) offers a modern approach to managing distributed systems.
-A container runs an application along with its processes,
-and its resources are isolated and **limited**.
-
-In this paradigm, the container (or the application instance) becomes the unit of scaling.
-For instance, scaling might involve *running 5 additional containers* or *removing 3 existing containers*.
-If a container runs out of resources, a new one is created instead of vertically upgrading the existing one.
+In this paradigm, a node (or an application instance) becomes the unit of scaling.
+For instance, scaling might involve **running 5 additional nodes** or **removing 3 existing nodes**.
+If a node runs out of resources, a new one is created instead of vertically upgrading the existing one.
 This is known as **Horizontal Scaling**,
-which prioritizes focusing on **application** rather than the underlying hardware.
+which focuses on the **application** rather than the underlying hardware.
 
-This means we need to specifically control the resources allocated to containers.
-For example, if we provision `1GB of memory` for a container,
-running `5 containers` would mean provisioning a total of `5GB of memory`.
-This leads to a critical question: *how much resource does an individual container actually need?*
+[Containerization]({{< ref "containerization" >}}) offers a modern approach to managing distributed systems.
+A node runs an application along with its processes, and its resources are isolated and **limited**.
 
-- **Over-provisioned**: If a container is allocated excessively large resources,
+This means we need to carefully control the resources allocated to nodes.
+For example, if we provision `1 GB of memory` for a node,
+running `5 nodes` would mean provisioning a total of `5 GB of memory`.
+This leads to a critical question: *how many resources does an individual node actually need?*
+
+- **Over-provisioned**: If a node is allocated excessive resources,
 it may not fully utilize them, leading to **wasted capacity**.
-For example, `Container 1` might only consume `30%` of its allocated resources,
-while `Container 2` is resource-constrained.
-
-```d2
-m: Server {
-    grid-gap: 0
-    grid-rows: 1
-    a1: Container 1 {
-        grid-gap: 0
-        grid-columns: 1
-        u1: "Usage (30%)" {
-          width: 150
-          height: 60
-          style.fill: ${colors.i1}
-        }
-        u2: "Unused (70%)" {
-          width: 150
-          height: 140
-          style.fill-pattern: lines
-        }
-    }
-    a2: Container 2 {
-        grid-gap: 0
-        grid-columns: 1
-        e: "Usage (90%)" {
-          width: 150
-          height: 180
-          style.fill: ${colors.i1}
-        }
-    }
-}
-```
-
 - **Under-provisioned**: Conversely,
-containers allocated insufficient resources will experience diminished computational power
+nodes allocated insufficient resources will experience diminished computational power
 and suffer from **degraded performance**.
 
 In an ideal scenario,
-containers should have just enough resources to meet their demand
+nodes should have just enough resources to meet demand
 and collectively make optimal use of all available system resources.
 
 ## Load Testing
 
-Determining the **right-size** for a container is a challenging task that requires significant expertise and effort.
+Determining the **right size** for a node is a challenging task that requires significant expertise and effort.
 
 **Load Testing** is a common technique employed to address this.
 In essence, load testing involves simulating the production environment by
-generating user requests that mimic the anticipated traffic levels as if the application were already live.
+generating user requests that mimic anticipated production traffic.
 Throughout this process,
 it's crucial to capture how the application consumes hardware resources and how its performance metrics change over time.
 The final results should demonstrate the correlations between **Hardware Metrics** (e.g., CPU usage, memory consumption) and **Application Metrics** (e.g., response time, throughput).
@@ -119,12 +84,12 @@ For example, a chart might illustrate the relationship between average latency a
 
 Combined with the application's specific requirements (such as those defined in a [Service Level Agreement (SLA)](https://en.wikipedia.org/wiki/Service-level_agreement)),
 this data helps ensure the application's performance targets can be met.
-For instance, *the application's average response time must not exceed 1 second*,
-a safe operational range for metrics like CPU usage can be relatively defined.
+For instance, if *the application's average response time must not exceed 1 second*,
+this data can help define a safe operating range for metrics like CPU usage.
 
 ## Scaling Strategies
 
-Once a container's resource profile is configured,
+Once a node's resource profile is configured,
 the next step is to manage multiple instances of it effectively.
 
 ### Aggregate Scaling
@@ -176,16 +141,16 @@ i.m1 -> g
 i.m2 -> g
 ```
 
-**Aggregate Scaling** recommends defining an expected target range for resource utilization and allowing the aggregated usage to fluctuate around that range.
-For example, the desired average CPU usage for containers might be set between `60% - 70%`.
+**Aggregate Scaling** involves defining a target range for resource utilization and allowing the aggregated usage to fluctuate around that range.
+For example, the desired average CPU usage for nodes might be set between `60%` and `70%`.
 
-- The application **scales out** (creates more containers) if its aggregated usage exceeds `70%`, ensuring availability and performance.
-- The application **scales in** (removes containers) if its aggregated usage drops below `60%`, thereby saving resources.
+- The application **scales out** (creates more nodes) if its aggregated usage exceeds `70%`, ensuring availability and performance.
+- The application **scales in** (removes nodes) if its aggregated usage drops below `60%`, thereby saving resources.
 
-The specific threshold varies, typically falling between `60% - 80%`:
+The specific threshold varies, typically falling between `60%` and `80%`:
 
 - A stable application with predictable load might require a smaller buffer (extra capacity).
-- An unstable application that frequently deals with traffic bursts may need larger paddings to absorb sudden increases in demand.
+- An application with unpredictable traffic that frequently experiences bursts may need a larger buffer to absorb sudden increases in demand.
 
 An effective scaling strategy, when graphed over time, often resembles a sawtooth pattern,
 characterized by sharp increases in resource allocation to meet rising demand, followed by decreases as demand subsides.
@@ -195,7 +160,7 @@ characterized by sharp increases in resource allocation to meet rising demand, f
 **Aggregate Scaling** is an adaptive strategy,
 as the system scales in response to actual observed needs.
 The primary challenge with this approach is its potential vulnerability to sudden,
-sharp bursts in traffic, because provisioning new hardware and initializing containers can be time-consuming processes.
+sharp bursts in traffic, because provisioning new hardware and initializing nodes can be time-consuming processes.
 
 ### Scheduled Scaling
 
@@ -203,14 +168,14 @@ Another scaling strategy is **Scheduled Scaling**.
 In this approach, the system is scaled based on predefined or predictable traffic patterns.
 
 For instance,
-if observation shows that the system consistently experiences significantly higher traffic between `7 PM – 10 PM`,
+if observations show that the system consistently experiences significantly higher traffic between `7 PM` and `10 PM`,
 the system can be prepared in advance by proactively scaling out resources before this period to ensure a seamless user experience.
 This method is particularly useful for specific use cases, such as e-commerce platforms during sales promotions or travel agencies during holiday seasons.
 
 However, scheduled scaling can be costly,
 as it often involves provisioning more resources than
-what the system might strictly require at all times within the scheduled window.
+the system might strictly require throughout the scheduled window.
 
-In practice, combining both aggregated and scheduled scaling is often a prudent choice.
+In practice, combining aggregate and scheduled scaling is often a prudent choice.
 The system can operate under **Aggregate Scaling** for normal,
-adaptive adjustments, while leveraging **Scheduled Scaling** for predictable peak load occasions.
+adaptive adjustments, while using **Scheduled Scaling** for predictable periods of peak load.

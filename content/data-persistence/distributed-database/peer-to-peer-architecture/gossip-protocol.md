@@ -4,7 +4,7 @@ weight: 10
 prev: peer-to-peer-architecture
 ---
 
-We'll explore the first approach to maintaining a peer-to-peer cluster - {{< term gosProto >}}.
+We'll explore the first approach to maintaining a peer-to-peer cluster: {{< term gosProto >}}.
 
 ## Eager Reliable Broadcast Protocol
 
@@ -68,19 +68,19 @@ c: Cluster {
 ```
 
 This protocol follows an **eager delivery** model, where messages are immediately sent to all peers upon generation.
-While effective, this approach becomes inefficient as the number of peers grows,
+While effective, this approach becomes inefficient as the number of peers grows because
 it consumes substantial bandwidth and system resources due to redundant message exchanges.
 
-To address these inefficiencies, the {{< term gosProto >}} was introduced,
-reducing resource usage by limiting the number of exchanges.
+To address these inefficiencies, the {{< term gosProto >}} was introduced to
+reduce resource usage by limiting the number of exchanges.
 
 ## Gossip Protocol
 
-The **Gossip Protocol** is akin to how rumors spread in an office.
+The **gossip protocol** works much like rumors spreading in an office.
 A peer starts by sharing a message with a few randomly selected peers.
 These peers then forward the message to others, eventually reaching all nodes in the cluster.
 
-For example, `Server 1` first informs `Server 2` and `Server 3` of a piece of information. They then propagate it to `Server 4`.
+For example, `Server 1` first informs `Server 2` and `Server 3` about a piece of information. They then propagate it to `Server 4`.
 Eventually, all servers in the cluster acknowledge the information.
 
 ```d2
@@ -169,7 +169,7 @@ c2: Cluster {
 
 ### Maintaining Cluster Membership
 
-Each server maintains information such as addresses, states, and shard allocations of other nodes.
+Each server maintains information about other nodes, such as their addresses, states, and shard allocations.
 
 For example:
 
@@ -194,8 +194,8 @@ c: Cluster {
 
 ### Adding a Node
 
-[Bootstrapping nodes](https://en.wikipedia.org/wiki/Bootstrapping_node) serve as entry points for new nodes,
-typically accessed via static IPs or **DNS**.
+[Bootstrap nodes](https://en.wikipedia.org/wiki/Bootstrapping_node) serve as entry points for new nodes,
+typically accessed via static IP addresses or **DNS**.
 
 In this example, `A` acts as a bootstrap node.
 When node `C` joins, it sends its information to `A` and receives the current cluster metadata.
@@ -266,7 +266,7 @@ cl: Cluster {
 c.c <- cl.a: Cluster information
 ```
 
-`A` then informs `B` of `C`’s arrival, allowing `B` to update its view of the cluster.
+`A` then informs `B` of `C`'s arrival, allowing `B` to update its view of the cluster.
 
 ```d2
 grid-rows: 1
@@ -312,7 +312,7 @@ cl: Cluster {
 }
 ```
 
-Now, all members are aware of `C`, meaning it has successfully joined the cluster.
+All members are now aware of `C`, meaning it has successfully joined the cluster.
 Based on this information, the system can redistribute data if necessary.
 
 ```d2
@@ -354,8 +354,8 @@ cl: Cluster {
 
 With [consistent hashing]({{< ref "peer-to-peer-architecture#consistent-hashing" >}}) and shared metadata, any node can act as an interface:
 
-- Serving read requests directly or forwarding them to respective replicas.
-- Routing write requests to the owner node.
+- Serve read requests directly or forward them to the corresponding replicas.
+- Route write requests to the owner node.
 
 ```d2
 grid-rows: 2
@@ -378,11 +378,11 @@ c.n1 -> c.n2: "3. Forward"
 
 ## Gossip Rounds
 
-**Gossip Rounds** form the backbone of the protocol.
-Periodically, each node selects random peers and shares its current state (e.g., heartbeat),
+**Gossip rounds** form the backbone of the protocol.
+Periodically, each node randomly selects peers and shares its current state (e.g., a heartbeat),
 progressively spreading updates throughout the cluster.
 
-For example, at time `3`, `A` gossips its state. `B` receives it and transmits to `C`.
+For example, at time `3`, `A` gossips its state. `B` receives it and forwards it to `C`.
 
 ```d2
 grid-rows: 2
@@ -507,7 +507,7 @@ c4: "Cluster (B gossips at 00:03)" {
 
 ### Failure Detection
 
-One key advantage of **Gossip Rounds** is fault detection.
+One key advantage of **Gossip rounds** is failure detection.
 If a node doesn't receive a heartbeat from another node within a defined time window,
 it marks that peer as **DOWN**.
 
@@ -630,10 +630,10 @@ This strategy relies on **clock synchronization**. If clocks are skewed, incorre
 
 ### Vector Clocks
 
-A more robust alternative, **Vector Clocks**, avoids dependency on synchronized clocks.
+A more robust alternative, **vector clocks**, avoids dependence on synchronized clocks.
 Instead, each record tracks a version vector in the format `[(Server, Version)]`.
 
-For example, a record initially receives its version number from its owner shard.
+For example, a record initially receives its version number from the shard that owns it.
 Other servers then replicate the record from the owner, preserving this version for consistency.
 
 ```d2
@@ -667,11 +667,11 @@ c: Cluster {
 }
 ```
 
-Then, a network partition occurs, the cluster is divided into three partitions.
-Each group may update the record independently, expanding the vector clock;
+Then, a network partition occurs, dividing the cluster into three partitions.
+Each group may update the record independently, expanding the vector clock:
 
-- `Server 1` updates and increases its version.
-- `Server 3` updates and creates its own version.
+- `Server 1` updates the record and increments its version number.
+- `Server 3` updates the record and creates its own version.
 
 ```d2
 grid-rows: 2
@@ -731,7 +731,7 @@ cs.c2 -> c.p3: "SET Name = John Wick" {
 A conflict is identified when vectors cannot be merged deterministically:
 
 - `[(Peer 1, 4)]` is a clear successor of `[(Peer 1, 3)]`.
-- But `[(Peer 1, 4)]` and `[(Peer 1, 3), (Peer 3, 1)]` clearly conflict.
+- `[(Peer 1, 4)]` and `[(Peer 1, 3), (Peer 3, 1)]` clearly conflict.
 
 The system maintains both versions:
 
@@ -827,4 +827,4 @@ s -> r2: Accept first version
 
 Since the database lacks context about the business logic,
 deferring resolution to the application ensures safer and more flexible conflict handling.
-Thus, applications should include **additional metadata** in their records to assist in this process.
+Applications should therefore include **additional metadata** in their records to support this process.
