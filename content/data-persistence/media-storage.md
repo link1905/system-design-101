@@ -18,13 +18,15 @@ In this section, we will explore common approaches to managing media data effect
 allowing independent scaling of compute and storage resources.
 
 It is well-suited for **high-performance** and low-latency applications, enabling them to access complete files directly over the network.
-Moreover, multiple clients (either services or end-users) can share the same storage backend.
+Moreover, multiple clients (either services or end users) can share the same storage backend.
 
 For example, two services share the same file storage system.
 
 ```d2
+grid-rows: 2
 s: "" {
   class: none
+  grid-rows: 1
   s1: Service 1 {
     class: server
   }
@@ -33,7 +35,9 @@ s: "" {
   }
 }
 d1: File Storage {
+  grid-rows: 1
   "Docs/" {
+    grid-rows: 1
     "doc1.md" {
       class: file
     }
@@ -82,7 +86,7 @@ The key advantage of Object Storage lies in its **distributed architecture**.
 Files, now referred to as **objects**, are independent and autonomously distributed across multiple servers.
 This results in a highly available and fault-tolerant system.
 
-Let’s explore how Object Storage is implemented in practice.
+Let's explore how Object Storage is implemented in practice.
 
 ### Object Distribution
 
@@ -143,12 +147,15 @@ s2.f1 -> s1.f2 {
 
 This distributed model complicates how we interact with objects.
 Traditionally, we access files using a hierarchical path structure like `/Team/Docs/doc.md`.
-Without a centralized file system, there’s no inherent relationship between objects (e.g., directories or siblings).
+Without a centralized file system, there's no inherent relationship between objects (e.g., directories or siblings).
 
-To simulate the familiar file system structure, **Object Storage** systems often include the **full path** in the object’s key, for example:
+To simulate the familiar file system structure, **Object Storage** systems often include the **full path** in the object's key, for example:
 
 ```d2
+grid-rows: 1
 s1: Server 1 {
+    
+  grid-rows: 1
   "/Users/Image/img.png": {
     class: file
   }
@@ -168,19 +175,21 @@ Operations like *listing files in a folder* still require scanning across multip
 
 ### Chunking
 
-Simply distributing objects isn’t sufficient. Unlike typical database records, object sizes can vary dramatically. Large objects demand more storage and processing resources, which can lead to imbalances across servers.
+Simply distributing objects isn't sufficient. Unlike typical database records, object sizes can vary dramatically. Large objects demand more storage and processing resources, which can lead to imbalances across servers.
 
 ```d2
+grid-rows: 1
 s1: Server 1 {
   "doc.md (30KB)" {
     class: file
-    height: 20
+    width: 40
+    height: 40
   }
 }
 s2: Server 2 {
   "img.png (200MB)" {
     class: file
-    height: 60
+    width: 100
   }
 }
 ```
@@ -215,83 +224,27 @@ f -> o.s1
 f -> o.s2
 ```
 
-However, this approach has some trade-offs:
+However, this approach introduces a problem.
+A file can occupy more storage than its actual size because
+files are stored in **complete data blocks** (e.g., 4 KiB), with additional metadata.
+For example, storing a file of just 1 byte
+may require approximately 4 KiB of storage.
 
-- Using small chunk sizes improves load balancing but results in too many chunks spread across servers.
-  Retrieving an object then requires significant coordination and computing effort.
-  For example, an object is distributed across four servers, requiring queries to all of them for retrieval.
-
-```d2
-grid-rows: 2
-f: "img.png (500MB)" {
-  class: file
-}
-o: Object Storage {
-  grid-rows: 1
-  s1: Server 1 { "img.png.chunk_1 (100MB)" { class: file } }
-  s2: Server 2 { "img.png.chunk_2 (100MB)" { class: file } }
-  s3: Server 3 { "img.png.chunk_3 (100MB)" { class: file } }
-  s4: Server 4 { "img.png.chunk_4 (100MB)" { class: file } }
-}
-f -> o.s1
-f -> o.s2
-f -> o.s3
-f -> o.s4
-```
-
-- On the other hand, using large chunk sizes reduces the number of chunks
-  but can create resource imbalances, small objects may be underutilized or ignored.
-  For example, objects smaller than the chunk size are inefficiently stored on the same server.
-
-```d2
-grid-rows: 2
-f {
-  class: none
-  d1: "doc1.md (10MB)" { class: file }
-  d2: "doc2.md (20MB)" { class: file }
-  d3: "doc3.md (30MB)" { class: file }
-  f: "img.png (200MB)" { class: file }
-}
-o: Object Storage (chunk size = 100MB) {
-  grid-rows: 1
-  s1: Server 1 {
-    d1: "doc1.md.chunk_1 (10MB)" { class: file }
-    d2: "doc2.md.chunk_1 (20MB)" { class: file }
-    d3: "doc3.md.chunk_1 (30MB)" { class: file }
-    f: "img.png.chunk_1 (100MB)" { class: file }
-  }
-  s2: Server 2 {
-    f: "img.png.chunk_2 (100MB)" { class: file }
-  }
-}
-f.f -> o.s1.f
-f.d1 -> o.s1.d1
-f.d2 -> o.s1.d2
-f.d3 -> o.s1.d3
-f.f -> o.s2.f
-```
-
-**Object Storage** serves diverse clients with a wide range of file types,
-making it exceptionally difficult to define a single, optimal chunk size for all use cases.
+When the system holds a large number of small chunks,
+the storage overhead may increase proportionally.
 
 #### Chunk Packing
 
-To achieve better control, instead of slicing user objects arbitrarily,
+To improve control over storage usage, instead of storing user objects individually,
 we define **fixed-size system chunks** and pack multiple objects into each chunk.
 
 In this model, a chunk is a system-level file containing multiple objects.
-If an object exceeds the chunk size, it’s split across multiple chunks.
+If an object exceeds the chunk size, it's split across multiple chunks.
 
 For instance, three objects are packed into two chunks, which are stored on two separate servers.
 
 ```d2
 grid-rows: 2
-f: {
-  class: none
-  f1: "img1.png (50MB)" { class: file }
-  f2: "img2.png (100MB)" { class: file }
-  f3: "img3.png (50MB)" { class: file }
-}
 o: Object Storage (chunk = 100MB) {
   grid-rows: 1
   s1: Server 1 {
@@ -303,13 +256,20 @@ o: Object Storage (chunk = 100MB) {
     }
   }
   s2: Server 2 {
-    c1: "chunk_1" {
+    c1: "chunk_2" {
       grid-rows: 2
       grid-gap: 0
       "img2.png.chunk_2 (50MB)"
       "img3.png.chunk_1 (50MB)"
     }
   }
+}
+f: {
+  class: none
+  grid-rows: 1
+  f1: "img1.png (50MB)" { class: file }
+  f2: "img2.png (100MB)" { class: file }
+  f3: "img3.png (50MB)" { class: file }
 }
 f.f1 -> o.s1
 f.f2 -> o.s1
@@ -323,7 +283,7 @@ This method is common in modern **Object Storage** solutions and will be used in
 ### Erasure Coding
 
 To prevent data loss, we must replicate chunks across servers.
-A simple way is to duplicate each chunk to another server:
+A simple approach is to copy each chunk to another server:
 
 ```d2
 s1: Server 1 {
@@ -344,7 +304,7 @@ This basic replication results in **2x storage overhead**.
 
 [**Erasure Coding (EC)**](https://en.wikipedia.org/wiki/Erasure_code) offers a more storage-efficient alternative.
 
-For example, with 2 data chunks, we can mathematically generate 1 parity block. Conceptually, think of it as:
+For example, with two data chunks, we can generate one parity block mathematically. Conceptually, think of it as:
 `parity = chunk_1 + chunk_2`
 
 {{< callout type="info">}}
@@ -384,8 +344,8 @@ c3 -- c1: "-" {
 }
 ```
 
-With `m` parity blocks, we can tolerate loss of up to `m` chunks.
-For example, with 3 data chunks and 2 parities, data remains safe even if **any two servers** fail:
+With `m` parity blocks, we can tolerate the loss of up to `m` chunks.
+For example, with three data chunks and two parity blocks, data remains safe even if **any two servers** fail:
 
 ```d2
 grid-rows: 1
@@ -396,7 +356,7 @@ s4: Server 4 { c4: parity_1 { class: file } }
 s5: Server 5 { p1: parity_2 { class: generic-error } }
 ```
 
-In comparison, using full replication for the same level of fault tolerance would require 3 total copies per chunk:
+In comparison, using full replication for the same level of fault tolerance would require three copies of each chunk in total:
 
 ```d2
 grid-rows: 2
@@ -410,10 +370,13 @@ d: {
 r: {
   class: none
   s3: Server 3 {
+    grid-rows: 1
     c1: "chunk_1_replica" { class: file }
     c2: "chunk_2_replica" { class: file }
   }
   s4: Server 4 {
+
+    grid-rows: 1
     c1: "chunk_1_replica" { class: file }
     c2: "chunk_2_replica" { class: file }
   }
@@ -431,7 +394,7 @@ primarily due to the extra encoding and decoding operations required.
 
 ### Metadata Server
 
-Let's move to the final aspect.
+Let's examine the final aspect of object storage.
 In the [Distributed Database]({{< ref "distributed-database" >}}) topic,
 we routed a record to its owning server using a **unique key**.
 
@@ -442,9 +405,9 @@ To manage an Object Storage cluster effectively,
 we need to introduce a dedicated **Metadata Server** in addition to the actual storage servers.
 This server is responsible for tracking where each object resides based on its key.
 
-It can be implemented as a simple **Key-value store**, mapping keys to metadata like:
+It can be implemented as a simple **Key-value store**, mapping keys to metadata such as:
 `key -> [(server, chunk, position within chunk, size within chunk)]`.
-For example, a file is mapped on the **Metadata Server** to its actual storage locations.
+For example, the **Metadata Server** maps a file to its actual storage locations.
 
 ```d2
 Object Storage {
@@ -488,14 +451,14 @@ Object Storage {
 ## CDN (Content Delivery Network)
 
 {{< term cdn >}} plays a crucial role in delivering media content efficiently.
-In essence, a {{< term cdn >}} is composed of two main components: **Caching Layer** and **Backbone Network**.
+In essence, a {{< term cdn >}} is composed of two main components: a **Caching Layer** and a **Backbone Network**.
 
 ### Caching Layer
 
 A {{< term cdn >}} functions as a [read-through caching layer]({{< ref "caching-patterns#cache-aside-cache" >}})
 positioned in front of data sources.
 
-For example, once a piece of data is initialized, it can be quickly retrieved from the {{< term cdn >}} in subsequent requests:
+For example, once a piece of data is cached, it can be quickly retrieved from the {{< term cdn >}} on subsequent requests:
 
 ```d2
 shape: sequence_diagram
@@ -516,7 +479,7 @@ cdn -> cdn: 3. Cache {
 }
 cdn -> c: 4. Respond
 c -> cdn: 5. Request the data again
-cdn -> c: 6. Respond the cached data immediately {
+cdn -> c: 6. Return the cached data immediately {
   style.bold: true
 }
 ```
@@ -529,7 +492,7 @@ However, long distances between endpoints result in many network hops and increa
 Behind the scenes, a {{< term cdn >}} is built on an **internal high-speed network**,
 known as the **Backbone Network**.
 This network consists of dedicated fiber-optic links across regions,
-offering significantly much faster transmission than the public internet.
+offering significantly faster transmission than the public internet.
 
 When a client connects to the CDN, their request is first routed to the nearest {{< term cdn >}} server,
 which may then forward it internally to the target server:
@@ -555,11 +518,11 @@ cdn.s1 -> cdn.s2: Forward {
 
 {{< callout type="info" >}}
 Major CDN providers like **AWS** and **Cloudflare** operate their own backbone networks.
-Some large tech companies (e.g., **Facebook**, **Netflix*even build
+Some large tech companies (e.g., **Facebook** and **Netflix**) even build
 proprietary networks to optimize performance and reduce costs.
 {{< /callout >}}
 
-### Usages
+### Usage
 
 There are two common misuses of CDNs:
 
@@ -602,7 +565,7 @@ There are two common misuses of CDNs:
 The key idea is to **preprocess** data at the closest possible server (**Edge Server**)
 before sending it to the main server (**Origin Server**).
 
-This preprocessing can include operations like compression, filtering, or aggregation.
+This preprocessing can include operations such as compression, filtering, or aggregation.
 
 ```d2
 direction: right
@@ -621,7 +584,7 @@ c -> cdn.s1: 1. Nearest server
 cdn.s1 -> cdn.s1: 2. Preprocess data {
   style.bold: true
 }
-cdn.s1 -> cdn.s2: 3. Preprocessed data
+cdn.s1 -> cdn.s2: 3. Send preprocessed data
 ```
 
 **Edge Computing** dramatically reduces both bandwidth usage and latency by optimizing data closer to the client before transmission.

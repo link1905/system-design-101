@@ -5,17 +5,17 @@ prev: system-protection
 next: containerization
 ---
 
-This section will cover some fundamental aspects of system deployment.
+This section covers some fundamental aspects of system deployment.
 
 ## Deployment Options
 
-Suppose we aim to deploy a system on a server.
-Let's examine the most common options for achieving this:
+Suppose we want to deploy a system on a server.
+Let's examine the most common deployment options:
 
-### Bare-metal Deployment
+### Bare-Metal Deployment
 
-This is the most fundamental deployment method,
-where system components run as native processes directly on the server's **Operating System (OS)**.
+This is the most basic deployment method,
+in which system components run as native processes directly on the server's **operating system (OS)**.
 
 ```d2
 m: Server {
@@ -42,15 +42,15 @@ m: Server {
 }
 ```
 
-This model typically yields the **maximum performance** because
+This model typically delivers **maximum performance** because
 processes can access hardware resources with minimal overhead,
 as there are no virtualization layers.
 
 However, all processes share the same host OS.
 This shared environment can be vulnerable to exploitation.
 
-For instance, if an attacked process has incorrectly configured permissions for its executor,
-it could potentially abuse the OS to compromise other processes or even the entire server.
+For instance, if a process under attack runs under an account with misconfigured permissions,
+it could exploit those permissions to compromise other processes or even the entire server.
 
 ```d2
 m: Server {
@@ -78,14 +78,14 @@ m: Server {
 }
 ```
 
-### Virtual Machine
+### Virtual Machines
 
-**Virtual Machines (VMs)** are employed to create a more strictly isolated environment.
-A virtual machine emulates a physical computer but runs on a software layer called a **Hypervisor**,
+**Virtual machines (VMs)** are used to create more strongly isolated environments.
+A virtual machine emulates a physical computer but runs on a software layer called a **hypervisor**,
 rather than directly on physical hardware.
 
-Although VMs rely on the host's OS (via the hypervisor),
-they each possess their own independent OS and dedicated resources (files, users, processes, etc),
+Although VMs rely on the host OS (via the hypervisor),
+each has its own independent OS and dedicated resources (files, users, processes, etc.),
 ensuring they are **completely isolated** from one another.
 
 ```d2
@@ -175,18 +175,18 @@ m: Server {
 }
 ```
 
-However, virtual machines are not optimal in terms of resource efficiency.
+However, virtual machines are not optimal for resource efficiency.
 Each VM runs its own **full operating system**, which consumes considerable CPU, memory, and storage resources.
 Moreover, booting a virtual machine involves numerous setup steps and can take several minutes to complete.
-This can prolong the initialization time for system components, potentially affecting [the system availability]({{< ref "service-cluster#availability" >}}).
+This can increase the initialization time of system components, potentially affecting [system availability]({{< ref "service-cluster#availability" >}}).
 
-In the next topic, we will explore a more lightweight option known as **Containerization**.
+In the next topic, we will explore a lighter-weight option known as **containerization**.
 
-#### Multi-tenant
+#### Multi-Tenancy
 
-In practice, organizations often rely on cloud providers for their system infrastructure rather than building it themselves.
+In practice, organizations often rely on cloud providers for their system infrastructure rather than building their own.
 When a customer rents an entire physical machine and has full control over it,
-this is known as **Single-tenancy** or a **Dedicated Server**,
+this arrangement is known as **single-tenancy**, and the machine is called a **dedicated server**,
 as no other customer can access that server.
 
 ```d2
@@ -206,7 +206,7 @@ u1 -> s1: Rent
 u2 -> s2: Rent
 ```
 
-By default, many cloud platforms offer a **Multi-tenant** model.
+By default, many cloud platforms offer a **multi-tenant** model.
 In this setup, cloud providers divide a single physical machine into multiple virtual machines,
 and each VM can be rented by a different customer.
 

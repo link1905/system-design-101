@@ -1,0 +1,7 @@
+{{ with .Get 0 }}
+  {{ with $.Site.GetPage . }}
+    {{- .RenderShortcodes }}
+  {{ else }}
+    {{ errorf "Unable to find page %q" . }}
+  {{ end }}
+{{ end }}

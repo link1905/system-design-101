@@ -5,7 +5,7 @@ prev: distributed-transaction
 ---
 
 **Caching** is a crucial technique for optimizing system performance and conserving resources.
-It involves temporarily storing and sharing data in a high-speed memory section.
+It involves temporarily storing and sharing data in a high-speed memory area.
 This approach offers two main benefits:
 
 - It avoids the need to retrieve data from slower physical storage.
@@ -15,10 +15,10 @@ This approach offers two main benefits:
 
 A common caching pattern involves sharing a cache among multiple servers.
 
-Consider a web service as an example. If we want to cache a piece of data temporarily:
+Consider a web service that needs to cache a piece of data temporarily:
 
 - Storing it locally on a single instance might make the service **stateful**.
-This is because other instances might not be aware of the cached data, leading to inconsistencies.
+  Other instances might not be aware of the cached data, leading to inconsistencies.
 
 ```d2
 s: Service {
@@ -37,7 +37,7 @@ s: Service {
 ```
 
 - To address this, cached data can be moved to a dedicated shared store.
-All instances will consistently serve the same data by accessing this central cache.
+  All instances will consistently serve the same data by accessing this central cache.
 
 ```d2
 s: Service {
@@ -61,7 +61,7 @@ s: Service {
 ### Distributed Cache
 
 Cached data is often self-contained,
-which allows for the creation of a distributed cache by sharding data across multiple servers.
+which enables a distributed cache to shard data across multiple servers.
 
 ```d2
 Cache Cluster {
@@ -86,10 +86,10 @@ Cache Cluster {
 ### Cache Compression
 
 Cache components can be expensive due to their reliance on large amounts of fast memory.
-**Compression** is an important, though often overlooked, method to reduce runtime costs.
+**Compression** is an important, though often overlooked, way to reduce operating costs.
 
 Since cache components are frequently busy serving many clients,
-it's generally better to assign the responsibility of compression and decompression to the client-side.
+it's generally better to handle compression and decompression on the client side.
 
 ```d2
 shape: sequence_diagram
@@ -109,12 +109,12 @@ s <- s: Decompress data
 
 Due to the high cost of high-speed memory,
 it's crucial to cache only necessary data.
-This requires a cache eviction policy to remove older data and create space for new entries.
+This requires a cache eviction policy to remove older data and free space for new entries.
 
 #### Least Recently Used (LRU)
 
 The **Least Recently Used (LRU)** strategy is the most common approach.
-When the cache reaches its capacity, the data that was least recently accessed is discarded.
+When the cache reaches capacity, the least recently accessed data is discarded.
 
 ```d2
 direction: right
@@ -143,7 +143,7 @@ It is most effective when recent access patterns are a reliable indicator of fut
 
 #### Least Frequently Used (LFU)
 
-**Least Frequently Used (LFU)** is applied when the access frequency is a better indicator of the data's access pattern.
+**Least Frequently Used (LFU)** is used when access frequency is a better predictor of future access.
 In this case, the data with the lowest number of accesses is evicted.
 
 ```d2
@@ -169,8 +169,8 @@ c1 -> c2: Evicted
 ```
 
 From a programming standpoint,
-**LFU** is more challenging and requires more resources to operate.
-Basically, the choice between **LRU** and **LFU** should be based on the specific data access pattern.
+**LFU** is more challenging to implement and requires more resources to operate.
+The choice between **LRU** and **LFU** should depend on the specific data access pattern.
 
 ---
 
@@ -180,11 +180,11 @@ Next, we will explore common patterns for effectively maintaining caches.
 
 Adapted from the [lazy loading pattern](https://en.wikipedia.org/wiki/Lazy_loading),
 this strategy caches data only after it has been **recently read**.
-In other words, the data must be initialized from the primary store for the first time,
-and then the result is efficiently reused for subsequent requests.
+In other words, the data must first be retrieved from the primary store,
+and the result is then reused for subsequent requests.
 
 For example, if a service attempts to load data from the `Cache Store` and doesn't find it (a **cache miss**),
-it then queries the data from the primary store and caches it for future use.
+it then retrieves the data from the primary store and caches it for future use.
 
 ```d2
 shape: sequence_diagram
@@ -205,10 +205,10 @@ s <- db: Query data
 s -> c: Cache data
 ```
 
-This strategy is widely applied due to its simplicity and versatility.
+This strategy is widely used due to its simplicity and versatility.
 However, the main drawback of **Cache-aside** is potential **inconsistency**.
 Cached data is typically evicted (deleted) after a certain period.
-During its lifetime in the cache, the source data in the primary store might be updated,
+While the data is cached, the source data in the primary store might be updated,
 leading to a mismatch between the cached version and the source.
 
 Furthermore, if the system handles many complex and resource-intensive queries,
@@ -218,7 +218,7 @@ The system might experience numerous concurrent cache misses, leading to perform
 ## Write-through Cache
 
 A more complex caching strategy is **Write-through**.
-This approach abandons laziness and actively caches data **beforehand**.
+This approach proactively caches data **beforehand**.
 When data is updated in the primary store, it is also simultaneously updated in the cache store.
 
 ```d2
@@ -239,9 +239,9 @@ s <- c: 3. Retrieve cache
 
 Developing and managing a write-through cache is considerably more challenging.
 Imagine caching the result of a complex query involving several data entities.
-Any change in these entities would alter the query result, necessitating a refresh of the cache.
+Any change to these entities would alter the query result, requiring a cache refresh.
 
-Moreover, this preparatory caching can be resource-intensive if the cached data is ultimately not used.
+Moreover, proactively caching data can be resource-intensive if that data is never used.
 
 The write-through cache is particularly useful for:
 
@@ -276,16 +276,16 @@ s <- db: Rank data
 s -> c: Update the leaderboard
 ```
 
-The primary issue with this strategy is **staleness**; the data might be outdated between refresh intervals.
-Despite this, **Refresh-ahead caching** is well-suited for computationally intensive data,
+The primary issue with this strategy is **staleness**; the data might be outdated between refreshes.
+Despite this, **Refresh-ahead caching** is well suited to data that is computationally expensive to generate,
 such as ranking systems, recommendation engines, and analytics dashboards.
 
 ## Write-Behind (Write-Back) Cache
 
-Unlike the previous strategies that focus on read operations, the **Write-Behind** strategy is designed to improve **write performance**.
+Unlike the previous strategies, which focus on read operations, the **Write-Behind** strategy is designed to improve **write performance**.
 
 Instead of immediately writing updates to the physical store, changes are batched and written asynchronously.
-The cache component temporarily holds these in-flight updates and flushes them to the reliable storage after a certain threshold is met (e.g., a specific number of updates or a time interval).
+The cache component temporarily holds these in-flight updates and flushes them to reliable storage after a certain threshold is met (e.g., a specific number of updates or a time interval).
 
 ```d2
 shape: sequence_diagram
@@ -306,15 +306,15 @@ c -> db: Flush the updates
 
 A significant risk with this approach is potential data loss.
 If the cache system fails before flushing the data, any unwritten updates will be lost permanently.
-**Write-Behind cache** is particularly useful for write-heavy applications, such as:
+**Write-behind caching** is particularly useful for write-heavy applications, such as:
 
 - Non-critical systems where some data loss is tolerable (e.g., metrics collection, user activity tracking).
 - Systems where data loss is recoverable
-(e.g., transferring data from various sources to a [data lake](https://en.wikipedia.org/wiki/Data_lake)).
+  (e.g., transferring data from various sources to a [data lake](https://en.wikipedia.org/wiki/Data_lake)).
 
 ## Client-Side Caching
 
-In many scenarios, caching can be implemented on the client-side.
+In many scenarios, caching can be implemented on the client side.
 This helps reduce resource consumption on the server, particularly network bandwidth.
 
 However, this approach should be used cautiously.

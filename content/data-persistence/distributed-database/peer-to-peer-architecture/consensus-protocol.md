@@ -4,12 +4,12 @@ weight: 20
 next: nosql-database
 ---
 
-We can observe that the **Gossip Protocol** essentially does not guarantee **Consistency**,
+The **Gossip Protocol** does not guarantee **Consistency**,
 as the cluster can be divided into independent partitions.
 
 ## Consensus
 
-To build a **CP (Consistency over Availability)** system, many architectures adopt a protocol called **Consensus**.
+To build a **CP (Consistency over Availability)** system, many architectures adopt a **Consensus** protocol.
 {{< term consProto >}} enables a group of nodes to agree on a value,
 even in the presence of failures ({{< term fauTol >}}).
 
@@ -39,8 +39,8 @@ n -> c.a: Join {
 ```
 
 Instead, the cluster must **reach a collective decision** to approve the new node.
-This typically happens when a **majority of nodes** agree, for example,
-if nodes `A` and `B` approve `D`'s entry, it succeeds even if node `C` is down.
+This typically happens when a **majority of nodes** agree. For example,
+if nodes `A` and `B` approve `D`'s admission, it can join even if node `C` is down.
 
 ```d2
 n: D (New node) {
@@ -65,8 +65,8 @@ n -> c.a: Join
 
 The **Consensus Protocol** is an abstract theoretical concept
 with [strict requirements](https://en.wikipedia.org/wiki/Consensus_(computer_science)).
-We won’t dive into all the theoretical details here.
-Instead, we’ll focus on a practical implementation: the [Raft Consensus Algorithm](https://raft.github.io/)
+We won't cover all the theoretical details here.
+Instead, we'll focus on a practical implementation: the [Raft Consensus Algorithm](https://raft.github.io/).
 
 ## Raft Consensus Algorithm
 
@@ -121,11 +121,11 @@ np: Network partition {
 }
 ```
 
-#### Loss Of Quorum
+#### Loss of Quorum
 
 What if the cluster splits into **equal partitions** (e.g., one node each)?
-In that case, none of them can achieve majority, resulting in **total unavailability** for writes.
-This situation is known as **Loss Of Quorum**.
+In that case, none of them can achieve a majority, resulting in total unavailability.
+This situation is known as **Loss of Quorum**.
 
 ```d2
 c: Network partition {
@@ -155,12 +155,12 @@ c: Network partition {
 #### CP Design
 
 This is how we achieve **CP (Consistency over Availability)**:
-A **Raft** cluster ensures only one partition (the one with a majority) can operate at a time.
-This guarantees that at any moment, there is a single writer, ensuring consistency.
+A **Raft** cluster ensures that only one partition (the one with a majority) can operate at a time.
+This guarantees that at any moment, there is a single serving partition, ensuring consistency.
 
 ## Raft Cluster
 
-Let’s explore how to build a distributed cluster using the Raft algorithm.
+Let's explore how to build a distributed cluster using the Raft algorithm.
 
 ### Leader Node
 
@@ -174,16 +174,18 @@ It remains leader as long as it is reachable.
 
 How does the cluster detect that a leader has failed?
 Each node uses a **fixed timeout** value. The leader must periodically send **heartbeats** to followers.
-If a follower’s heartbeat expires, it assumes the leader is down.
+If a follower's heartbeat timeout expires, it assumes the leader is down.
 
-Once a node suspects the leader has failed, it transitions to a **Candidate** and initiates an election.
+Once a node suspects the leader has failed, it transitions to the **Candidate** state and initiates an election.
 Any node in the cluster can do this.
 
-For example, `Node B` detects leader failure due to a heartbeat timeout,
+For example, `Node B` detects a leader failure when its heartbeat timeout expires;
 it then becomes a **Candidate**.
 
 ```d2
+
 c: Cluster (Timeout = 3 seconds, Current time = 00:04) {
+  grid-rows: 1
   n1: Node A {
     states: |||yaml
     Heartbeat: 00:02
@@ -210,11 +212,12 @@ a logical counter representing election rounds.
 - For example, a node with `Term = 3` has participated in three election rounds.
 - Nodes will only vote for candidates with higher terms, which ensures the system can always make progress.
 
-Let’s walk through an example with **three nodes** and a **timeout of 3 seconds**.
+Let's walk through an example with **three nodes** and a **timeout of 3 seconds**.
 Suppose the leader has just become corrupted.
 
 ```d2
 c: 'Current time = 00:03, Timeout = 3s' {
+  grid-rows: 1
   n1: Node A {
    c: |||yaml
    State: Follower
@@ -243,7 +246,7 @@ c: 'Current time = 00:03, Timeout = 3s' {
 
 #### Step 1: Timeout and Candidacy
 
-`Node A` times out, transitions to a **Candidate** state, increments its term, and requests votes:
+`Node A` times out, transitions to the **Candidate** state, increments its term, and requests votes:
 
 ```d2
 c: 'Current time = 00:03, Timeout = 3s' {
@@ -275,10 +278,10 @@ c: 'Current time = 00:03, Timeout = 3s' {
 
 Nodes only vote for candidates with **higher terms**:
 
-- If a node hasn't voted or receives a higher term than itself, it will vote.
-- If another candidate matches or has a lower term, the node ignores the request.
+- If a node hasn't voted or receives a request with a term higher than its own, it will vote for the candidate.
+- If another candidate has an equal or lower term, the node ignores the request.
 
-`Node B` and `Node C` both ignore `Node A`’s vote request since their term is the same.
+`Node B` and `Node C` both ignore `Node A`'s vote request since their term is the same.
 `Node A` does not receive a majority and returns to the **Follower** state.
 
 ```d2
@@ -304,8 +307,8 @@ c: 'Current time = 00:03, Timeout = 3s' {
    Heartbeat: 00:02
    |||
   }
-  n2 -> n1: Ignores the voting
-  n3 -> n1: Ignores the voting
+  n2 -> n1: Ignores the vote request
+  n3 -> n1: Ignores the vote request
 }
 ```
 
@@ -369,7 +372,7 @@ c: 'Current time = 00:04, Timeout = 3s' {
 
 #### Step 3: Leader Confirmation
 
-A majority vote is confirmed, so `Node B` becomes the new **Leader**.
+A majority of the votes is confirmed, so `Node B` becomes the new **Leader**.
 After becoming leader, it sends regular heartbeat messages to all nodes to show it is alive.
 
 ```d2
@@ -401,14 +404,14 @@ c: 'Current time = 00:04, Timeout = 3s' {
 
 {{% /steps %}}
 
-Why is term number a reliable logical counter?
+Why is the term number a reliable logical counter?
 
 - Nodes increment their term after each timeout, so a node with a lower term must have participated in fewer election cycles than one with a higher term.
-- If a node adopts a higher term from another node, that implies the node has fallen behind the higher node.
+- If a node adopts a higher term from another node, that implies the node has fallen behind the node with the higher term.
 
 ### Split Vote
 
-What if no candidate achieves majority?
+What if no candidate achieves a majority?
 This results in a **Split Vote**:
 
 - The cluster may retry with new terms and timeouts.
@@ -419,8 +422,8 @@ This results in a **Split Vote**:
 Once a leader is elected, all state changes go through it.
 The leader writes changes to its log first and then replicates them to followers.
 
-For example, when a new node wants to join, it contacts the leader:
-The leader logs the change and then replicates the update to others.
+For example, when a new node wants to join, it contacts the leader.
+The leader logs the change and then replicates the update to the other nodes.
 
 ```d2
 direction: right

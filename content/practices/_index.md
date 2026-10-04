@@ -24,8 +24,3 @@ such as [Data Distribution]({{< ref "peer-to-peer-architecture" >}}) and [Concur
 
 - Explores how to develop a real-time application and maintain a [WebSocket]({{< ref "communication-protocols" >}}) cluster.
 - Demonstrates how to manage system complexity with [Queuing]({{< ref "event-streaming-platform" >}}).
-
-**3. [Video-on-demand And Livestreaming System]({{< ref "vod-system" >}})**
-
-- Examines a system that deals heavily with [Media Storage]({{< ref "media-storage" >}}).
-- Covers the design of a system that relies mainly on background processing.

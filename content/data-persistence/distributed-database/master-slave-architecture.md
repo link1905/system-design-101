@@ -10,7 +10,7 @@ To meet this demand,
 we can design a database architecture with a single writer (**Primary**) and multiple readers (**Replicas**).
 
 - The writer propagates changes to the replicas.
-- The replicas can serve read requests independently, offloading the primary and improving read scalability.
+- The replicas can serve read requests independently, reducing the load on the primary and improving read scalability.
 
 ```d2
 grid-rows: 1
@@ -45,12 +45,11 @@ r -> dc.r1: Read
 r -> dc.r2: Read
 ```
 
-This setup is commonly known as the {{< term maSl >}} **Architecture** (good name 🧐).
+This setup is commonly known as the {{< term maSl >}} **architecture** (good name 🧐).
 
 ## Multi-master
 
 Now, what happens if we allow **multiple writers**?
-Would that significantly improve write performance?
 
 ```d2
 dc: Database cluster {
@@ -86,40 +85,101 @@ dc: Database cluster {
 }
 ```
 
-However, this paradigm does not enhance write throughput.
-Every write operation must still be synchronized across all nodes in the cluster.
-This contrasts with read replicas, where each read request can be independently handled by a single replica.
-
-The key advantage of a **Multi-Master** setup lies in higher availability.
-If one master fails, others can continue to process writes, avoiding downtime.
-
-### SQL Paradox
-
-The most widely adopted form of the {{< term maSl >}} model is {{< term sql >}} databases,
+The {{< term maSl >}} model is most widely adopted in {{< term sql >}} databases,
 as a single writer makes it easier to maintain strong consistency for [ACID transactions]({{< ref "concurrency-control#acid" >}}).
 
-Because of this, **Multi-Master** setups are rarely used in practice.
-They don’t offer enough benefits to justify their complexity:
+Because of this, **multi-master** setups are rarely used in this context:
 
-- If the masters collaborate to maintain {{< term acid >}}, they must compromise availability.
-- If they asynchronously replicate, they risk violating {{< term acid >}} principles.
-
-## Standby Promotion
-
-Back to the {{< term maSl >}} model, the master handles all updates, becoming a {{< term spof >}} that can affect system availability.
-To mitigate the impact of master failure, we can introduce a [Standby Server]({{< ref "distributed-database#standby-server" >}})
-that is synchronously replicated from the master.
-In the event of a failure, we can quickly **promote** the standby to become the new master.
+- They cannot replicate asynchronously without risking violations of {{< term acid >}} principles.
+- On the other hand, if the masters continuously coordinate to maintain {{< term acid >}},
+they must compromise availability, and operations spanning multiple nodes become extremely complex.
 
 ## Centralized Cluster
 
-The {{< term maSl >}} model is often deployed as a centralized cluster,
-with a **Coordinator** that acts as the cluster's entry point.
+The {{< term maSl >}} model is often deployed with a centralized registry,
+that stores and facilitates the exchange of cluster membership information.
 
-Since each server has a predefined role (master or replica), the **Coordinator** can:
+```d2
+direction: right
+db: Database cluster {
+  s1: Master {
+    class: server
+  }
+  s2: Replica 1 {
+    class: server
+  }
+  s3: Replica 2 {
+    class: server
+  }
+  r: Registry {
+    class: db
+  }
+  s1 <-> r
+  s2 <-> r
+  s3 <-> r
+}
+```
+
+The master can be selected in several ways:
+
+- Through manual assignment by administrators.
+- Through a voting process:
+members can communicate through the store to reach agreement.
+
+Selecting the node with the most up-to-date data is a common strategy.
+For example:
+
+- The **master** node becomes unresponsive.
+- The replicas put themselves forward through the registry to become the new master.
+- `Replica 2` then becomes the new master because it holds newer data than `Replica 1`.
+
+```d2
+direction: right
+db: Database cluster {
+  s1: Master {
+    class: error
+  }
+  s2: Replica 1 {
+    class: server
+  }
+  s3: Replica 2 {
+    class: server
+  }
+  r: Registry {
+    class: db
+  }
+  s1 <-> r: Down {
+    class: error-conn
+  }
+  s2 -> r: "Last record at 00:10"
+  s3 -> r: "Last record at 00:20"
+}
+
+db-pro: Database cluster {
+  s2: "New master (from Replica 2)" {
+    class: server
+  }
+  s3: Replica 1 {
+    class: server
+  }
+  r: Registry {
+    class: server
+  }
+  s2 <-> r
+  s3 <-> r
+}
+db -> db-pro
+```
+
+### Reverse Proxy
+
+Having clients connect directly to all servers does not make sense.
+Instead,
+we should place a [reverse proxy]({{< ref "load-balancer#reverse-proxy-pattern" >}}) in front of them.
+Since each server has a predefined role (master or replica), the proxy can:
 
 - Route write requests to the master.
-- Distribute (aka load balancing) read requests across replicas.
+- Distribute read requests across replicas to balance the load.
 
 ```d2
 direction: right
@@ -133,7 +193,7 @@ db: Database cluster {
   r2: Replica 2 {
     class: db
   }
-  c: Coordinator {
+  c: Proxy {
     class: server
   }
   c -> w: "Write"
@@ -147,73 +207,20 @@ s: Client {
 s -> db.c
 ```
 
-Moreover, if the **Master** node becomes unresponsive,
-the **Coordinator** detects the failure and promptly promotes a server to take over its responsibilities.
-
-```d2
-direction: right
-c: Coordinator {
-  class: server
-}
-m: Master {
-  class: generic-error
-}
-r: Standby Server {
-  class: server
-}
-c -> m: Detect failure
-c -> r: Promote to master
-```
-
-### Connection Pooling
-
-Opening a new database connection is both slow and resource-intensive.
-If each user request triggers a new connection, it leads to performance issues.
-
-**Connection Pooling** is a fundamental design pattern that enables the **reuse** of database connections.
-Database connections are not immediately terminated but instead maintained in a pool for subsequent use.
-A **Pool Manager** component serves as the central authority responsible for managing and coordinating these shared connections.
-
-This functionality is integrated into the **Coordinator** to improve performance.
-
-```d2
-grid-rows: 1
-horizontal-gap: 100
-c: Client {
-    class: client
-}
-p: Coordinator (Pool Manager) {
-  vertical-gap: 50
-  grid-rows: 2
-  c1: Connection 1 {
-    class: conn
-  }
-  c2: Connection 2 {
-    class: conn
-  }
-}
-s: Servers {
-  class: db
-}
-c -> p
-p.c1 <-> s
-p.c2 <-> s
-```
-
 ## Problems
 
 The {{< term maSl >}} model is simple and intuitive.
 Each component has a well-defined role,
-and the direct communication between nodes results in **low latency** and **fast responses**.
+and the direct communication between nodes results in low latency.
 
-However, this simplicity conceals several **critical issues**,
+However, this simplicity conceals several issues,
 most of which stem from the centralized control of the master server:
 
 - The master becomes the {{< term spof >}}.
-Its failure halts **all write operations**,
+Its failure halts all write operations;
 therefore, the {{< term maSl >}} model does not guarantee {{< term ha >}}.
 
-- The master quickly becomes a **performance bottleneck**, especially in write-heavy applications.
+- The master quickly becomes a performance bottleneck, especially in write-heavy applications.
 
 In the next section,
-we'll dig deeper into this challenge and explore a decentralized approach to building robust database clusters.
+we'll examine this challenge in more detail and explore a decentralized approach to building robust database clusters.

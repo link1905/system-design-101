@@ -7,44 +7,44 @@ params:
 
 To maintain data deduplication,
 {{< term sql >}} normalizes data across multiple tables
-and then joins them in queries afterward.
-While this helps maintain data integrity, it often makes queries less efficient,
-since they must interact with multiple tables,
-which might reside in different files (or even on different servers).
+and joins them when executing queries.
+While this approach helps maintain data integrity, it can make queries less efficient
+because they must access multiple tables,
+which may reside in different files or even on different servers.
 
-In this topic, we’ll cover common techniques to improve query performance.
-At its core, the guiding principle is simple: **minimize I/O operations as much as possible**.
+In this topic, we'll explore common techniques for improving query performance.
+At its core, the guiding principle is simple: *minimize I/O operations as much as possible*.
 
 ## I/O Operation
 
-**I/O (Input/Output)** refers to the process of transferring data between disk (storage) and memory (RAM).
+**I/O (Input/Output)** refers to the process of transferring data between disk storage and memory (RAM).
 There are two primary types of `I/O`:
 
-- **Read I/O**: Moves data from disk to memory for access.
+- **Read I/O**: Transfers data from disk to memory for access.
 - **Write I/O**: Persists changes from memory back to disk.
 
-Since interacting with disk storage is relatively slow,
-an efficient database system must minimize I/Os and leverage memory caching whenever possible.
+Since accessing disk storage is relatively slow,
+an efficient database system should minimize I/O operations and leverage memory caching whenever possible.
 
 ### Memory Layer
 
-The memory structure closely mirrors the organization of data on disk.
-However, rather than caching entire tables or indexes, only the **necessary pages** are cached in memory.
+The organization of data in memory closely mirrors its structure on disk.
+However, rather than caching entire tables or indexes, the database caches only the **necessary pages**.
 
-A common caching strategy is **LRU (Least Recently Used)**, which works like this:
+A common caching strategy is **LRU (Least Recently Used)**, which works as follows:
 
-- **Cache Miss**: If a required page isn’t already in memory, it’s loaded from disk.
+- **Cache Miss**: If a required page isn't already in memory, it is loaded from disk.
 - **Eviction**: If memory is full, the least recently accessed pages are evicted to make room for new ones.
 
 ## Indexing
 
-In runtime, how an index is utilized depends heavily on the query context.
+At runtime, how an index is used depends heavily on the query context.
 There are typically three common query patterns:
 
 ### Index Scan
 
 This is the standard way to use an index.
-It involves at least **two I/O operations** per record retrieval:
+Retrieving a record typically involves at least **two I/O operations**:
 
 1. One to locate the index entry.
 2. Another to fetch the actual tuple from the heap.
@@ -52,7 +52,7 @@ It involves at least **two I/O operations** per record retrieval:
 For example, to find a student with `Id = 3`:
 
 - First, locate the index entry for `Id = 3`.
-- Then, follow its pointer to retrieve the actual record..
+- Then, follow its pointer to retrieve the corresponding record.
 
 ```d2
 grid-rows: 2
@@ -98,21 +98,21 @@ d: {
 query -> d.i.i2
 ```
 
-In large datasets, this back-and-forth access pattern can become inefficient.
-When querying a large number of records,
-repeatedly jumping between index pages and heap pages can significantly impact performance.
+For large datasets, this back-and-forth access pattern can become inefficient.
+When a query retrieves many records,
+repeatedly jumping between index pages and heap pages can significantly degrade performance.
 
 #### Index-Only Scan
 
-To improve this, we can attach **additional columns** to an index,
-allowing queries to retrieve these values directly from the index without accessing the heap.
+To improve this, we can include **additional columns** in an index,
+allowing queries to retrieve those values directly from the index without accessing the heap.
 
 This technique is known as a **Covering Index**.
-It reduces I/O by avoiding heap lookups for queries that only need the indexed columns.
+It reduces I/O by eliminating heap lookups for queries that require only values stored in the index.
 
 For example, by including the `Name` field in the student index,
-queries that retrieve only the `Name` can be resolved directly from the index
-without accessing the underlying table.
+queries that retrieve only `Name` can be resolved directly from the index
+without accessing the underlying tuple.
 
 ```d2
 grid-rows: 2
@@ -157,19 +157,19 @@ d: {
 query -> d.i.i2
 ```
 
-However, note that adding extra columns makes the index larger, increasing the storage cost.
-It also complicates updates, any change to an included column requires updating the index entry as well,
-making optimizations like [HOT updates]({{< ref "physical-layer#hot-update" >}}) unfeasible.
+However, adding extra columns makes the index larger, increasing storage requirements.
+It also makes updates more expensive because any change to an included column requires updating the index entry as well,
+potentially preventing optimizations such as [HOT updates]({{< ref "physical-layer#hot-update" >}}).
 
 ### Table Scan
 
-A **Table Scan** bypasses indexes entirely and reads the **entire set of table pages** sequentially.
+A **Table Scan** bypasses indexes entirely and sequentially reads the **entire set of table pages**.
 
-This approach is chosen when the database estimates that the query will return a large proportion of the table’s rows.
-In such cases, a full scan is more efficient than navigating between index and heap pages repeatedly.
+This approach is typically chosen when the database estimates that a query will return a large proportion of the table's rows.
+In such cases, scanning the table directly can be more efficient than repeatedly navigating between index and heap pages.
 
 For example,
-if most students have `GPA > 6`, the system might opt for a table scan to retrieve those records.
+if most students have `GPA > 6`, the system might choose a table scan to retrieve those records.
 
 ```d2
 query: SELECT Name WHERE GPA > 6 {
@@ -213,22 +213,23 @@ query -> h.p2: 2. Read second page
 
 ### Bitmap Scan
 
-A **Bitmap Scan** offers a hybrid strategy, useful when:
+A **Bitmap Scan** provides a hybrid strategy that is useful when:
 
-- It’s inefficient to repeatedly jump between an index and the table.
-- And a full table scan would be excessive.
+- Repeatedly jumping between an index and the table would be inefficient.
+- A full table scan would read too much unnecessary data.
 
-Since indexes are typically smaller than table data, loading index pages first allows the system to gather more information with fewer I/Os.
+Since indexes are generally smaller than the underlying table data,
+scanning index pages first allows the database to gather information using fewer I/O operations.
 
 In a **Bitmap Index Scan**:
 
-1. The system scans the index to identify qualifying records and marks the **pages** (not tuples) in a bitmap (`page number -> boolean`).
-2. It then sequentially reads the marked pages and filters them for the matching tuples.
+1. The system scans the index to identify qualifying records and **marks the relevant pages** in a bitmap (`page number -> boolean`).
+2. It then reads the marked pages and filters them to retrieve the matching tuples.
 
 For example:
 
-- The index might mark `Page 1` and `Page 2` for filtering.
-- The database then reads these pages to extract the qualifying recordss.
+- The index might mark `Page 1` and `Page 2` for further filtering.
+- The database then reads those pages to extract the qualifying records.
 
 ```d2
 query: SELECT Name WHERE Id < 7 {
@@ -285,15 +286,14 @@ query -> i: Scan
 i -> b
 ```
 
-**Bitmap Scan** can also combine multiple index conditions using **bitwise operations** on their respective bitmaps.
+A **Bitmap Scan** can also combine **multiple index conditions** using **bitwise operations** on their respective bitmaps.
 For instance:
 
-- One index bitmap identifies pages with `Id < 7`.
-- Another bitmap identifies pages with `Grade > 7`.
-- The system performs a bitwise `AND` operation on the bitmaps to find pages matching both conditions, reducing unnecessary I/Os.
+- One index bitmap identifies pages containing records with `Id < 7`.
+- Another bitmap identifies pages containing records with `Grade > 7`.
+- The system performs a bitwise `AND` operation on the two bitmaps to identify pages that may satisfy both conditions, reducing unnecessary I/O.
 
 ```d2
-
 grid-columns: 1
 query: SELECT Name WHERE Id < 6 AND Grade > 7 {
   shape: text
@@ -431,26 +431,31 @@ data.b2 -> bc.b
 
 ### Query Planner
 
-Most of the time, we don’t manually decide which query execution strategy to use.
-Instead, a component called **Query Planner** estimates and selects the most efficient query model based on cost:
+Most of the time, we don't manually choose which query execution strategy to use.
+Instead, a component called the **Query Planner** estimates the cost of different execution plans and selects the most efficient one.
+
+Common strategies include:
 
 - **Table Scan**: Reads all or most rows in a table.
-- **Index Scan**: Used when highly selective conditions return a small number of rows.
-- **Bitmap Index Scan**: Combines multiple indexes or handles queries that return a large number of rows.
+- **Index Scan**: Typically used when highly selective conditions return a small number of rows.
+- **Bitmap Index Scan**: Useful for combining multiple indexes or handling queries that return a moderate to large number of rows.
 
-But how does a database estimate the number of rows a query will process when the criteria are unpredictable?
-Behind the scenes, it relies on various techniques, such as histogram distributions.
-Periodically, the database randomly samples records and collects statistical metrics
-such as **Most Common Values (MVC)** and **histogram buckets**..
+But how does a database estimate how many rows a query will process when query conditions are unpredictable?
 
-#### Most Common Value (MVC)
+Behind the scenes, it relies on statistical techniques such as frequency statistics and histogram distributions.
+Periodically, the database **samples records** and collects metrics
+such as **Most Common Values (MCVs)** and **histogram buckets**.
 
-**Most Common Value (MVC)** refers to the values that occur most frequently within a column. The database regularly samples records and identifies their MVCs.
+#### Most Common Values (MCVs)
 
-When a query condition matches one of these MVCs, the database can quickly estimate the number of rows it will affect.
+**Most Common Values (MCVs)** are the values that occur most frequently within a column.
+The database periodically samples records and identifies these frequently occurring values.
+
+When a query condition matches one of these MCVs,
+the database can quickly estimate the proportion of rows that are likely to satisfy the condition.
 
 For example, consider the following statistics for the `Grade` column of the `Student` table.
-If a query filters `Grade = 7`, the database instantly predicts a frequency of `0.5` based on the recorded stats.
+If a query filters for `Grade = 7`, the database can estimate a frequency of `0.5` based on the recorded statistics.
 
 | Most common values | Most common frequencies |
 |--------------------|-------------------------|
@@ -459,42 +464,44 @@ If a query filters `Grade = 7`, the database instantly predicts a frequency of `
 
 #### Histogram Bucket
 
-But what about queries involving values outside the common ones, or range-based conditions?
-That’s where histogram buckets come in,
-they capture data distribution by dividing values into buckets containing roughly equal numbers of rows.
-The buckets might differ in range, but each holds a similar number of records.
+But what about queries involving less common values or range-based conditions?
 
-For example, with the values:
+This is where histogram buckets become useful.
+They approximate the data distribution by dividing values into buckets containing **roughly equal numbers of rows**.
+The buckets may cover different value ranges, but each contains a similar number of records.
+
+For example, consider the following values:
 
 `[1, 2, 3, 3, 3, 4, 4, 5, 10, 10, 10, 10, 20]`
 
-If we configure the histogram to hold approximately 4 rows per bucket, they might look like:
+If we configure the histogram to contain approximately four rows per bucket, the buckets might look like this:
 
 - `[1, 2, 3, 3, 3]`
 - `[4, 4, 5, 10]`
 - `[10, 10, 10, 20]`
 
-Internally, the database treats values within each bucket as uniformly distributed.
-In other words, it only tracks the range of each bucket, simplifying estimation:
+Internally, the database treats values within each bucket as **uniformly distributed**.
+Rather than storing every individual value, it can represent each bucket using its range:
 
 - `[1, 3]`
 - `[4, 10]`
 - `[10, 20]`
 
-Using this, the estimated number of rows for a query like `BETWEEN 15 AND 20` is calculated as:
+Using this approximation, the estimated number of rows for a query such as `BETWEEN 15 AND 20` can be calculated as:
 
 $Estimated\ Rows = \frac{Query\ Range}{Bucket\ Range} \times Number\ Of\ Rows\ Per\ Bucket = \frac{20-15}{20-10} \times 4 = 2$
 
-It’s important to understand that both MVC and histogram metrics are derived from **randomly sampled** records within the table.
+It's important to understand that both MCV and histogram statistics are derived from **sampled records** within the table.
 As a result, the collected statistics may not perfectly represent the actual distribution of data across the entire table.
-While this estimation process isn’t flawless,
-it provides the database with enough insight to make reasonably informed decisions when selecting the most efficient query execution strategy.
 
-## Partition
+Although this estimation process isn't exact,
+it gives the database enough information to make reasonably informed decisions when selecting an efficient query execution strategy.
 
-Partitioning involves splitting a table into smaller, more manageable pieces, called **partitions**.
+## Partitioning
 
-For example, a `User` table could be split into `UserActive` and `UserInactive` based on the `Active` status.
+**Partitioning** involves splitting a table into smaller, more manageable pieces called **partitions**.
+
+For example, a `User` table could be split into `UserActive` and `UserInactive` partitions based on the `Active` status.
 
 ```d2
 u: "UserTable"
@@ -512,60 +519,56 @@ u -> ui
 u -> ua
 ```
 
-Here, the main `User` table serves as a proxy to the underlying partitions,
-enabling improved performance by directing queries to smaller, more targeted tables.
+Here, the main `User` table serves as a **proxy for the underlying partitions**,
+allowing queries to target smaller and more relevant subsets of data.
 
-This strategy is especially effective when the partitioning column frequently appears in queries.
-However, when it’s not commonly queried, partitioning can degrade performance because:
+This strategy is particularly effective when the partitioning column frequently appears in query conditions.
+However, if the partitioning column is rarely used for filtering, partitioning can introduce additional overhead because:
 
-- Table scans now require accessing multiple partitions (increasing I/O).
-- Updates that modify the partitioning column involve moving records between tables, typically slower than simple in-place updates
+- Table scans may need to access multiple partitions, increasing I/O.
+- Updates that modify the partitioning column may require moving records between partitions, which is typically more expensive than a simple in-place update.
 
 ## Denormalization
 
 The final strategy is **Denormalization**,
-manually restructuring tables by adding aggregated columns to avoid repetitive joins or calculations.
+which involves deliberately restructuring data by storing derived or aggregated values to avoid repetitive joins or calculations.
 
 For example, given `Student` and `SubjectParticipation` tables,
-calculating a student's GPA requires aggregating all subject grades.
-If this is a frequent operation, it can impact performance:
+calculating a student's GPA requires **aggregating grades across all subjects**.
+If this calculation is performed frequently, it can negatively affect query performance:
 
 ```d2
-student {
+direction: right
+student: Student {
     shape: sql_table
     Id: "1"
     Name: "John"
 }
 s1: SubjectParticipation {
     shape: sql_table
-    StudentId: "1"
-    SubjectId: "1"
-    Grade: "3"
-}
-s2: SubjectParticipation {
-    shape: sql_table
-    StudentId: "1"
-    SubjectId: "2"
-    Grade: "4"
+    Participation1: "StudentId=1,SubjectId=1,Grade=3"
+    Participation2: "StudentId=1,SubjectId=2,Grade=4"
 }
 student -> s1
-student -> s2
 ```
 
-To optimize performance, we can precompute and store the GPA directly in the `Student` table.
-Any changes in the `SubjectParticipation` table would then trigger a recalculation of this field.
+To optimize this operation, we can store the total score and number of subjects directly in the `Student` table.
+Any relevant changes in the `SubjectParticipation` table would then require these aggregated fields to be updated as well.
 
 ```d2
 student {
     shape: sql_table
     Id: "1"
     Name: "John"
-    GPA: "3.5"
+    TotalScore: 7
+    NumOfSubjects: 2
 }
 ```
 
-Denormalization enables faster reads and is a fundamental principle in many [NoSQL databases]({{< ref "nosql-database" >}}).
-However, it should be used carefully.
+Denormalization enables faster reads and is a fundamental principle used by many [NoSQL databases]({{< ref "nosql-database" >}}).
+However, it should be applied carefully.
 
-- More complex and slower updates, since aggregated fields must be recalculated and synchronized across multiple places.
-- Broader transactions involving more updates, increasing chances of [concurrent conflicts and locking]({{< ref "concurrency-control">}}).
+Because duplicated or aggregated values must remain synchronized across multiple locations,
+updates become more complex and potentially more expensive.
+They may also require broader transactions involving additional writes,
+increasing the likelihood of [concurrent conflicts and locking]({{< ref "concurrency-control">}}).

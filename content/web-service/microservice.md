@@ -3,11 +3,11 @@ title: Microservice
 weight: 10
 ---
 
-Let’s begin our journey with a concept that has become ubiquitous in recent years - {{< term ms>}}
+Let’s begin our journey with a concept that has become ubiquitous in recent years - {{< term ms >}}.
 
 ## System Scaling
 
-Scaling refers to the process of adjusting a system’s hardware resources. For example:
+**Scaling** refers to the process of **adjusting hardware resources** of a system. For example:
 
 - When the system experiences high traffic, additional resources must be allocated to
   maintain optimal performance.
@@ -22,77 +22,68 @@ In general, scaling can be categorized into two types: {{< term vs >}} and {{< t
 For example:
 
 - If a server lacks memory, additional RAM can be installed.
-- If a server operates slowly, upgrading its CPU can enhance performance.
+- If a server operates slowly, upgrading its CPU (e.g., 1-core to 4-core) can enhance performance.
 
 ```d2
 direction: right
-server1: Server (1 CPU) {
+server1: Server (1-core CPU) {
   class: server
   width: 100
   height: 100
 }
-server2: Scaled Server (3 CPUs) {
+server2: Scaled Server (4-core CPU) {
   class: server
   width: 200
   height: 200
 }
-server1 -> server2: "Vertical Scale"
+server1 -> server2: "Vertical scale"
 ```
 
 However, relying on a single server in a large system poses significant challenges:
 
-- **Hardware Limitations**: A server’s capacity cannot be expanded indefinitely.
+- Hardware limitations: A server's capacity cannot be expanded indefinitely.
 - **Single point of failure**: If the sole server fails, the entire system may come to a halt.
 
 ### Horizontal Scaling
 
-Due to the limitations of {{< term vs >}}, many opt for {{< term hs >}} (aka **Scaling Out**).
-Instead of relying on one server,
-{{< term hs >}} builds a system by combining multiple **smaller servers** using fewer resources.
+Another method is {{< term hs >}}, also known as **Scaling Out**.
 
-For example, consider a system initially built with two servers.
-Scaling in this model means increasing the number of servers rather than enhancing a
-single server’s resources.
-For example, during a traffic spike, adding new servers (e.g., `Server 2` and `Server 3`) can alleviate the load.
+Instead of relying on a single server, {{< term hs >}} builds a system by **combining multiple smaller servers** and distributing the workload among them.
+
+In this model, scaling means adjusting the number of servers rather than changing the resources of a single server.
+
+For example, consider a system initially running on a server, `S1`. During a traffic spike, adding another server, `S2`, can help distribute the increased load instead of requiring an upgrade to `S1`.
 
 ```d2
 direction: right
 c1: "System" {
-    server1: Server 1 {
+    server1: S1 {
         class: server
         width: 100
         height: 100
     }
 }
 c2: "Scaled System" {
-    server1: Server 1 {
+    server1: S1 {
         class: server
         width: 100
         height: 100
     }
-    server2: Server 2 {
-        class: server
-        width: 100
-        height: 100
-    }
-    server3: Server 3 {
+    server2: S2 {
         class: server
         width: 100
         height: 100
     }
 }
-c1 -> c2: Horizontal Scale
+c1 -> c2: Horizontal scale
 ```
 
-This approach allows for infinite resource scaling by provisioning separate machines.
-It also eliminates the risk of {{< term spof >}},
-since if one server fails, others can continue operating.
+This approach reduces the risk of a {{< term spof >}}, since if one server fails, the others can continue operating.
 
 However, {{< term hs >}} comes with its own trade-offs:
 
-- **Increased Complexity**: Managing multiple machines is inherently much more complex than a single one.
-- **Network Problems**: Operating a distributed system requires extensive network communication, which may lead to
-  reduced performance, security vulnerabilities, and potential network failures.
+- **Increased Complexity**: Managing multiple machines is inherently more complex than managing a single one.
+- **Network Overhead**: Distributed systems rely heavily on network communication, which can introduce latency, increase security risks, and create additional points of failure.
 
 ### Distributed System
 
@@ -145,53 +136,40 @@ For example, a system with three modules might be structured as follows:
     {{< filetree/folder name="Account Module" >}}
       {{< filetree/file name="Account.class" >}}
     {{< /filetree/folder >}}
-    {{< filetree/folder name="Payment Module" >}}
+    {{< filetree/folder name="Subscription Module" >}}
       {{< filetree/file name="Request.class" >}}
-      {{< filetree/file name="Transaction.class" >}}
-    {{< /filetree/folder >}}
-    {{< filetree/folder name="Notification Module" >}}
-      {{< filetree/file name="Email.class" >}}
-      {{< filetree/file name="PushNotification.class" >}}
+      {{< filetree/file name="SubscriptionPackage.class" >}}
     {{< /filetree/folder >}}
   {{< /filetree/folder >}}
 {{< /filetree/container >}}
 
 However, as the system grows, its flexibility diminishes.
-In large systems maintained by multiple teams,
-sharing a single codebase can significantly slow development due to the need for tight coordination.
-For instance:
+In large systems maintained by multiple teams, sharing a single codebase can significantly slow down development because it requires tight coordination among teams. For example:
 
-- Teams hesitating to modify shared parts due to the risk of unintended consequences.
-- Even minor changes cause the entire system to be redeployed.
-- **Lock-step Deployment**: One team’s readiness to deploy can be delayed by issues in another team’s code.
+- **Risk-Averse Changes**: Teams may hesitate to modify shared components due to the risk of unintended consequences.
+- **Lock-Step Deployment**: One team’s deployment may be delayed by issues in another team’s code.
 
-To overcome these limitations,
-it is essential to minimize inter-team dependencies
-and allow teams to work in parallel with clearly defined responsibilities.
+To overcome these limitations, it is essential to minimize inter-team dependencies and enable teams to work independently and in parallel, with clearly defined responsibilities.
 
 ### Microservice Architecture
 
-{{< term ms >}} is an **architectural pattern** that decomposes a system into smaller,
-independent services, each handling a specific function.
+{{< term ms >}} is an architectural pattern that decomposes a system into smaller,
+independent services, each responsible for a specific function.
 
-For example, the microservice approach splits the previous system into three
-**independent services** and assigns them to different teams.
+For example, a microservice architecture can split the previous system into three
+**independent services**, each owned by a different team.
 
 {{< filetree/container >}}
   {{< filetree/folder name="Account Service" >}}
     {{< filetree/file name="Account.class" >}}
   {{< /filetree/folder >}}
-  {{< filetree/folder name="Payment Service" >}}
+  {{< filetree/folder name="Subscription Service" >}}
     {{< filetree/file name="Request.class" >}}
-    {{< filetree/file name="Transaction.class" >}}
-  {{< /filetree/folder >}}
-  {{< filetree/folder name="Notification Service" >}}
-    {{< filetree/file name="Email.class" >}}
-    {{< filetree/file name="PushNotification.class" >}}
+    {{< filetree/file name="SubscriptionPackage.class" >}}
   {{< /filetree/folder >}}
 {{< /filetree/container >}}
 
-Ideally, microservices operate in complete **isolation**, sharing no common dependencies such as codebase, databases, or specific technologies.
+Ideally, microservices operate with a high degree of **isolation**, minimizing shared dependencies such as codebases, databases, and technology stacks.
 
 ```d2
 grid-columns: 1
@@ -209,20 +187,20 @@ t {
 s {
   grid-rows: 1
   class: none
-  sa: Microservice A {
+  sa: Account Service {
     grid-rows: 1
     c: Codebase {
       class: code
-    }  
+    }
     db: Data schema {
       class: db
     }
   }
-  sb: Microservice B {
+  sb: Subscription Service {
     grid-rows: 1
     c: Codebase {
       class: code
-    }  
+    }
     db: Data schema {
       class: db
     }
@@ -232,110 +210,115 @@ t.ta -> s.sa: Maintain
 t.tb -> s.sb: Maintain
 ```
 
-This fundamental isolation empowers teams to manage their services with full autonomy.
-It grants them the freedom to select their own technology stacks and to **independently deploy** and test their code.
-Consequently, this autonomy significantly **speeds up development cycles** and fosters greater agility.
+This isolation empowers teams to manage their services with greater autonomy.
+Teams can choose technology stacks appropriate to their needs and **independently deploy** and test their services.
+Consequently, this autonomy can **accelerate development cycles** and enable teams to iterate more independently.
 
-### Microservice & Monolith
+### Microservices vs. Monoliths
 
 Is a microservice architecture inherently superior to a monolithic one?
-The answer depends entirely on context.
+The answer depends entirely on the context.
 
-In monolithic systems, all modules reside within a single codebase.
-This centralized structure makes it simpler to design, develop, and deploy,
+In a monolithic system, all modules reside within a single codebase and are typically deployed as a single unit.
+This centralized structure is often **simpler to design, develop, test, and deploy,**
 particularly for small to medium-sized projects.
-Modules communicate directly and efficiently (in-process),
-resulting in lower latency and higher performance.
+Modules can also communicate directly within the same process,
+resulting in **lower communication overhead and latency**.
 
-By contrast, microservices are intentionally isolated and must interact **across a network**.
-This distributed model introduces added latency, creates more potential points of failure,
+By contrast, microservices are intentionally isolated and often communicate **across a network**.
+This distributed model introduces additional latency, creates more potential points of failure,
 and increases the complexity of monitoring, managing, and troubleshooting the system.
-Additionally, striving for complete autonomy in microservices can often result in **code duplication** across services.
+Furthermore, maintaining strict service autonomy can lead to **code duplication** across services.
 
-However, as organizations scale, especially those with dozens or hundreds of developers;
-A monolithic architecture can become a bottleneck,
-hindering parallel development and making it difficult for teams to work independently.
+However, as organizations grow, especially to dozens or hundreds of developers,
+a monolithic architecture can become a development bottleneck.
+A large, shared codebase may increase coordination overhead,
+complicate deployments, and make it more difficult for teams to develop and release features independently.
 
-Ultimately, microservices tend to provide the most value from a **development perspective**,
-enabling independent deployments, flexible scaling, and clearer team ownership,
-rather than offering benefits for runtime characteristics like raw performance or reliability.
+Ultimately, microservices tend to provide their greatest benefits from an **organizational and development perspective**.
+They enable independent deployments, flexible scaling, and clearer service ownership.
+These advantages do not necessarily translate into better runtime characteristics,
+such as raw performance or reliability, because distributed systems introduce their own operational costs and failure modes.
 
 {{< callout type="info" >}}
-To be honest, I’m not a fan of **Microservice**, and I know many developers share this sentiment.
+Personally, I'm not a fan of **Microservices**, and I know many developers share this sentiment.
 Once data leaves my service and crosses the network,
-it’s exposed to a host of unpredictable issues that can drain significant amounts of time and energy.
+it becomes subject to a range of failures and uncertainties that can consume significant time and effort to diagnose.
 
-That said, I find working with very large teams even more challenging.
-When things break, it’s often unclear where to turn for help,
-and I frequently get dragged into problems that fall outside my area of responsibility.
+That said, I find working within very large teams even more challenging.
+When something breaks, ownership can become unclear,
+and I may end up investigating problems that fall well outside my area of responsibility.
+
+For me, that trade-off captures much of the appeal of microservices:
+they exchange some technical simplicity for stronger boundaries between teams and their responsibilities.
 {{< /callout >}}
 
 ### Microservice & Horizontal Scaling
 
-A common misconception is that a monolith system must reside on a single server using {{< term vs >}},
-while a microservice system always requires {{< term hs >}}.
+A common misconception is that a monolithic system must run on a single server and rely on {{< term vs >}},
+while a microservice architecture inherently requires {{< term hs >}}.
 
-In reality, the development model is separate from operational strategies.
-Both monolithic and microservice systems can be scaled either vertically or horizontally.
+In reality, *architectural style and scaling strategy are separate concerns*.
+Both monolithic and microservice systems can be scaled either vertically or horizontally,
+depending on their requirements and deployment environments.
 
 ## Service Decoupling
 
 ### Tight Coupling
 
-A significant challenge in {{< term ms >}} is tight coupling,
-where isolated services become **overly dependent** on one another
-and behave more like components of a monolithic system.
+A significant challenge in {{< term ms >}} is **tight coupling**,
+where isolated services become overly dependent on one another
+and begin to behave more like components of a monolithic system.
 
 For example, when a user completes a subscription purchase, the `Subscription Service` first retrieves the necessary account information from the `Account Service`.
-After gathering these details, it then notifies the `Account Service` to update the user’s account status accordingly.
+After gathering these details, it then notifies the `Account Service` to update the account's status accordingly.
 
 ```d2
-direction: right
-system: System {
-    s: Subscription Service {
-      class: server
-    }
-    acc: Account Service {
-      class: server
-    }
-    s <- acc: "1. GetAccountInformation()"
-    s -> acc: "2. UpdateSubscription()"
+shape: sequence_diagram
+s: Subscription Service {
+  class: server
 }
+acc: Account Service {
+  class: server
+}
+s <- acc: GetAccountInformation()
+s -> acc: UpdateStatus()
 ```
 
-Even though these services reside in separate codebases, they remain **implicitly dependent**.
-Changes to the `Account Service`, such as interfaces or logic,
+Even though these services reside in separate codebases, they remain **implicitly dependent** on each other.
+Changes to the `Account Service`, such as changes to its interfaces or logic,
 can have unintended consequences for the `Subscription Service`,
-requiring coordination and redeployment to prevent runtime errors and limiting service autonomy:
+requiring **coordination and redeployment** to prevent runtime errors and thereby limiting service autonomy:
 
-- The more consumers the `Account Service` has, the more coordination needs to happen.
-- If the `Account Service` undergoes frequent changes,
-  dependent services must constantly cope with it to maintain system integrity.
+- The more consumers the `Account Service` has, the more coordination is required.
+- If the `Account Service` changes frequently,
+  dependent services must continually adapt to maintain system integrity.
 
-While **consolidating** services into a single unit might seem like a straightforward solution,
-it risks creating a large, monolithic service bringing back the very issues we sought to avoid.
+While **consolidating services into a single unit** might seem like a straightforward solution,
+it risks creating a large service and reintroducing the very problems we sought to avoid with a monolithic system.
+
 {{< callout type="info" >}}
-You may see it's silly to bolt services back after demarcating them.
-Nowadays, this occurs a lot in many organizations.
-That's because they've initially expected too much and produced excessively complex systems.
+It may seem counterproductive to merge services again after deliberately separating them.
+Nevertheless, this happens frequently in many organizations.
+One common reason is that teams initially overestimate the benefits of decomposition and end up creating excessively complex systems.
 {{< /callout >}}
 
 Coupling between services is, to some extent, **unavoidable**.
-Our goal should be to **minimize dependencies**
-while ensuring that services remain as independent and loosely coupled as possible.
+Our goal should therefore be to **minimize dependencies**
+while keeping services as independent and loosely coupled as possible.
 
 ### Loose Coupling
 
 **Loose Coupling**
 involves minimizing dependencies between services so that changes in one service have little or no effect on others.
 
-Services can be coupled in several aspects, typically including:
+Services can be coupled in several ways, typically including:
 
 #### Sequential Coupling
 
-**Sequential Coupling** occurs when one service depends on another in a **particular sequence**.
+**Sequential Coupling** occurs when one service depends on another in a **particular sequence of interactions**.
 
-For example, suppose the `Subscription Service` initially calls the `Account Service` to update subscriptions:
+For example, suppose the `Subscription Service` initially calls the `Account Service` to update an account's status:
 
 ```d2
 direction: right
@@ -345,10 +328,10 @@ a: Subscription Service {
 b: Account Service {
     class: server
 }
-a -> b: "UpdateSubscription()"
+a -> b: "UpdateStatus()"
 ```
 
-Later, if the `Subscription Service` also requires functions for upgrading or
+Later, if the `Subscription Service` also requires functionality for upgrading or
 canceling subscription plans,
 the `Account Service` must expose additional functions:
 
@@ -361,30 +344,31 @@ b: Account Service {
     class: server
 }
 
-a -> b: "UpdateSubscription()"
+a -> b: "UpdateStatus()"
 a -> b: "UpgradePlan()"
 a -> b: "CancelPlan()"
 ```
 
-We observe that the `Subscription Service` grasps the inner logic of the `Account Service`,
-every time it needs something,
-it dictates the `Account Service` to accommodate that.
-The services are tightly coupled with each other,
+We can see that the `Subscription Service` must understand the internal responsibilities of the `Account Service`.
+Whenever it requires additional behavior,
+it effectively dictates how the `Account Service` must evolve.
+As a result, the two services become tightly coupled,
 increasing interdependency and reducing flexibility.
 
 #### Topology Coupling
 
 **Topology Coupling** refers to dependencies that arise from the arrangement
 and interconnection of services.
-When a service is added or removed, the **overall topology** changes and
-can impact other services.
+When a service is added or removed, the **overall topology** changes,
+potentially affecting other services.
 
-For example, suppose we add a `Notification Service` and a `Fraud Detection Service`,
-and the `Subscription Service` is then required to **adapt** to send payment receipts to them:
+For example, suppose we introduce a `Notification Service` and a `Fraud Detection Service`.
+The `Subscription Service` must then **adapt** to send subscription information to these new services:
 
 ```d2
-direction: right
+direction: down
 s1: System {
+    direction: right
     acc: Account Service {
       class: server
     }
@@ -402,15 +386,11 @@ s2: Adapted System {
     }
     n: Notification Service {
       style.stroke-dash: 3
-      s: "" {
-        class: server
-      }
+      class: server
     }
     d: Fraud Detection Service {
       style.stroke-dash: 3
-      s: "" {
-        class: server
-      }
+      class: server
     }
     p -> acc
     p -> n: Added {
@@ -423,17 +403,17 @@ s2: Adapted System {
 s1 -> s2: Changed to
 ```
 
-Similarly, as new services are introduced or existing ones are removed, the `Subscription Service` must **constantly adapt** to these new topologies.
+Similarly, as new services are introduced or existing ones are removed, the `Subscription Service` must **continually adapt** to changes in the system topology.
 However, for greater agility and maintainability, the burden of managing such changes should not rest with the `Subscription Service`.
-Instead, the responsibility for handling dynamic topology adjustments should belong to the individual components being added or removed.
+Instead, responsibility for adapting to topology changes should belong to the individual components being added or removed.
 
 #### Semantic Coupling
 
-**Semantic Coupling** occurs when services share the same data structures and semantics.
+**Semantic Coupling** occurs when services depend on shared data structures and semantics.
 
 For example, if the `Subscription Service` receives a response from the `Account Service`,
-it must understand the structure of that response.
-If the `Account Service` modifies the structure, it must notify the `Subscription Service` to prevent errors.
+it must understand the structure and meaning of that response.
+If the `Account Service` modifies the structure, the `Subscription Service` must be updated accordingly to prevent errors.
 
 ```d2
 grid-rows: 1
@@ -445,7 +425,7 @@ a: Subscription Service {
 r: Response {
   shape: sql_table
   id: string
-  fullName: string
+  status: free|plus|pro
 }
 b: Account Service {
     class: server
@@ -454,67 +434,65 @@ a <- r
 r -- b
 ```
 
-Services need to agree on a common contract if they want to interact with each other,
-this dependency seems **barely avoidable**.
+Services must agree on a common contract in order to interact with one another,
+so this form of dependency is **difficult to avoid entirely**.
 
 ### Inversion of Control (IoC)
 
 The [Inversion of Control (IoC)](https://en.wikipedia.org/wiki/Inversion_of_control) principle can help
-reduce coupling effectively.
+reduce coupling between services.
 
-Consider a car driving program:
-
-- An `Engine` class controls the wheels.
-- A `Controller` is necessary to direct the engine.
-
-Typically, the `Controller` might actively invoke the `Engine`.
-In other words, the `Controller` depends on the `Engine`.
+Consider the previous example.
+Suppose users query their status through the `Account Service`.
+The `Subscription Service` actively controls updates to account status.
+In other words, the `Subscription Service` depends on the `Account Service`.
 
 ```d2
 direction: right
-e: Engine {
-  shape: class
-  Drive(direction): ""
+a: Subscription Service {
+    class: server
 }
-c: Controller {
-  shape: class
-  engine: Engine
+b: Account Service {
+    class: server
 }
-c -> e: Send direction to run {
-  class: bold-text
+u: User {
+  class: client
 }
+a -> b: "UpdateStatus()"
+u <- b: "GetStatus()"
 ```
 
-Using {{< term ioc >}}, we try to invert the dependency.
-Now, the `Engine` drives the car by requesting the current direction from the `Controller`;
-That means it depends on the `Controller`.
+Using {{< term ioc >}}, we can attempt to invert this dependency.
+Instead, the `Account Service` requests the current subscription from the `Subscription Service` and determines the account status itself.
+The `Subscription Service` no longer needs to update account status directly or depend on the `Account Service`.
+Instead, the `Account Service` becomes the initiator of the interaction.
 
 ```d2
 direction: right
-c: Controller {
-    shape: class
-    GetCurrentDirection(): ""
+a: Subscription Service {
+    class: server
 }
-e: Engine {
-    shape: class
-    controller: Controller
-    Drive(): ""
+b: Account Service {
+    class: server
 }
-e <- c: Get direction to run {
-  class: bold-text
+u: User {
+  class: client
 }
+a -> b: "GetCurrentSubscription()"
+u <- b: "GetStatus()"
 ```
 
-But purely inverting like this is no use,
-the dependency and its problems are still there.
-We'll see an indirect approach to implement {{< term ioc >}} called {{< term msg >}}.
+However, simply inverting the direction of the call does not solve the underlying problem.
+The dependency, along with its associated drawbacks, still exists.
+Next, we'll examine an indirect approach to implementing {{< term ioc >}} using {{< term msg >}}.
 
 ### Messaging
 
 The {{< term ioc >}} principle can be implemented using {{< term msg >}}.
-We essentially build an informative **message broker** with two primary associates:
+In this model, we introduce a **message broker** and three primary roles:
 
 - **Publishers** publish messages.
+- **Broker** stores and distributes messages.
 - **Consumers** consume and process messages.
 
 ```d2
@@ -532,10 +510,10 @@ p -> m: Publish
 c <- m: Consume
 ```
 
-Integrating {{< term msg >}} into the first coupling example:
+Applying {{< term msg >}} to the previous coupling example:
 
-- The `Subscription Service` can publish account subscription messages to the broker.
-- The `Account Service` can later retrieve these messages to update the associated accounts.
+- The `Subscription Service` publishes subscription-related messages to the broker.
+- The `Account Service` later consumes these messages and updates the corresponding accounts.
 
 ```d2
 direction: right
@@ -549,7 +527,7 @@ mq: Message Broker {
     class: mq
 }
 msg: |||yaml
-messageType: Account subscription
+messageType: AccountSubscription
 userId: 123
 |||
 p -- msg: "Publish"
@@ -557,21 +535,20 @@ msg -> mq
 acc <- mq: "Consume"
 ```
 
-By the {{< term ioc >}} principle,
-the `Account Service` **actively consumes** and processes messages
-rather than being directly invoked by another service.
-In other words, its role is inverted,
-from being called to a caller.
+Following the {{< term ioc >}} principle,
+the `Account Service` now **actively consumes** and processes messages
+instead of being directly invoked by another service.
+As a result, neither the `Subscription Service` nor the `Account Service` directly depends on the other.
 
 #### Decoupling With Messaging
 
-Beneficially, {{< term msg >}} moves us away from:
+{{< term msg >}} helps reduce several forms of coupling:
 
 - [Sequential coupling](#sequential-coupling): The `Account Service` exposes only a minimal set of interfaces
-  and adapts to handle various messages instead.
-  Furthermore, the scope of the `Subscription Service` is reduced, granting it more flexibility;
-  Like so, even if the `Account Service` fails to process messages,
-  the `Subscription Service` continues to develop and deliver without disruption.
+  and adapts internally to handle different messages.
+  At the same time, the responsibilities of the `Subscription Service` are reduced, giving it greater flexibility.
+  For example, even if the `Account Service` temporarily fails to process messages,
+  the `Subscription Service` can continue operating without being directly disrupted.
 
 ```d2
 direction: right
@@ -592,8 +569,8 @@ system: System {
 }
 ```
 
-- [Topology coupling](#topology-coupling): Additional services, such as `Notification Service` and `Fraud Detection Service`,
-  can autonomously read messages without requiring any changes from the `Subscription Service`.
+- [Topology coupling](#topology-coupling): Additional services, such as the `Notification Service` and `Fraud Detection Service`,
+  can independently consume messages without requiring any changes to the `Subscription Service`.
 
 ```d2
 direction: right
@@ -620,20 +597,19 @@ system: System {
 }
 ```
 
-Nevertheless, we still encounter some dependencies
+Nevertheless, some dependencies still remain:
 
-- Both services depend on {{< term msg >}}. Luckily, the dependency is minimized and barely problematic,
-  as **Message Brokers** expose only basic `Publish()` and `Consume()` interfaces that rarely change.
-- Both the publisher and consumer adhere to the same message schema, which is [Semantic Coupling](#semantic-coupling).
+- Both services depend on {{< term msg >}}. Fortunately, this dependency is relatively small and rarely problematic,
+  as **Message Brokers** typically expose simple `Publish()` and `Consume()` interfaces that change infrequently.
+- Both publishers and consumers must adhere to the same message schema, resulting in [Semantic Coupling](#semantic-coupling).
 
-Occasionally, messaging may result in an **unnecessary overhead** and outweigh the benefits of decoupling.
+In some situations, however, messaging introduces **unnecessary overhead** that may outweigh the benefits of decoupling:
 
-- The indirect communication model results in **slower performance**,
-  making it unsuitable for low-latency workloads.
+- Indirect communication can result in **higher latency**, making messaging unsuitable for certain low-latency workloads.
 - Asynchronous communication can lead
-  to [temporary inconsistencies]({{< ref "distributed-database#eventual-consistency-level" >}}), since changes aren’t immediately
+  to [temporary inconsistencies]({{< ref "distributed-database#eventual-consistency-level" >}}), since changes are not immediately
   reflected across services.
-- Debugging may become more challenging as failures are asynchronous and harder to trace.
+- Debugging can become more challenging because failures occur asynchronously and may be harder to trace across services.
 
-In summary, while coupling in a microservice architecture can’t be eliminated,
-they can be reduced and managed more effectively through {{< term msg >}}.
+In summary, while coupling in a microservice architecture cannot be eliminated entirely,
+it can be reduced and managed more effectively through {{< term msg >}}.

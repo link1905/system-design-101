@@ -9,14 +9,14 @@ establishing itself as a cornerstone of modern software development and deployme
 
 ## Kernel
 
-To understand **Containerization** thoroughly,
-let's first examine the foundational elements upon which it is built.
+To understand **containerization**,
+let's first examine its foundations.
 
 Users should generally not interact directly with hardware.
 Direct hardware access can lead to numerous problems related to security,
 resource management, and hardware compatibility.
 
-The **Kernel** is the core component of an operating system.
+The **kernel** is the core component of an operating system.
 It acts as a bridge between **processes** (running applications) and the physical **hardware**.
 To interact with hardware, user commands are first passed to and processed by the kernel.
 
@@ -81,16 +81,16 @@ m: Host OS {
 }
 ```
 
-The **Kernel** helps address these concerns by enabling isolation.
-Essentially, it allows for the creation of **isolated sections** within the machine,
+The **kernel** helps address these concerns by enabling isolation.
+It allows the creation of **isolated sections** within the machine,
 where each section has its own view of resources and cannot directly see or share resources with other sections.
 
-**Containerization** leverages this kernel feature to construct
+**Containerization** uses this kernel feature to create
 **virtual operating systems** that are based on the host's kernel.
-Each such virtual OS, with its own properties (like users, groups, files, and processes), is called a **Container**.
+Each such virtual OS, with its own properties (such as users, groups, files, and processes), is called a **container**.
 
-Despite all containers relying on the same underlying host kernel,
-they are **logically isolated** from one another and cannot mutually share resources by default.
+Although all containers rely on the same underlying host kernel,
+they are **logically isolated** from one another and cannot share resources with each other by default.
 
 ```d2
 m: Host OS {
@@ -125,7 +125,7 @@ m: Host OS {
 ```
 
 This distinction also clarifies the difference between a virtual machine and a container.
-A **virtual machine (VM)** relies on a [Hypervisor](https://en.wikipedia.org/wiki/Hypervisor) to virtualize hardware,
+A **virtual machine (VM)** relies on a [hypervisor](https://en.wikipedia.org/wiki/Hypervisor) to virtualize hardware,
 allowing it to run a **separate, full kernel** and requiring a complete installation of its own operating system.
 VMs are strongly isolated and use the host's physical resources as mediated by the hypervisor.
 
@@ -170,11 +170,11 @@ Host OS {
 
 ### Namespace
 
-**Namespace** is a **Linux Kernel** feature that plays a crucial role in isolating system resources for containers.
+A **namespace** is a **Linux kernel** feature that plays a crucial role in isolating system resources for containers.
 In brief, when a process runs within a specific **namespace**,
 it can only detect and interact with the resources that are also part of that same namespace.
 
-Various types of resources can be segregated using namespaces.
+Various types of resources can be isolated using namespaces.
 We will focus on the primary ones:
 
 ### User Namespace
@@ -183,8 +183,8 @@ By default, within a standard OS environment,
 a user can typically see other users and groups on the machine because
 they all share the same underlying OS user management system.
 
-**User Namespace** allows for the creation of isolated user systems.
-Users within different user namespaces will have distinct views of user and can even have **overlapping IDs** without conflict.
+A **user namespace** allows the creation of isolated user systems.
+Users within different user namespaces have distinct views of users and can even have **overlapping IDs** without conflict.
 
 ```d2
 direction: right
@@ -213,7 +213,7 @@ When this namespaced user attempts to access resources,
 the kernel maps its namespaced ID to a corresponding host user ID to perform authorization checks.
 
 For example,
-`User 1` within `Namespace 1` is actually be mapped to
+`User 1` within `Namespace 1` is mapped to
 `User 100` on the host system when performing actions that require kernel-level permissions.
 
 ```d2
@@ -242,7 +242,7 @@ OS {
 }
 ```
 
-To possess a private user system,
+To establish a private user system,
 a container creates its own user namespace.
 Within this namespace, a user is effectively represented by a real, often non-privileged, user on the host.
 
@@ -290,7 +290,7 @@ OS {
 }
 ```
 
-For better control and isolation, **Process Namespace** provides isolation of **Process IDs (PIDs)**.
+For better control and isolation, a **process namespace** isolates **process IDs (PIDs)**.
 This means that processes running in different process namespaces are isolated from each other and can have **overlapping PIDs**.
 
 Again, a mapping occurs: a PID within a process namespace corresponds to a different PID on the host system.
@@ -322,13 +322,13 @@ OS {
 
 A question might arise here: *Can users in different user namespaces see the same process?*
 
-It's important to recognize that different types of namespaces serve distinct purposes and operate independently.
-Each namespace type helps segregate a particular aspect of the system.
+Different types of namespaces serve distinct purposes and operate independently.
+Each namespace type helps isolate a particular aspect of the system.
 
 For example, `Process 1` could be placed in:
 
 - `User Namespace 1`: It can only see and manage users (`User 1` and `User 2`) defined within this user namespace.
-- `Process Namespace 1`: It can only see processes (`Process 2`) existing within this process namespace.
+- `Process Namespace 1`: It can only see processes (`Process 2`) running within this process namespace.
 
 ```d2
 OS {
@@ -355,10 +355,10 @@ OS {
 
 ### Network Namespace
 
-Each network namespace possesses its own independent set of network interfaces (which are virtual),
-IP addresses, firewall rules, routing tables, etc.
+Each network namespace has its own independent set of network interfaces (which are virtual),
+IP addresses, firewall rules, routing tables, and other network resources.
 
-A network namespace's settings apply to the processes running inside.
+A network namespace's settings apply to the processes running inside it.
 These virtual network stacks ultimately still rely on the host's physical network,
 and their network messages are processed by the host's network settings **before** exiting the machine.
 
@@ -383,13 +383,13 @@ OS {
 
 #### Bridging
 
-Essentially, different network namespaces, despite coexisting on the same machine,
+Different network namespaces, despite coexisting on the same machine,
 must communicate with each other (and the outside world) via networking mechanisms.
-Network bridging is a popular technique to connect network namespaces.
+Network bridging is a common technique for connecting network namespaces.
 
 In brief, a virtual network interface called a **bridge** is created on the host.
 This special interface acts as a virtual switch between different network namespaces
-(and potentially the host's network), allowing them to connect with each other by **private IPs**.
+(and potentially the host's network), allowing them to communicate using **private IP addresses**.
 
 ```d2
 OS {
@@ -418,12 +418,12 @@ OS {
 ```
 
 However, this setup is typically suitable for internal workloads.
-These private network IPs (e.g., `192.168.1.1`, `192.168.1.2`) cannot be exposed directly to the public internet,
+These private IP addresses (e.g., `192.168.1.1`, `192.168.1.2`) cannot be exposed directly to the public internet,
 as the outside world has no knowledge of them.
 
 #### Port Mapping
 
-Another strategy for connecting network namespaces to external networks is **Port Mapping**.
+Another strategy for connecting network namespaces to external networks is **port mapping**.
 This is similar in concept to [Network Address Translation (NAT)](https://en.wikipedia.org/wiki/Network_address_translation).
 
 The host can be configured to forward network messages to specific namespaces based on their **destination port** number.
@@ -483,14 +483,14 @@ o.b <-> d1
 o.v <-> d2
 ```
 
-With **mount namespaces**, processes can have different views of the filesystem hierarchy.
+With **mount namespaces**, processes can have different views of the file system hierarchy.
 For example:
 
 - In `Mount Namespace 1`, the path `/var` might point to `Device 1`.
 - Simultaneously, in `Mount Namespace 2`, the same path `/var` could point to `Device 2`.
 
 In other words, despite using the same directory path,
-processes in different mount namespaces can be working with entirely different data sections.
+processes in different mount namespaces can work with entirely different sets of data.
 
 ```d2
 grid-rows: 2
@@ -520,7 +520,7 @@ o.n2 -> d2
 
 #### Bind Mount
 
-Conveniently, a directory on the host filesystem can itself be treated as
+A directory on the host file system can itself be treated as
 if it were a storage device and mounted to another directory location.
 This process is known as a **bind mount**.
 
@@ -538,7 +538,7 @@ o: OS {
 }
 ```
 
-Mount namespaces each have their own distinct view of the filesystem.
+Mount namespaces each have their own distinct view of the file system.
 Bind mounts can be used to cleanly mount host directories into these namespaces,
 allowing for **isolated views** while also enabling controlled data sharing between the host and containers
 (or between containers).
@@ -547,8 +547,8 @@ For example:
 
 - `/var` inside `Mount Namespace 1` points to `/app1` on the host.
 - `/var` inside `Mount Namespace 2` points to `/app2` on the host.
-- Both of them share the same `/etc` directory.
-Changes in any namespace will result in the same host's folder.
+- Both namespaces share the same `/etc` directory.
+Changes to this shared directory in either namespace are reflected in the same directory on the host.
 
 ```d2
 OS {
@@ -597,12 +597,12 @@ OS {
 ### Cgroups
 
 **Namespaces** alone are not sufficient for building robust containers because
-they primarily provide isolation of view but not necessarily of resource consumption.
+they primarily isolate views of resources but do not necessarily limit resource consumption.
 Without constraints, processes could compete for system resources
-(CPU, memory, bandwidth) or some processes could consume resources inefficiently,
-impacting the others.
+(CPU, memory, bandwidth), and some processes could consume resources inefficiently,
+affecting others.
 
-The **Linux Kernel** includes a feature called **control groups (cgroups)** to address this.
+The **Linux kernel** includes a feature called **control groups (cgroups)** to address this.
 A cgroup can define limits for resources like CPU time and memory allocation.
 Processes associated with a cgroup **cannot** use more resources than the limits defined for that cgroup.
 
@@ -660,6 +660,7 @@ n: {
   }
 }
 c: Container 1 {
+  grid-rows: 1
   p1: Process 1 {
     class: process
   }
@@ -681,7 +682,7 @@ If one process is attacked or behaves erratically,
 it can potentially bring down other processes or even the entire machine
 because they all share the host's resources.
 
-Containers help to build isolated environments,
+Containers help create isolated environments,
 effectively providing each application with what appears to be its own operating system.
 This greatly mitigates many problems that can arise when a container is under attack or misbehaves.
 
@@ -689,7 +690,7 @@ Compared to virtual machines, containers are **not completely isolated** because
 Misconfigured containers can potentially be compromised in ways that could allow an attacker to affect the host system,
 such as:
 
-- **Mapping the host’s root user to a container’s user:**  
+- **Mapping the host's root user to a container's user:**\
 If the root user inside a container is directly mapped to the root user on the host,
 any compromise of the container's root account could grant an attacker unrestricted access to the host kernel and the entire server.
 
@@ -700,8 +701,8 @@ an attacker who gains control of the container may be able to access or tamper w
 ## Distributed Containerization
 
 Taking containerization a step further,
-the seamless integration of containers across multiple physical or virtual machines allows
-for the construction of elegant and scalable distributed environments.
+integrating containers across multiple physical or virtual machines allows
+the creation of scalable distributed environments.
 
 ```d2
 Server 1 {
@@ -734,11 +735,11 @@ Server 3 {
 
 One of the most critical challenges in such distributed container environments
 is enabling containers to communicate with each other **transparently**,
-irrespective of the underlying physical network infrastructure and on which host a container is running.
+regardless of the underlying physical network infrastructure or the host on which a container is running.
 
-### Network Overlaying
+### Overlay Networking
 
-**Network Overlaying** is a technique widely used in containerization solutions
+**Overlay networking** is a technique widely used in containerization solutions
 to address cross-host container communication:
 
 - An **underlay network** refers to the **physical network** infrastructure,
@@ -786,7 +787,7 @@ un: "Underlay Networks" {
 ```
 
 - An **overlay network** is a virtual network that is logically superimposed on an existing physical (underlay) network infrastructure.
-This layer is specifically configured to obscure the underlying network complexity,
+This layer hides the complexity of the underlying network,
 allowing devices to interact as though they are directly connected within the same network.
 
 ```d2
@@ -854,7 +855,7 @@ un.n2 -> on
 Instead of relying directly on the physical network addresses of the hosts,
 each container in the overlay network is typically assigned a unique IP address within
 the cluster's virtual address space.
-This is often called a **Cluster Address**.
+This is often called a **cluster address**.
 
 ```d2
 Cluster {
@@ -883,9 +884,9 @@ Two main questions need to be addressed for this to work:
 Maintaining the state of this overlay network is often handled similarly to a [distributed database cluster]({{< ref "distributed-database" >}}).
 A central **controller** typically manages the overlay network's settings and synchronizes them across the cluster:
 
-- The cluster's network state changes frequently (e.g., containers starting, stopping, moving),
+- The cluster's network state changes frequently (e.g., containers start, stop, or move),
 necessitating strong consistency to avoid routing errors.
-- A central controller offers a simpler, more powerful point for managing and inspecting the cluster's network
+- A central controller provides a central point for managing and inspecting the cluster's network.
 
 ```d2
 Cluster {
@@ -930,7 +931,7 @@ Let's consider an example of sending a packet from `Container 1` (on `Host 1`) t
 
 - **Encapsulation**: The initial packet is created with the source address of `Container 1` and the destination address of `Container 3`.
 When this packet reaches the networking stack of `Host 1`, it is **encapsulated**.
-This means the original packet (with Cluster IPs) is wrapped inside
+This means the original packet (with cluster IP addresses) is encapsulated using
 the physical IP address of `Host 1` as its source and the physical IP address of `Host 2` as its destination.
 Physical network devices then transmit the packet normally across the cluster.
 
@@ -939,17 +940,21 @@ Cluster {
     h1: "Host 1 (1.1.1.1)" {
         c1: "Container 1 (192.168.1.1)" {
             i: Initial Packet {
-                p: |||yaml
+                p: |||
                 Source: 192.168.1.1 (Container 1)
+
                 Destination: 192.168.1.3 (Container 3)
                 |||
             }
         }
         e: "Encapsulated Packet" {
-            p: |||yaml
+            p: |||
             Outer Source: 1.1.1.1 (Host 1)
+
             Outer Destination: 2.2.2.2 (Host 2)
+
             Source: 192.168.1.1 (Container 1)
+
             Destination: 192.168.1.3 (Container 3)
             |||
         }
@@ -967,51 +972,58 @@ Cluster {
 
 - **Decapsulation**: When the encapsulated packet arrives at `Host 2`,
 its networking stack recognizes it as an overlay packet.
-The outer header (with physical IPs) is stripped off (**decapsulated**),
-revealing the original inner packet (with Cluster IPs).
+The outer header (with physical IP addresses) is removed (**decapsulated**),
+revealing the original inner packet (with cluster IP addresses).
 `Host 2` then forwards the original packet to `Container 3`.
 
 ```d2
 Cluster {
-  grid-rows: 1
   h1: "Host 1 (1.1.1.1)" {
       c1: "Container 1 (192.168.1.1)" {
         i: Initial Packet {
-            p: |||yaml
+            p: |||
             Source: 192.168.1.1 (Container 1)
+
             Destination: 192.168.1.3 (Container 3)
             |||
         }
       }
       e: "Encapsulated Packet" {
-          p: |||yaml
+          p: |||
           Outer Source: 1.1.1.1 (Host 1)
+
           Outer Destination: 2.2.2.2 (Host 2)
+
           Source: 192.168.1.1 (Container 1)
+
           Destination: 192.168.1.3 (Container 3)
           |||
       }
   }
   h2: "Host 2 (2.2.2.2)" {
     e: "Encapsulated Packet" {
-        p: |||yaml
+        p: |||
         Outer Source: 1.1.1.1 (Host 1)
+
         Outer Destination: 2.2.2.2 (Host 2)
+
         Source: 192.168.1.1 (Container 1)
+
         Destination: 192.168.1.3 (Container 3)
         |||
     }
     c1: "Container 3 (192.168.1.3)" {
       d: "Decapsulated Packet" {
-          p: |||yaml
+          p: |||
           Source: 192.168.1.1 (Container 1)
+
           Destination: 192.168.1.3 (Container 3)
           |||
       }
     }
   }
   h1.c1.i -> h1.e: 1. Encapsulated
-  h1.e -> h2.e: 2. Physical transmitted
+  h1.e -> h2.e: 2. Physically transmitted
   h2.e -> h2.c1.d: 3. Decapsulated
 }
 ```
